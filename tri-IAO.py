@@ -221,10 +221,10 @@ TRI_LABELS = {
     "3A":"TRI 3A - URGENT","3B":"TRI 3B - URGENT DIFFERE","4":"TRI 4 - MOINS URGENT","5":"TRI 5 - NON URGENT",
 }
 TRI_SECTORS = {
-    "M":"SAUV - Reanimation immediate","1":"SAUV - Prise en charge immediate",
-    "2":"Secteur Lourd - Medecin < 20 min","3A":"Secteur Lourd - Medecin < 30 min",
-    "3B":"Secteur Intermediaire - Medecin < 1h","4":"Secteur Ambulatoire - Medecin < 2h",
-    "5":"Zone d'attente - Consultation / reorientation",
+    "M":"Dechocage - Reanimation immediate","1":"Dechocage - Prise en charge immediate",
+    "2":"Salle de soins aigus - Medecin < 20 min","3A":"Salle de soins aigus - Medecin < 30 min",
+    "3B":"Polyclinique urgences - Medecin < 1h","4":"Consultation urgences - Medecin < 2h",
+    "5":"Salle d'attente - Consultation / reorientation MG",
 }
 TRI_DELAIS = {"M":5,"1":5,"2":15,"3A":30,"3B":60,"4":120,"5":999}
 TRI_BOX_CSS  = {"M":"box-M","1":"box-1","2":"box-2","3A":"box-3A","3B":"box-3B","4":"box-4","5":"box-5"}
@@ -345,7 +345,7 @@ def french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2_score
     if motif == "AVC / Deficit neurologique":
         dh = details.get("delai_heures",999)
         ok = details.get("delai_ok",False)
-        if dh <= 4.5 or ok: return "1","Deficit < 4h30 - filiere AVC.","FRENCH Tri 1"
+        if dh <= 4.5 or ok: return "1","Deficit < 4h30 - filiere Stroke / thrombolyse.","FRENCH Tri 1"
         if dh >= 24: return "3B","Deficit > 24h.","FRENCH Tri 3B"
         return "2","Deficit neurologique aigu.","FRENCH Tri 2"
     if motif == "Alteration de conscience / Coma":
@@ -383,7 +383,7 @@ def french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2_score
     if motif == "Retention d'urine / anurie": return "2","Retention urinaire.","FRENCH Tri 2"
     if motif == "Douleur testiculaire / torsion":
         if details.get("intense") or details.get("suspicion_torsion"): return "2","Torsion suspectee.","FRENCH Tri 2"
-        return "3B","Avis referent.","FRENCH Tri 3B"
+        return "3B","Avis specialiste de garde.","FRENCH Tri 3B"
     if motif == "Hematurie":
         if details.get("abondante_active"): return "2","Hematurie abondante.","FRENCH Tri 2"
         return "3B","Hematurie moderee.","FRENCH Tri 3B"
@@ -425,11 +425,11 @@ def french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2_score
     if motif == "Idee / comportement suicidaire": return "1","Comportement suicidaire.","FRENCH Tri 1"
     if motif == "Troubles du comportement / psychiatrie":
         if details.get("agitation") or details.get("violence"): return "2","Agitation/violence.","FRENCH Tri 2"
-        return "4","Consultation psy.","FRENCH Tri 4"
+        return "4","Consultation psychiatrique.","FRENCH Tri 4"
     if motif in ["Intoxication medicamenteuse","Intoxication non medicamenteuse"]:
         if details.get("mauvaise_tolerance") or details.get("intention_suicidaire") or details.get("cardiotropes"):
             return "2","Mauvaise tolerance / suicidaire.","FRENCH Tri 2"
-        return "3B","Avis referent.","FRENCH Tri 3B"
+        return "3B","Avis specialiste de garde.","FRENCH Tri 3B"
     if motif == "Fievre":
         if temp >= 40 or temp <= 35.2 or details.get("confusion") or details.get("purpura") or details.get("temp_extreme"):
             return "2","Fievre severe ou signes graves.","FRENCH Tri 2"
@@ -467,7 +467,7 @@ def french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2_score
         return "5","Peu abondant.","FRENCH Tri 5"
     if motif in ["Corps etranger / brulure oculaire","Trouble visuel / cecite"]:
         if details.get("intense") or details.get("chimique") or details.get("brutal"): return "2","Urgence ophtalmologique.","FRENCH Tri 2"
-        return "3B","Avis referent.","FRENCH Tri 3B"
+        return "3B","Avis specialiste de garde.","FRENCH Tri 3B"
     # Fallback
     eva = details.get("eva",0)
     if news2_score >= 5 or gcs < 15: return "2",f"NEWS2={news2_score} GCS={gcs}.","NEWS2/GCS"
@@ -526,8 +526,8 @@ def echelle_douleur(age_patient):
             v = col.selectbox(lbl, opts, key=f"flacc_{i}")
             total += int(v[0])
         if total <= 2:   interp, css = "Douleur legere / absente","score-low"
-        elif total <= 6: interp, css = "Douleur moderee - antalgiques palier 1","score-med"
-        else:             interp, css = "Douleur severe - antalgiques urgents","score-high"
+        elif total <= 6: interp, css = "Douleur moderee - antalgiques niveau 1 OMS","score-med"
+        else:             interp, css = "Douleur severe - antalgiques IV urgents","score-high"
         return total, "FLACC", interp, css
     elif age_patient < 8:
         st.markdown("**Echelle des visages Wong-Baker** *(3-8 ans)*")
@@ -551,9 +551,9 @@ def echelle_douleur(age_patient):
         score = st.slider("Douleur de 0 (aucune) a 10 (maximale)", 0, 10, 0, key="eva_std")
         emoji_map = {0:"😌",1:"🙂",2:"🙂",3:"😐",4:"😐",5:"😟",6:"😟",7:"😣",8:"😣",9:"😫",10:"😭"}
         st.markdown(f"### {emoji_map.get(score,'😐')}  EVA = {score}/10")
-        if score <= 3:   interp, css = "Douleur legere - palier 1","score-low"
-        elif score <= 6: interp, css = "Douleur moderee - palier 1-2","score-med"
-        else:             interp, css = "Douleur severe - palier 2-3 ou IV","score-high"
+        if score <= 3:   interp, css = "Douleur legere - niveau 1 OMS","score-low"
+        elif score <= 6: interp, css = "Douleur moderee - niveau 1-2 OMS","score-med"
+        else:             interp, css = "Douleur severe - niveau 2-3 OMS ou IV","score-high"
         return score, "EVA", interp, css
 
 
@@ -583,14 +583,14 @@ def generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo
   <div class="fiche-row"><span>FC</span><span>{fc} bpm</span></div>
   <div class="fiche-row"><span>PAS</span><span>{pas} mmHg</span></div>
   <div class="fiche-row"><span>SpO2</span><span>{spo2} %</span></div>
-  <div class="fiche-row"><span>FR</span><span>{fr} cpm</span></div>
+  <div class="fiche-row"><span>FR</span><span>{fr} resp/min</span></div>
   <div class="fiche-row"><span>GCS</span><span>{gcs}/15</span></div>
   <div class="fiche-row"><span>NEWS2</span><span>{news2} - {news2_label}</span></div>
   <div class="fiche-row"><span>EVA/FLACC</span><span>{eva}/10</span></div>
   <div class="fiche-section">ORIENTATION</div>
   <div class="fiche-row"><span>Secteur</span><span><b>{sector}</b></span></div>
   <div style="font-size:0.7rem;color:#94a3b8;margin-top:10px;text-align:center;">
-    FRENCH Triage SFMU V1.1 - Ismaile Ibn-Daifa, IAO
+    FRENCH Triage - Adaptation SIAMU Belgique - Ismaïl Ibn-Daïfa, Infirmier SIAMU
   </div>
 </div>
 """
@@ -613,22 +613,22 @@ def check_coherence(fc, pas, spo2, fr, gcs, temp, s_eva, motif, atcd, details, n
     if "allergie" in motif.lower() and details.get("dyspnee"):
         danger.append("ANAPHYLAXIE SEVERE : Adrenaline 0.5 mg IM immediatement")
     if details.get("mal_score", 0) >= 8 or motif == "Accouchement imminent":
-        danger.append("NE PAS TRANSPORTER : Malinas >= 8 - protocole accouchement inopiné")
+        danger.append("NE PAS TRANSPORTER : Malinas >= 8 - protocole accouchement inopiné (protocole d'urgence)")
     if news2_score >= 5 and temp >= 38.5:
         danger.append("SEPSIS GRAVE : NEWS2 >= 5 + fievre - hemocultures + antibiotiques dans l'heure")
     if pas < 90 and fc > 100:
         si = round(fc/pas, 1) if pas > 0 else 0
-        danger.append(f"CHOC probable : Shock Index {si} (FC {fc}/PAS {pas}) - 2 VVP + remplissage")
+        danger.append(f"CHOC probable : Shock Index {si} (FC {fc}/PAS {pas}) - 2 voies veineuses + remplissage NaCl 0.9%")
     if spo2 < 85 or fr >= 40:
-        danger.append(f"DETRESSE RESPIRATOIRE : SpO2 {spo2}% FR {fr} - O2 haut debit + preparer intubation")
+        danger.append(f"DETRESSE RESPIRATOIRE : SpO2 {spo2}% FR {fr} - O2 haut debit + preparer IOT (intubation orotracheale)")
     if gcs <= 8:
-        danger.append(f"COMA GCS {gcs} : Protection VA - position laterale - intubation a discuter")
+        danger.append(f"COMA GCS {gcs} : Protection des voies aeriennes - position laterale de securite (PLS) - intubation a evaluer (REA)")
     if temp <= 32:
         danger.append(f"HYPOTHERMIE SEVERE T {temp}C : rechauffement actif - risque FV")
     if temp >= 41:
         danger.append(f"HYPERTHERMIE MALIGNE T {temp}C : refroidissement immediat")
     if "Immunodepression" in atcd and temp >= 38.5:
-        warning.append("NEUTROPENIE FEBRILE possible : NFS urgente + antibiotiques sans attendre")
+        warning.append("NEUTROPENIE FEBRILE possible : Hemogramme urgent + antibiotiques sans attendre")
     return danger, warning, info
 
 
@@ -638,39 +638,39 @@ def check_coherence(fc, pas, spo2, fr, gcs, temp, s_eva, motif, atcd, details, n
 def suggest_bilan(motif, details, fc, pas, spo2, fr, gcs, temp, age, atcd, news2_score, niveau):
     b = {"Biologie":[],"Imagerie":[],"ECG / Monitoring":[],"Gestes immediats":[],"Avis specialiste":[]}
     if niveau in ["M","1","2"]:
-        b["Biologie"] += ["NFS, plaquettes","Ionogramme, creatinine","Glycemie","Groupe RAI"]
-        b["ECG / Monitoring"] += ["Scope cardiorespiratoire","SpO2 continue","VVP calibre"]
+        b["Biologie"] += ["Hemogramme complet + plaquettes","Ionogramme, creatinine","Glycemie","Groupe RAI"]
+        b["ECG / Monitoring"] += ["Monitoring cardiorespiratoire continu","SpO2 continue","Voie veineuse peripherique (gros calibre)"]
     if "thoracique" in motif.lower() or "SCA" in motif:
-        b["Biologie"] += ["Troponine Hs T0 et T1h","D-Dimeres si EP","BNP si IC"]
+        b["Biologie"] += ["Troponine Hs T0 et T1h","D-Dimeres si EP","NT-proBNP si insuffisance cardiaque"]
         b["ECG / Monitoring"] += ["ECG 12 derivations URGENT","Repeter ECG a 30 min"]
-        b["Imagerie"] += ["Radio thorax face"]
+        b["Imagerie"] += ["RX thorax face"]
         b["Gestes immediats"] += ["Aspirine 250 mg si SCA non CI","O2 si SpO2 < 95%"]
         if "Anticoagulants / AOD" in atcd:
-            b["Gestes immediats"] += ["ATTENTION anticoagulants - adapter heparine"]
+            b["Gestes immediats"] += ["ATTENTION anticoagulants - adapter HBPM/heparine"]
     if "AVC" in motif or "neurologique" in motif.lower():
-        b["Biologie"] += ["NFS TP TCA fibrinogene","Glycemie (CI thrombolyse si < 0.6 ou > 22)"]
+        b["Biologie"] += ["Hemogramme + coagulation (TP, TCA, fibrinogene)","Glycemie (CI thrombolyse si < 0.6 ou > 22)"]
         b["Imagerie"] += ["TDM cerebral sans injection URGENT","IRM si disponible"]
         b["Avis specialiste"] += ["Neurologue vasculaire urgent"]
-        b["Gestes immediats"] += ["ALERTE FILIERE AVC - objectif porte-aiguille < 60 min"]
+        b["Gestes immediats"] += ["ALERTE FILIERE STROKE - objectif door-to-needle < 60 min"]
     if "dyspnee" in motif.lower() or "respiratoire" in motif.lower():
-        b["Biologie"] += ["Gaz du sang arteriels","D-Dimeres si EP"]
-        b["Imagerie"] += ["Radio thorax","Echo pulmonaire si dispo"]
-        b["Gestes immediats"] += ["O2 - objectif SpO2 > 94%","Position demi-assise"]
+        b["Biologie"] += ["Gazometrie arterielle","D-Dimeres si EP"]
+        b["Imagerie"] += ["RX thorax","Echographie pulmonaire si dispo"]
+        b["Gestes immediats"] += ["O2 - objectif SpO2 > 94%","Position semi-assise (Fowler)"]
     if "traumatisme" in motif.lower() and niveau in ["M","1","2"]:
-        b["Biologie"] += ["Bilan pre-transfusionnel","Lactates"]
-        b["Imagerie"] += ["Pan-scanner si polytrauma","Echo-FAST"]
-        b["Gestes immediats"] += ["Compression hemorragie externe","2 VVP + remplissage"]
+        b["Biologie"] += ["Bilan pre-transfusionnel (groupe, Rh, RAI, Coombs)","Lactates"]
+        b["Imagerie"] += ["CT-scanner corps entier si polytrauma","Echographie FAST"]
+        b["Gestes immediats"] += ["Compression directe hemorragie + garrot si membre","2 voies veineuses + remplissage NaCl 0.9%"]
     if "fievre" in motif.lower() or (temp >= 38.5 and news2_score >= 3):
-        b["Biologie"] += ["Hemocultures x2 AVANT ATB","Lactates","CRP PCT NFS"]
-        b["Gestes immediats"] += ["Hemocultures AVANT antibiotherapie","ATB large spectre si sepsis grave"]
+        b["Biologie"] += ["Hemocultures x2 AVANT antibiotiques","Lactates","CRP, PCT, hemogramme"]
+        b["Gestes immediats"] += ["Hemocultures AVANT antibiotherapie","Antibiotiques large spectre si sepsis grave"]
     if "allergie" in motif.lower():
         b["Gestes immediats"] += ["ADRENALINE 0.5 mg IM face anterolaterale cuisse","Antihistaminique + corticoides IV","Remplissage NaCl 0.9%"]
     if "hypoglycemie" in motif.lower():
-        b["Gestes immediats"] += ["Glycemie capillaire IMMEDIATE","G30% 50mL IV si inconscient","Glucagon 1mg SC/IM si pas d'acces"]
+        b["Gestes immediats"] += ["Glycemie capillaire IMMEDIATE","Glucose 30% 50mL IV si inconscient","Glucagon 1mg IM/SC si pas d'acces"]
     if "intoxication" in motif.lower():
-        b["Biologie"] += ["Toxicologie urinaire + sanguine","Paracetamol + ethanol systematiques"]
+        b["Biologie"] += ["Screening toxicologique urinaire + sanguin","Paracetamol + ethanol systematiques"]
         b["ECG / Monitoring"] += ["ECG - toxiques cardiotropes"]
-        b["Avis specialiste"] += ["Centre antipoison"]
+        b["Avis specialiste"] += ["Centre Antipoisons (070 245 245)"]
     return {k:v for k,v in b.items() if v}
 
 
@@ -696,12 +696,12 @@ def generate_sbar(age, motif, cat, atcd, allergies, supp_o2, temp, fc, pas, spo2
     if pas < 90:  anomalies.append(f"hypotension {pas} mmHg")
     if pas > 180: anomalies.append(f"HTA {pas} mmHg")
     if spo2 < 94: anomalies.append(f"desaturation {spo2}%")
-    if fr > 20:   anomalies.append(f"polypnee {fr} cpm")
+    if fr > 20:   anomalies.append(f"tachypnee {fr} resp/min")
     vitaux_txt = "dans les normes" if not anomalies else "ANOMALIES : " + ", ".join(anomalies)
     return f"""{'='*52}
   TRANSMISSION SBAR - IAO Expert Pro v11.0
-  FRENCH Triage SFMU V1.1 | {now_str}
-  Ismaile Ibn-Daifa - Infirmier Urgences
+  FRENCH Triage - Adaptation SIAMU Belgique | {now_str}
+  Ismaïl Ibn-Daïfa - Infirmier SIAMU - Urgences
 {'='*52}
 
 [S] SITUATION
@@ -717,7 +717,7 @@ O2 supplementaire a l'admission : {'oui' if supp_o2 else 'non'}
 
 [A] ASSESSMENT
 Constantes : T {temp}C | FC {fc} bpm | PAS {pas} mmHg
-             SpO2 {spo2}% | FR {fr} cpm | GCS {gcs}/15
+             SpO2 {spo2}% | FR {fr} resp/min | GCS {gcs}/15
 Bilan vitaux : {vitaux_txt}
 NEWS2 : {news2} ({news2_label})
 
@@ -733,12 +733,12 @@ Reference FRENCH : {critere_ref}
 
 [R] RECOMMENDATION
 Orientation : {sector}
-{'Demande prise en charge IMMEDIATE en SAUV.' if niveau in ['M','1'] else
+{'Demande prise en charge IMMEDIATE en dechocage.' if niveau in ['M','1'] else
  'Demande evaluation medicale urgente < 20 min.' if niveau == '2' else
  'Evaluation dans les delais recommandes.'}
 
 {'='*52}
-Signe : Ismaile Ibn-Daifa (IAO) | {now_str}
+Signe : Ismaïl Ibn-Daïfa (Infirmier SIAMU) | {now_str}
 """
 
 
@@ -747,7 +747,7 @@ Signe : Ismaile Ibn-Daifa (IAO) | {now_str}
 # =============================================================================
 with st.sidebar:
     st.markdown("## IAO Expert Pro v11.0")
-    st.caption("FRENCH Triage SFMU V1.1")
+    st.caption("FRENCH Triage - Adaptation SIAMU Belgique")
 
     st.markdown('<div class="section-header">Mode</div>', unsafe_allow_html=True)
     mode = st.radio("Interface", ["Tri Rapide (< 2 min)","Complet"], horizontal=True, label_visibility="collapsed")
@@ -789,8 +789,8 @@ with st.sidebar:
     db_count = len(load_patient_db())
     st.markdown(f'<div class="section-header">Registre : {db_count} patient(s)</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="legal-text">FRENCH Triage SFMU V1.1 - Juin 2018<br>Usage professionnel exclusif.</div>', unsafe_allow_html=True)
-    st.markdown('<div class="signature">Ismaile Ibn-Daifa<br>Infirmier Urgences</div>', unsafe_allow_html=True)
+    st.markdown('<div class="legal-text">FRENCH Triage (adapt. SIAMU Belgique) - Ref. SFMU V1.1<br>Usage professionnel exclusif.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="signature">Ismaïl Ibn-Daïfa<br>Infirmier SIAMU - Urgences</div>', unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -826,7 +826,7 @@ if st.session_state.mode == "rapide":
         fc   = c2.number_input("FC", 20, 220, 80, key="r_fc")
         pas  = c3.number_input("PAS", 40, 260, 120, key="r_pas")
         spo2 = c4.number_input("SpO2%", 50, 100, 98, key="r_spo2")
-        fr   = c5.number_input("FR", 5, 60, 16, key="r_fr")
+        fr   = c5.number_input("FR (resp/min)", 5, 60, 16, key="r_fr")
         gcs  = c6.number_input("GCS", 3, 15, 15, key="r_gcs")
 
         si = round(fc/pas, 2) if pas > 0 else 0
@@ -974,7 +974,7 @@ else:
         fc   = c1.number_input("FC (bpm)", 20, 220, 80)
         pas  = c2.number_input("Systolique (mmHg)", 40, 260, 120)
         spo2 = c2.slider("SpO2 (%)", 50, 100, 98)
-        fr   = c3.number_input("FR (cpm)", 5, 60, 16)
+        fr   = c3.number_input("FR (resp/min)", 5, 60, 16)
         gcs  = c3.select_slider("Glasgow", list(range(3, 16)), 15)
 
         st.markdown('<div class="section-header">Alertes & Shock Index</div>', unsafe_allow_html=True)
@@ -998,7 +998,7 @@ else:
             "news2-low":("Standard","Reevaluation >= 12h."),
             "news2-med":("Rapprochee","Reevaluation 1h."),
             "news2-high":("Urgente","Evaluation medicale immediate."),
-            "news2-crit":("URGENCE ABSOLUE","Transfert SAUV immediat."),
+            "news2-crit":("URGENCE ABSOLUE","Transfert dechocage immediat."),
         }
         ti, di = interp_map[news2_class]
         ci.markdown(f"**{ti}**") ; ci.markdown(di)
@@ -1182,7 +1182,7 @@ else:
             f'</div>', unsafe_allow_html=True
         )
         st.info(f"**Orientation :** {sector}")
-        st.markdown(f'<div class="french-ref">Ref. FRENCH Triage SFMU V1.1 : {critere_ref}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="french-ref">Ref. FRENCH Triage - Adaptation SIAMU Belgique : {critere_ref}</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-header">Alertes securite</div>', unsafe_allow_html=True)
         alertes_d, alertes_w, _ = check_coherence(fc, pas, spo2, fr, gcs, temp, details.get("eva",0), motif, atcd, details, news2)
@@ -1276,7 +1276,7 @@ else:
             t7=cb.checkbox("Aspirine < 7j",key="timi7")
             timi_score=sum([t1,t2,t3,t4,t5,t6,t7])
             if timi_score<=2: tc,ti="score-low","Risque 14j ~5% - surveillance + bilan"
-            elif timi_score<=4: tc,ti="score-med","Risque 14j ~13-20% - heparine + coro rapide"
+            elif timi_score<=4: tc,ti="score-med","Risque 14j ~13-20% - HBPM + coronarographie rapide"
             else: tc,ti="score-high","Risque 14j ~26-41% - coronarographie urgente < 2h"
             st.markdown(score_badge_custom(f"{timi_score}/7", tc), unsafe_allow_html=True)
             st.markdown(f'<div class="score-interp">→ {ti}</div>', unsafe_allow_html=True)
@@ -1298,7 +1298,7 @@ else:
             if sil_score==0: sc,si="score-info","Pas de detresse."
             elif sil_score<=3: sc,si="score-low","Detresse legere."
             elif sil_score<=6: sc,si="score-med","Detresse moderee - pediatre urgent."
-            else: sc,si="score-high","Detresse severe - reanimation neonatale."
+            else: sc,si="score-high","Detresse severe - reanimation neonatale (NIC/NICU)."
             st.markdown(score_badge_custom(f"{sil_score}/10", sc), unsafe_allow_html=True)
             st.markdown(f'<div class="score-interp">→ {si}</div>', unsafe_allow_html=True)
 
@@ -1338,13 +1338,13 @@ else:
                 push=cb4.selectbox("Envie de pousser",["0 - Absente","1 - Presente"],key="mal_pousser")
             mal_score=int(par[0])+int(trav[0])+int(cont[0])+int(inter[0])+int(poche[0])+int(push[0])
             if mal_score<=5: mc,mi="score-low","Transport possible."
-            elif mal_score<=7: mc,mi="score-med","Transport rapide SMUR."
+            elif mal_score<=7: mc,mi="score-med","Transport rapide SMUR/PIT."
             elif mal_score<=9: mc,mi="score-med","Preparer accouchement sur place."
             else: mc,mi="score-high","NE PAS TRANSPORTER - accouchement imminent."
             st.markdown(score_badge_custom(f"{mal_score}/10", mc), unsafe_allow_html=True)
             st.markdown(f'<div class="score-interp">→ {mi}</div>', unsafe_allow_html=True)
             if mal_score >= 8:
-                st.markdown('<div class="alert-danger">NE PAS TRANSPORTER - Activer protocole accouchement inopiné</div>', unsafe_allow_html=True)
+                st.markdown('<div class="alert-danger">NE PAS TRANSPORTER - Activer protocole accouchement inopiné (protocole d'urgence)</div>', unsafe_allow_html=True)
 
         with st.expander("Score Brulure - Regle des 9 + Baux", expanded=False):
             st.markdown('<div class="score-title">Regle des 9 de Wallace + Indice de Baux</div>', unsafe_allow_html=True)
@@ -1363,9 +1363,9 @@ else:
             scb=min(bt+bta+btp+bab+bmsd+bmsg+bmid+bmig+bper,100)
             baux=age_br+scb; baux_r=age_br+int(1.5*scb) if binh else baux
             profonde="Profonde" in bprof
-            if scb>=50 or baux>=100: brc,brs="score-high","CRITIQUE - Centre brules + reanimation."
-            elif scb>=20 or (profonde and scb>=10) or binh: brc,brs="score-high","GRAVE - Centre specialise."
-            elif scb>=10 or profonde: brc,brs="score-med","MODEREE - Hospitalisation + plasticien."
+            if scb>=50 or baux>=100: brc,brs="score-high","CRITIQUE - Centre des Grands Brules + reanimation."
+            elif scb>=20 or (profonde and scb>=10) or binh: brc,brs="score-high","GRAVE - Centre des Grands Brules."
+            elif scb>=10 or profonde: brc,brs="score-med","MODEREE - Hospitalisation + chirurgien plasticien."
             elif scb>=1: brc,brs="score-low","LEGERE - Ambulatoire possible."
             else: brc,brs="score-info","Aucune surface renseignee."
             cr1,cr2=st.columns(2)
@@ -1394,7 +1394,7 @@ else:
             bok=(bg>=10 and bp>=90 and 10<=bfr<=29 and bs>=90)
             blet=bcr or bbu; nbl=sum([ba,bth,bad,bcu,bai])
             if blet and not bok: bcat,bcc,bint="T4 DEPASSE","score-high","Soins palliatifs en catastrophe."
-            elif not bok and nbl>=2: bcat,bcc,bint="T1 EXTREME URGENCE","score-high","SAUV immediat."
+            elif not bok and nbl>=2: bcat,bcc,bint="T1 EXTREME URGENCE","score-high","Dechocage immediat."
             elif not bok or nbl>=1: bcat,bcc,bint="T1 URGENCE ABSOLUE","score-high","Dechocage immediat."
             elif bok and nbl==0 and not blet: bcat,bcc,bint="T3 DIFFERE","score-low","Stable - surveillance."
             else: bcat,bcc,bint="T2 URGENCE RELATIVE","score-med","Reevaluation frequente."
@@ -1422,7 +1422,7 @@ with reeval_tab:
     re_fc   = cr1.number_input("FC (bpm)", 20, 220, 80, key="re_fc")
     re_pas  = cr2.number_input("PAS (mmHg)", 40, 260, 120, key="re_pas")
     re_spo2 = cr2.slider("SpO2 (%)", 50, 100, 98, key="re_spo2")
-    re_fr   = cr3.number_input("FR (cpm)", 5, 60, 16, key="re_fr")
+    re_fr   = cr3.number_input("FR (resp/min)", 5, 60, 16, key="re_fr")
     re_gcs  = cr3.select_slider("GCS", list(range(3, 16)), 15, key="re_gcs")
 
     re_news2 = compute_news2(re_fr, re_spo2, supp_o2, re_temp, re_pas, re_fc, re_gcs, "BPCO" in atcd)
