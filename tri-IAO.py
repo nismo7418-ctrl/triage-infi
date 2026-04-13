@@ -1,5 +1,8 @@
 import streamlit as st
 from datetime import datetime
+import json
+import os
+import uuid
 
 # --- CONFIGURATION ------------------------------------------------------------
 st.set_page_config(
@@ -8,6 +11,60 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# =============================================================================
+# SYSTEME DE PERSISTANCE DES PATIENTS (fichier JSON)
+# =============================================================================
+PATIENT_DB_FILE = "patients_registry.json"
+
+def load_patient_db():
+    """Charge la base de donnees patients depuis le fichier JSON."""
+    if os.path.exists(PATIENT_DB_FILE):
+        try:
+            with open(PATIENT_DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+    return []
+
+def save_patient_db(patients):
+    """Sauvegarde la base de donnees patients dans le fichier JSON."""
+    try:
+        with open(PATIENT_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(patients, f, ensure_ascii=False, indent=2)
+        return True
+    except IOError:
+        return False
+
+def add_patient_to_db(patient_data):
+    """Ajoute un patient a la base de donnees persistante."""
+    db = load_patient_db()
+    patient_data["uid"] = str(uuid.uuid4())[:8]
+    patient_data["saved_at"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    patient_data["saved_date"] = datetime.now().strftime("%Y-%m-%d")
+    db.insert(0, patient_data)  # Plus recent en premier
+    save_patient_db(db)
+    return patient_data["uid"]
+
+def delete_patient_from_db(uid):
+    """Supprime un patient de la base par son UID."""
+    db = load_patient_db()
+    db = [p for p in db if p.get("uid") != uid]
+    save_patient_db(db)
+
+def search_patients(query):
+    """Recherche dans la base de donnees par motif, age, niveau, date..."""
+    db = load_patient_db()
+    if not query:
+        return db
+    q = query.lower().strip()
+    results = []
+    for p in db:
+        searchable = f"{p.get('motif','')} {p.get('age','')} {p.get('niveau','')} {p.get('cat','')} {p.get('saved_at','')} {p.get('nom','')} {p.get('prenom','')}".lower()
+        if q in searchable:
+            results.append(p)
+    return results
+
 
 # --- CSS ----------------------------------------------------------------------
 st.markdown("""
@@ -79,29 +136,15 @@ padding:14px 16px;margin:8px 0;color:#fca5a5;font-weight:600;font-size:0.9rem;an
 .score-row-val{font-family:'IBM Plex Mono',monospace;color:#e2e8f0;font-weight:600;}
 
 /* ── v11 NOUVEAUTES ── */
-/* Mode tri rapide */
 .tri-rapide-box{background:#020617;border:2px solid #38bdf8;border-radius:14px;padding:24px;margin-bottom:16px;}
 .tri-rapide-title{font-family:'IBM Plex Mono',monospace;color:#38bdf8;font-size:0.8rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px;}
 .question-guidee{background:#0f172a;border:1px solid #1e3a5f;border-left:4px solid #38bdf8;border-radius:8px;padding:12px 16px;margin:6px 0;font-size:0.9rem;}
 .question-label{font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;}
 
-/* Douleur adaptee */
 .douleur-badge{display:inline-flex;align-items:center;justify-content:center;
 width:52px;height:52px;border-radius:50%;font-size:1.3rem;font-weight:700;
 font-family:'IBM Plex Mono',monospace;cursor:pointer;border:2px solid transparent;transition:all 0.15s;}
-.douleur-0{background:#052e16;color:#86efac;}
-.douleur-1{background:#083344;color:#67e8f9;}
-.douleur-2{background:#0c1a2e;color:#93c5fd;}
-.douleur-3{background:#1c1917;color:#d6d3d1;}
-.douleur-4{background:#1c1917;color:#fbbf24;}
-.douleur-5{background:#422006;color:#fb923c;}
-.douleur-6{background:#431407;color:#f97316;}
-.douleur-7{background:#450a0a;color:#f87171;}
-.douleur-8{background:#4c0519;color:#fb7185;}
-.douleur-9{background:#4c0519;color:#f43f5e;}
-.douleur-10{background:#450a0a;color:#fca5a5;animation:pulse 0.8s infinite;}
 
-/* Fiche de tri */
 .fiche-tri{background:white;color:#1e293b;border-radius:10px;padding:20px;font-family:'IBM Plex Sans',sans-serif;}
 .fiche-header{border-bottom:3px solid #0f172a;padding-bottom:10px;margin-bottom:12px;}
 .fiche-title{font-size:1.1rem;font-weight:700;color:#0f172a;}
@@ -114,7 +157,6 @@ font-family:'IBM Plex Mono',monospace;cursor:pointer;border:2px solid transparen
 .fiche-4{background:#dcfce7;color:#14532d;}
 .fiche-5{background:#dbeafe;color:#1e3a8a;}
 
-/* Reevaluation */
 .reeval-row{background:#0f172a;border:1px solid #1e3a5f;border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:0.83rem;}
 .reeval-better{border-left:4px solid #22c55e;}
 .reeval-same{border-left:4px solid #3b82f6;}
@@ -125,6 +167,29 @@ font-family:'IBM Plex Mono',monospace;cursor:pointer;border:2px solid transparen
 
 .legal-text{font-size:0.72rem;color:#475569;font-style:italic;margin-top:8px;}
 .signature{color:#38bdf8;font-weight:600;font-size:0.85rem;border-top:1px solid #1e3a5f;padding-top:10px;margin-top:12px;}
+
+/* ── REGISTRE PATIENTS (NOUVEAU) ── */
+.reg-card{background:#0f172a;border:1px solid #1e3a5f;border-radius:12px;padding:18px 20px;margin-bottom:10px;transition:all 0.2s;}
+.reg-card:hover{border-color:#38bdf8;background:#0c1528;}
+.reg-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.reg-card-title{font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:600;color:#e2e8f0;}
+.reg-card-date{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:#64748b;}
+.reg-card-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px 16px;font-size:0.82rem;}
+.reg-field{display:flex;flex-direction:column;}
+.reg-field-label{font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;}
+.reg-field-value{color:#cbd5e1;font-family:'IBM Plex Mono',monospace;}
+.reg-badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:0.78rem;font-weight:600;padding:3px 10px;border-radius:6px;margin-right:6px;}
+.reg-badge-M{background:#3b0764;color:#d8b4fe;}.reg-badge-1{background:#7f1d1d;color:#fca5a5;}
+.reg-badge-2{background:#7c2d12;color:#fdba74;}.reg-badge-3A{background:#78350f;color:#fde68a;}
+.reg-badge-3B{background:#713f12;color:#fde68a;}.reg-badge-4{background:#14532d;color:#86efac;}
+.reg-badge-5{background:#1e3a5f;color:#93c5fd;}
+.reg-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+.reg-stat-card{background:#020617;border:1px solid #1e3a5f;border-radius:10px;padding:16px;text-align:center;}
+.reg-stat-num{font-family:'IBM Plex Mono',monospace;font-size:1.8rem;font-weight:600;color:#38bdf8;}
+.reg-stat-label{font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;}
+.reg-empty{text-align:center;padding:60px 20px;color:#475569;}
+.reg-empty-icon{font-size:3rem;margin-bottom:12px;opacity:0.4;}
+.reg-search{background:#020617;border:1px solid #1e3a5f;border-radius:10px;padding:14px 18px;margin-bottom:16px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -135,11 +200,13 @@ defaults = {
     'arrival_time': None,
     'sbar_text': "",
     'last_reeval': None,
-    'reeval_history': [],      # liste de snapshots {heure, fc, pas, spo2, fr, gcs, temp, niveau}
-    'mode': 'complet',         # 'rapide' ou 'complet'
+    'reeval_history': [],
+    'mode': 'complet',
     'gcs_y_score': 4,
     'gcs_v_score': 5,
     'gcs_m_score': 6,
+    'confirm_delete': None,      # UID du patient a supprimer (confirmation)
+    'detail_patient_uid': None,  # UID du patient en detail
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -164,7 +231,6 @@ TRI_BOX_CSS  = {"M":"box-M","1":"box-1","2":"box-2","3A":"box-3A","3B":"box-3B",
 TRI_HIST_CSS = {"M":"hist-M","1":"hist-1","2":"hist-2","3A":"hist-3A","3B":"hist-3B","4":"hist-4","5":"hist-5"}
 TRI_EMOJI    = {"M":"🟣","1":"🔴","2":"🟠","3A":"🟡","3B":"🟡","4":"🟢","5":"🔵"}
 
-# Questions discriminantes par motif (Point 1 - questions guidees en 1 clic)
 QUESTIONS_GUIDEES = {
     "Douleur thoracique / SCA": [
         ("ECG realise ?", "ecg_fait", "bool"),
@@ -227,7 +293,6 @@ QUESTIONS_GUIDEES = {
 def french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2_score):
     if news2_score >= 9:
         return "M","NEWS2 >= 9 : engagement vital immediat.","NEWS2 Tri M"
-    # Cardio
     if motif == "Arret cardiorespiratoire": return "M","ACR.","FRENCH Tri M"
     if motif == "Hypotension arterielle":
         if pas <= 70: return "1",f"PAS <= 70 ({pas}).","FRENCH Tri 1"
@@ -442,12 +507,10 @@ def vital_badge(val, lw, lc, hw, hc, u=""):
 
 
 # =============================================================================
-# POINT 2 : ECHELLE DOULEUR ADAPTEE A L'AGE
+# ECHELLE DOULEUR ADAPTEE A L'AGE
 # =============================================================================
 def echelle_douleur(age_patient):
-    """Retourne (score, echelle_utilisee)"""
     if age_patient < 3:
-        # FLACC
         st.markdown("**Echelle FLACC** *(< 3 ans — observation comportementale)*")
         items = {
             "Visage (grimace, froncement)":    ["0 - Aucune expression","1 - Grimace occasionnelle","2 - Froncement permanent"],
@@ -466,9 +529,7 @@ def echelle_douleur(age_patient):
         elif total <= 6: interp, css = "Douleur moderee - antalgiques palier 1","score-med"
         else:             interp, css = "Douleur severe - antalgiques urgents","score-high"
         return total, "FLACC", interp, css
-
     elif age_patient < 8:
-        # Wong-Baker FACES
         st.markdown("**Echelle des visages Wong-Baker** *(3-8 ans)*")
         st.caption("Montrer les visages et demander : *Quel visage montre comment tu te sens ?*")
         faces = {
@@ -485,9 +546,7 @@ def echelle_douleur(age_patient):
         elif score <= 6: interp, css = "Douleur moderee","score-med"
         else:             interp, css = "Douleur severe","score-high"
         return score, "Wong-Baker", interp, css
-
     else:
-        # EVA / EN standard
         st.markdown("**Echelle Visuelle Analogique (EVA)** *(>= 8 ans)*")
         score = st.slider("Douleur de 0 (aucune) a 10 (maximale)", 0, 10, 0, key="eva_std")
         emoji_map = {0:"😌",1:"🙂",2:"🙂",3:"😐",4:"😐",5:"😟",6:"😟",7:"😣",8:"😣",9:"😫",10:"😭"}
@@ -499,12 +558,13 @@ def echelle_douleur(age_patient):
 
 
 # =============================================================================
-# POINT 4 : GENERATION FICHE DE TRI (HTML imprimable)
+# GENERATION FICHE DE TRI
 # =============================================================================
 def generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo2, fr, gcs,
-                        news2, news2_label, eva, atcd, allergies, arrivee_str, details):
+                        news2, news2_label, eva, atcd, allergies, arrivee_str, details, nom="", prenom=""):
     atcd_str = ", ".join(atcd) if atcd else "RAS"
     all_str  = allergies if allergies != "RAS" else "Aucune connue"
+    identite = f"{nom.upper()} {prenom}" if nom or prenom else "NON RENSEIGNE"
     fiche = f"""
 <div class="fiche-tri">
   <div class="fiche-header">
@@ -513,6 +573,7 @@ def generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo
   </div>
   <div class="fiche-niveau fiche-{niveau}">{TRI_EMOJI.get(niveau,'')} {tri_label}</div>
   <div class="fiche-section">PATIENT</div>
+  <div class="fiche-row"><span>Identite</span><span><b>{identite}</b></span></div>
   <div class="fiche-row"><span>Age</span><span>{age} ans</span></div>
   <div class="fiche-row"><span>Motif</span><span><b>{motif}</b></span></div>
   <div class="fiche-row"><span>Allergies</span><span style="color:#dc2626;font-weight:600">{all_str}</span></div>
@@ -619,10 +680,11 @@ def suggest_bilan(motif, details, fc, pas, spo2, fr, gcs, temp, age, atcd, news2
 def generate_sbar(age, motif, cat, atcd, allergies, supp_o2, temp, fc, pas, spo2, fr, gcs,
                   news2, news2_label, eva, eva_echelle, p_pqrst, q_pqrst, r_pqrst, t_onset,
                   details, niveau, tri_label, justif, critere_ref, sector,
-                  gcs_y=4, gcs_v=5, gcs_m=6):
+                  gcs_y=4, gcs_v=5, gcs_m=6, nom="", prenom=""):
     now_str  = datetime.now().strftime("%d/%m/%Y a %H:%M")
     atcd_str = ", ".join(atcd) if atcd else "aucun antecedent"
     all_str  = allergies if allergies and allergies != "RAS" else "aucune allergie connue"
+    identite = f"{nom.upper()} {prenom}" if nom or prenom else "Non renseigne"
     if gcs == 15: conscience = "conscient et oriente"
     elif gcs >= 13: conscience = f"conscience alteree GCS {gcs} (Y{gcs_y}V{gcs_v}M{gcs_m})"
     elif gcs >= 9:  conscience = f"obnubile GCS {gcs} (Y{gcs_y}V{gcs_v}M{gcs_m})"
@@ -643,7 +705,7 @@ def generate_sbar(age, motif, cat, atcd, allergies, supp_o2, temp, fc, pas, spo2
 {'='*52}
 
 [S] SITUATION
-Patient de {age} ans, pris en charge a {now_str}
+Patient : {identite}, {age} ans, pris en charge a {now_str}
 Motif : {motif} ({cat})
 Douleur ({eva_echelle}) : {eva}/10 | {conscience}
 Niveau FRENCH : {tri_label}
@@ -687,7 +749,6 @@ with st.sidebar:
     st.markdown("## IAO Expert Pro v11.0")
     st.caption("FRENCH Triage SFMU V1.1")
 
-    # Bascule mode
     st.markdown('<div class="section-header">Mode</div>', unsafe_allow_html=True)
     mode = st.radio("Interface", ["Tri Rapide (< 2 min)","Complet"], horizontal=True, label_visibility="collapsed")
     st.session_state.mode = "rapide" if "Rapide" in mode else "complet"
@@ -713,14 +774,20 @@ with st.sidebar:
         st.markdown('<div class="chrono">--:--:--</div>', unsafe_allow_html=True)
         st.markdown('<div class="chrono-label">En attente</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="section-header">Patient & ATCD</div>', unsafe_allow_html=True)
-    age       = st.number_input("Age", 0, 120, 45)
-    atcd      = st.multiselect("Facteurs de risque", [
+    st.markdown('<div class="section-header">Identite Patient</div>', unsafe_allow_html=True)
+    p_nom    = st.text_input("Nom", "", key="sb_nom", placeholder="NOM")
+    p_prenom = st.text_input("Prenom", "", key="sb_prenom", placeholder="Prenom")
+    age      = st.number_input("Age", 0, 120, 45)
+    atcd     = st.multiselect("Facteurs de risque", [
         "HTA","Diabete","Insuffisance Cardiaque","BPCO",
         "Anticoagulants / AOD","Grossesse","Immunodepression","Neoplasie"
     ])
     allergies = st.text_input("Allergies", "RAS")
     supp_o2   = st.checkbox("O2 supplementaire")
+
+    # Compteur registre
+    db_count = len(load_patient_db())
+    st.markdown(f'<div class="section-header">Registre : {db_count} patient(s)</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="legal-text">FRENCH Triage SFMU V1.1 - Juin 2018<br>Usage professionnel exclusif.</div>', unsafe_allow_html=True)
     st.markdown('<div class="signature">Ismaile Ibn-Daifa<br>Infirmier Urgences</div>', unsafe_allow_html=True)
@@ -730,22 +797,19 @@ with st.sidebar:
 # TABS
 # =============================================================================
 if st.session_state.mode == "rapide":
-    tabs = st.tabs(["⚡ Tri Rapide","🔄 Reevaluation","📋 Historique"])
-    t_rapide, t_reeval, t_history = tabs
+    tabs = st.tabs(["⚡ Tri Rapide","🔄 Reevaluation","📋 Historique","🗃️ Registre Patients"])
+    t_rapide, t_reeval, t_history, t_registre = tabs
     t_complet = t_scores = None
 else:
     tabs = st.tabs([
         "📊 Signes Vitaux","🔍 Anamnese","⚖️ Triage & SBAR",
-        "🧮 Scores","🔄 Reevaluation",f"📋 Historique ({len(st.session_state.patient_history)})"
+        "🧮 Scores","🔄 Reevaluation",f"📋 Historique ({len(st.session_state.patient_history)})","🗃️ Registre Patients"
     ])
-    t_vitals, t_anamnesis, t_decision, t_scores, t_reeval, t_history = tabs
+    t_vitals, t_anamnesis, t_decision, t_scores, t_reeval, t_history, t_registre = tabs
     t_rapide = None
 
 
-# =============================================================================
-# CONSTANTES VITALES (communes aux deux modes)
-# =============================================================================
-# Valeurs par defaut — seront saisies dans chaque tab
+# Constantes par defaut
 temp = fc = pas = spo2 = fr = gcs = None
 
 
@@ -756,7 +820,6 @@ if st.session_state.mode == "rapide":
     with t_rapide:
         st.markdown('<div class="tri-rapide-title">TRI RAPIDE — Saisie optimisee < 2 minutes</div>', unsafe_allow_html=True)
 
-        # Constantes rapides
         st.markdown('<div class="section-header">1. Constantes vitales</div>', unsafe_allow_html=True)
         c1, c2, c3, c4, c5, c6 = st.columns(6)
         temp = c1.number_input("T° (C)", 30.0, 45.0, 37.0, 0.1, key="r_temp")
@@ -766,18 +829,15 @@ if st.session_state.mode == "rapide":
         fr   = c5.number_input("FR", 5, 60, 16, key="r_fr")
         gcs  = c6.number_input("GCS", 3, 15, 15, key="r_gcs")
 
-        # Shock Index rapide
         si = round(fc/pas, 2) if pas > 0 else 0
         si_css = "vital-crit" if si >= 1.0 else ("vital-warn" if si >= 0.8 else "vital-ok")
         st.markdown(f'Shock Index : <span class="vital-alert {si_css}">{si}</span>', unsafe_allow_html=True)
 
-        # NEWS2 rapide
         bpco_flag = "BPCO" in atcd
         news2 = compute_news2(fr, spo2, supp_o2, temp, pas, fc, gcs, bpco_flag)
         news2_label, news2_class = news2_level(news2)
         st.markdown(f'NEWS2 : <span class="news2-badge {news2_class}">{news2_label}</span>', unsafe_allow_html=True)
 
-        # Motif
         st.markdown('<div class="section-header">2. Motif en 1 clic</div>', unsafe_allow_html=True)
         MOTIFS_FLAT = [
             "Arret cardiorespiratoire","Hypotension arterielle","Douleur thoracique / SCA",
@@ -801,7 +861,6 @@ if st.session_state.mode == "rapide":
         ]
         motif = st.selectbox("Motif", MOTIFS_FLAT, key="r_motif")
 
-        # POINT 1 : Questions guidees automatiques selon motif
         st.markdown('<div class="section-header">3. Questions cles (auto-selectionnees)</div>', unsafe_allow_html=True)
         details = {"eva": 5}
         questions = QUESTIONS_GUIDEES.get(motif, [])
@@ -816,14 +875,12 @@ if st.session_state.mode == "rapide":
         else:
             st.caption("Aucune question specifique - motif general.")
 
-        # POINT 2 : Douleur adaptee a l'age
         st.markdown('<div class="section-header">4. Evaluation de la douleur</div>', unsafe_allow_html=True)
         eva_score, eva_echelle, eva_interp, eva_css = echelle_douleur(age)
         details["eva"] = eva_score
         st.markdown(f'<div class="score-result {eva_css}">{eva_score}/10 ({eva_echelle})</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="score-interp">→ {eva_interp}</div>', unsafe_allow_html=True)
 
-        # Calcul triage
         niveau, justif, critere_ref = french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2)
         tri_label = TRI_LABELS[niveau]
         sector    = TRI_SECTORS[niveau]
@@ -831,7 +888,6 @@ if st.session_state.mode == "rapide":
 
         st.markdown('<div class="section-header">5. Resultat</div>', unsafe_allow_html=True)
 
-        # Alerte depassement reevaluation
         if st.session_state.last_reeval:
             since_min = (datetime.now() - st.session_state.last_reeval).total_seconds() / 60
             if since_min > TRI_DELAIS.get(niveau, 60):
@@ -846,40 +902,59 @@ if st.session_state.mode == "rapide":
             unsafe_allow_html=True
         )
 
-        # Alertes securite
         alertes_d, alertes_w, _ = check_coherence(fc, pas, spo2, fr, gcs, temp, eva_score, motif, atcd, details, news2)
         for a in alertes_d: st.markdown(f'<div class="alert-danger">⚠ {a}</div>', unsafe_allow_html=True)
         for a in alertes_w: st.markdown(f'<div class="alert-warning">△ {a}</div>', unsafe_allow_html=True)
 
-        # POINT 3 : Fiche de tri imprimable
         st.markdown('<div class="section-header">Fiche de tri</div>', unsafe_allow_html=True)
         arrivee_str = st.session_state.arrival_time.strftime("%d/%m/%Y %H:%M") if st.session_state.arrival_time else datetime.now().strftime("%d/%m/%Y %H:%M")
-        fiche_html = generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo2, fr, gcs, news2, news2_label, eva_score, atcd, allergies, arrivee_str, details)
+        fiche_html = generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo2, fr, gcs, news2, news2_label, eva_score, atcd, allergies, arrivee_str, details, p_nom, p_prenom)
         st.markdown(fiche_html, unsafe_allow_html=True)
 
-        col_a, col_b = st.columns(2)
-        # Enregistrer dans historique
-        if col_a.button("Enregistrer ce patient", use_container_width=True):
+        col_a, col_b, col_c = st.columns(3)
+        if col_a.button("💾 Enregistrer session", use_container_width=True):
             sbar = generate_sbar(age, motif, "Tri Rapide", atcd, allergies, supp_o2,
                                   temp, fc, pas, spo2, fr, gcs, news2, news2_label,
                                   eva_score, eva_echelle, "", "", "", "",
-                                  details, niveau, tri_label, justif, critere_ref, sector)
+                                  details, niveau, tri_label, justif, critere_ref, sector,
+                                  nom=p_nom, prenom=p_prenom)
             st.session_state.sbar_text = sbar
             st.session_state.patient_history.append({
                 "heure": datetime.now().strftime("%H:%M"),
                 "age": age, "motif": motif, "cat": "Tri Rapide",
                 "niveau": niveau, "eva": eva_score, "news2": news2,
                 "sbar": sbar, "alertes_danger": len(alertes_d),
+                "nom": p_nom, "prenom": p_prenom,
             })
-            # Snapshot réévaluation initial
             st.session_state.reeval_history = [{
                 "heure": datetime.now().strftime("%H:%M"),
                 "fc": fc, "pas": pas, "spo2": spo2, "fr": fr, "gcs": gcs, "temp": temp, "niveau": niveau,
             }]
-            st.success("Patient enregistre.")
+            st.success("Patient enregistre dans la session.")
 
-        # POINT 5 : Reevaluation 1 touche
-        if col_b.button("Reevaluer maintenant", use_container_width=True):
+        # BOUTON SAUVEGARDER DANS LE REGISTRE PERSISTANT
+        if col_b.button("🗃️ Sauver au registre", use_container_width=True, type="primary"):
+            sbar = generate_sbar(age, motif, "Tri Rapide", atcd, allergies, supp_o2,
+                                  temp, fc, pas, spo2, fr, gcs, news2, news2_label,
+                                  eva_score, eva_echelle, "", "", "", "",
+                                  details, niveau, tri_label, justif, critere_ref, sector,
+                                  nom=p_nom, prenom=p_prenom)
+            patient_record = {
+                "nom": p_nom, "prenom": p_prenom, "age": age,
+                "motif": motif, "cat": "Tri Rapide", "niveau": niveau,
+                "tri_label": tri_label, "sector": sector,
+                "eva": eva_score, "eva_echelle": eva_echelle, "news2": news2, "news2_label": news2_label,
+                "temp": temp, "fc": fc, "pas": pas, "spo2": spo2, "fr": fr, "gcs": gcs,
+                "atcd": atcd, "allergies": allergies, "supp_o2": supp_o2,
+                "justif": justif, "critere_ref": critere_ref,
+                "alertes_danger": len(alertes_d), "alertes_warning": len(alertes_w),
+                "sbar": sbar,
+                "arrivee": arrivee_str,
+            }
+            uid = add_patient_to_db(patient_record)
+            st.success(f"✅ Patient sauvegarde dans le registre permanent (ID: {uid})")
+
+        if col_c.button("🔄 Reevaluer", use_container_width=True):
             st.session_state.last_reeval = datetime.now()
             snap = {"heure": datetime.now().strftime("%H:%M"), "fc": fc, "pas": pas,
                     "spo2": spo2, "fr": fr, "gcs": gcs, "temp": temp, "niveau": niveau}
@@ -930,7 +1005,6 @@ else:
 
     # ── TAB 2 : ANAMNESE ─────────────────────────────────────────────────────
     with t_anamnesis:
-        # POINT 2 : Douleur adaptee a l'age
         st.markdown('<div class="section-header">Evaluation de la douleur (adaptee a l age)</div>', unsafe_allow_html=True)
         if temp is None: temp = 37.0
         if fc   is None: fc   = 80
@@ -951,7 +1025,6 @@ else:
         with c2:
             t_onset = st.text_input("T - Temps", placeholder="Depuis 30 min, brutal...")
 
-        # Motif + questions guidees
         st.markdown('<div class="section-header">Motif & Questions guidees FRENCH</div>', unsafe_allow_html=True)
         MOTIFS_DICT = {
             "CARDIO-CIRCULATOIRE":["Arret cardiorespiratoire","Hypotension arterielle","Douleur thoracique / SCA","Tachycardie / tachyarythmie","Bradycardie / bradyarythmie","Hypertension arterielle","Dyspnee / insuffisance respiratoire","Palpitations"],
@@ -969,7 +1042,6 @@ else:
         cat   = st.selectbox("Categorie", list(MOTIFS_DICT.keys()))
         motif = st.selectbox("Motif de recours", MOTIFS_DICT[cat])
 
-        # Suggestion score
         score_hints = {
             "Douleur thoracique / SCA":"Score TIMI recommande (onglet Scores)",
             "Accouchement imminent":"Score Malinas recommande (onglet Scores)",
@@ -979,7 +1051,6 @@ else:
         if motif in score_hints:
             st.markdown(f'<div class="alert-info">💡 {score_hints[motif]}</div>', unsafe_allow_html=True)
 
-        # POINT 1 : Questions guidees
         details = {"eva": eva_score}
         questions = QUESTIONS_GUIDEES.get(motif, [])
         if questions:
@@ -988,7 +1059,7 @@ else:
             for i, (label, key, typ) in enumerate(questions):
                 col = cq1 if i % 2 == 0 else cq2
                 details[key] = col.checkbox(label, key=f"qg_c_{key}")
-        # Champs complementaires selon motif
+
         if motif == "Douleur thoracique / SCA":
             details['ecg']                    = st.selectbox("ECG", ["Normal","Anormal typique SCA","Anormal non typique"])
             details['douleur_type']           = st.selectbox("Type douleur", ["Atypique","Typique persistante/intense","Type coronaire"])
@@ -1083,8 +1154,6 @@ else:
             details['pdc']          = st.checkbox("PDC")
             details['foudre']       = st.checkbox("Foudroiement")
             details['haute_tension']= st.checkbox("Haute tension")
-        else:
-            pass  # motif sans champs specifiques
 
     # ── TAB 3 : TRIAGE & SBAR ────────────────────────────────────────────────
     with t_decision:
@@ -1100,7 +1169,6 @@ else:
         niveau, justif, critere_ref = french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2)
         tri_label = TRI_LABELS[niveau]; sector = TRI_SECTORS[niveau]; emoji = TRI_EMOJI[niveau]
 
-        # Alerte reevaluation
         if st.session_state.last_reeval:
             since_min = (datetime.now() - st.session_state.last_reeval).total_seconds() / 60
             if since_min > TRI_DELAIS.get(niveau, 60):
@@ -1116,7 +1184,6 @@ else:
         st.info(f"**Orientation :** {sector}")
         st.markdown(f'<div class="french-ref">Ref. FRENCH Triage SFMU V1.1 : {critere_ref}</div>', unsafe_allow_html=True)
 
-        # Alertes
         st.markdown('<div class="section-header">Alertes securite</div>', unsafe_allow_html=True)
         alertes_d, alertes_w, _ = check_coherence(fc, pas, spo2, fr, gcs, temp, details.get("eva",0), motif, atcd, details, news2)
         for a in alertes_d: st.markdown(f'<div class="alert-danger">⚠ {a}</div>', unsafe_allow_html=True)
@@ -1124,7 +1191,6 @@ else:
         if not alertes_d and not alertes_w:
             st.markdown('<div class="alert-info">✓ Aucune incoherence detectee.</div>', unsafe_allow_html=True)
 
-        # Bilans
         st.markdown('<div class="section-header">Bilans recommandes</div>', unsafe_allow_html=True)
         bilans = suggest_bilan(motif, details, fc, pas, spo2, fr, gcs, temp, age, atcd, news2, niveau)
         if bilans:
@@ -1134,13 +1200,14 @@ else:
                 items_html = "".join([f'<div class="bilan-item">{it}</div>' for it in items])
                 col.markdown(f'<div class="bilan-card"><div class="bilan-title">{cat_b}</div>{items_html}</div>', unsafe_allow_html=True)
 
-        # Fiche de tri + SBAR
         st.markdown('<div class="section-header">Fiche de tri & SBAR</div>', unsafe_allow_html=True)
         arrivee_str = st.session_state.arrival_time.strftime("%d/%m/%Y %H:%M") if st.session_state.arrival_time else datetime.now().strftime("%d/%m/%Y %H:%M")
-        fiche_html = generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo2, fr, gcs, news2, news2_label, details.get("eva",0), atcd, allergies, arrivee_str, details)
+        fiche_html = generate_fiche_tri(age, motif, niveau, tri_label, sector, temp, fc, pas, spo2, fr, gcs, news2, news2_label, details.get("eva",0), atcd, allergies, arrivee_str, details, p_nom, p_prenom)
         st.markdown(fiche_html, unsafe_allow_html=True)
 
-        if st.button("Generer SBAR narratif", use_container_width=True):
+        col_sbar1, col_sbar2 = st.columns(2)
+
+        if col_sbar1.button("Generer SBAR narratif", use_container_width=True):
             gy = st.session_state.get('gcs_y_score',4)
             gv = st.session_state.get('gcs_v_score',5)
             gm = st.session_state.get('gcs_m_score',6)
@@ -1149,15 +1216,43 @@ else:
                                   details.get("eva",0), eva_echelle if 'eva_echelle' in dir() else "EVA",
                                   p_pqrst if 'p_pqrst' in dir() else "", q_pqrst if 'q_pqrst' in dir() else "",
                                   r_pqrst if 'r_pqrst' in dir() else "", t_onset if 't_onset' in dir() else "",
-                                  details, niveau, tri_label, justif, critere_ref, sector, gy, gv, gm)
+                                  details, niveau, tri_label, justif, critere_ref, sector, gy, gv, gm,
+                                  nom=p_nom, prenom=p_prenom)
             st.session_state.sbar_text = sbar
             st.session_state.patient_history.append({
                 "heure": datetime.now().strftime("%H:%M"), "age": age, "motif": motif, "cat": cat,
                 "niveau": niveau, "eva": details.get("eva",0), "news2": news2, "sbar": sbar,
-                "alertes_danger": len(alertes_d),
+                "alertes_danger": len(alertes_d), "nom": p_nom, "prenom": p_prenom,
             })
             st.session_state.reeval_history = [{"heure": datetime.now().strftime("%H:%M"),
                 "fc": fc, "pas": pas, "spo2": spo2, "fr": fr, "gcs": gcs, "temp": temp, "niveau": niveau}]
+
+        # BOUTON SAUVEGARDER DANS LE REGISTRE PERSISTANT
+        if col_sbar2.button("🗃️ Sauver au registre", use_container_width=True, type="primary"):
+            gy = st.session_state.get('gcs_y_score',4)
+            gv = st.session_state.get('gcs_v_score',5)
+            gm = st.session_state.get('gcs_m_score',6)
+            sbar = generate_sbar(age, motif, cat, atcd, allergies, supp_o2,
+                                  temp, fc, pas, spo2, fr, gcs, news2, news2_label,
+                                  details.get("eva",0), eva_echelle if 'eva_echelle' in dir() else "EVA",
+                                  p_pqrst if 'p_pqrst' in dir() else "", q_pqrst if 'q_pqrst' in dir() else "",
+                                  r_pqrst if 'r_pqrst' in dir() else "", t_onset if 't_onset' in dir() else "",
+                                  details, niveau, tri_label, justif, critere_ref, sector, gy, gv, gm,
+                                  nom=p_nom, prenom=p_prenom)
+            patient_record = {
+                "nom": p_nom, "prenom": p_prenom, "age": age,
+                "motif": motif, "cat": cat, "niveau": niveau,
+                "tri_label": tri_label, "sector": sector,
+                "eva": details.get("eva",0), "eva_echelle": eva_echelle if 'eva_echelle' in dir() else "EVA",
+                "news2": news2, "news2_label": news2_label,
+                "temp": temp, "fc": fc, "pas": pas, "spo2": spo2, "fr": fr, "gcs": gcs,
+                "atcd": atcd, "allergies": allergies, "supp_o2": supp_o2,
+                "justif": justif, "critere_ref": critere_ref,
+                "alertes_danger": len(alertes_d), "alertes_warning": len(alertes_w),
+                "sbar": sbar, "arrivee": arrivee_str,
+            }
+            uid = add_patient_to_db(patient_record)
+            st.success(f"✅ Patient sauvegarde dans le registre permanent (ID: {uid})")
 
         if st.session_state.sbar_text:
             st.markdown(f'<div class="sbar-block">{st.session_state.sbar_text}</div>', unsafe_allow_html=True)
@@ -1306,7 +1401,6 @@ else:
             st.markdown(score_badge_custom(bcat,bcc),unsafe_allow_html=True)
             st.markdown(f'<div class="score-interp">→ {bint}</div>',unsafe_allow_html=True)
 
-        # Recapitulatif
         st.markdown('<div class="section-header">Recapitulatif</div>', unsafe_allow_html=True)
         r1,r2,r3=st.columns(3)
         r1.metric("TIMI",f"{timi_score}/7"); r2.metric("Silverman",f"{sil_score}/10"); r3.metric("GCS calcule",f"{gcs_calc}/15")
@@ -1314,7 +1408,7 @@ else:
 
 
 # =============================================================================
-# POINT 5 : REEVALUATION STRUCTUREE (communes aux deux modes)
+# REEVALUATION STRUCTUREE (communes aux deux modes)
 # =============================================================================
 reeval_tab = t_reeval
 
@@ -1322,7 +1416,6 @@ with reeval_tab:
     st.markdown("### Reevaluations structurees")
     st.caption("Chaque reevaluation est comparee a la precedente. Tendance automatique.")
 
-    # Saisie nouvelle reevaluation
     st.markdown('<div class="section-header">Nouvelle reevaluation</div>', unsafe_allow_html=True)
     cr1, cr2, cr3 = st.columns(3)
     re_temp = cr1.number_input("T° (C)", 30.0, 45.0, 37.0, 0.1, key="re_temp")
@@ -1355,13 +1448,11 @@ with reeval_tab:
         st.session_state.last_reeval = datetime.now()
         st.success(f"Reevaluation enregistree a {snap['heure']} - Tri {re_niveau}")
 
-    # Affichage historique reevaluations avec tendance
     st.markdown('<div class="section-header">Historique des reevaluations</div>', unsafe_allow_html=True)
 
     if len(st.session_state.reeval_history) < 1:
         st.info("Aucune reevaluation enregistree. Enregistrez d'abord un patient.")
     else:
-        # Tableau comparatif
         history = st.session_state.reeval_history
 
         def trend(old, new, higher_is_worse=True):
@@ -1377,8 +1468,6 @@ with reeval_tab:
 
         for i, snap in enumerate(history):
             prev = history[i-1] if i > 0 else snap
-
-            # Determiner si amelioration globale
             niveau_order = {"M":0,"1":1,"2":2,"3A":3,"3B":4,"4":5,"5":6}
             no = niveau_order.get(snap['niveau'],3); np_ = niveau_order.get(prev['niveau'],3)
             if no > np_:      row_css, tendance = "reeval-better", "AMELIORATION"
@@ -1412,7 +1501,7 @@ with reeval_tab:
 
 
 # =============================================================================
-# HISTORIQUE
+# HISTORIQUE (session)
 # =============================================================================
 with t_history:
     if not st.session_state.patient_history:
@@ -1423,9 +1512,10 @@ with t_history:
             css = TRI_HIST_CSS.get(pat['niveau'], 'hist-4')
             em  = TRI_EMOJI.get(pat['niveau'], '')
             tag = " ⚠ ALERTES" if pat.get('alertes_danger', 0) > 0 else ""
+            nom_display = f"{pat.get('nom','').upper()} {pat.get('prenom','')}" if pat.get('nom') or pat.get('prenom') else ""
             st.markdown(
                 f'<div class="hist-row {css}">'
-                f'<b>{pat["heure"]}</b> | {pat["age"]} ans | <b>{pat["motif"]}</b> | '
+                f'<b>{pat["heure"]}</b> | {nom_display + " | " if nom_display else ""}{pat["age"]} ans | <b>{pat["motif"]}</b> | '
                 f'EVA {pat["eva"]}/10 | NEWS2 {pat["news2"]} | {em} Tri {pat["niveau"]}{tag}'
                 f'</div>', unsafe_allow_html=True
             )
@@ -1437,3 +1527,142 @@ with t_history:
         if st.button("Effacer l'historique"):
             st.session_state.patient_history = []
             st.rerun()
+
+
+# =============================================================================
+# 🗃️ REGISTRE PATIENTS — STOCKAGE PERSISTANT
+# =============================================================================
+with t_registre:
+    st.markdown("### 🗃️ Registre Patients — Donnees persistantes")
+    st.caption("Les patients sauvegardes ici sont conserves entre les sessions (fichier JSON local).")
+
+    db = load_patient_db()
+
+    # --- Statistiques ---
+    if db:
+        niveaux_count = {}
+        for p in db:
+            n = p.get("niveau", "?")
+            niveaux_count[n] = niveaux_count.get(n, 0) + 1
+        today_count = sum(1 for p in db if p.get("saved_date") == datetime.now().strftime("%Y-%m-%d"))
+
+        st.markdown('<div class="reg-stats">', unsafe_allow_html=True)
+        cols_stat = st.columns(5)
+        cols_stat[0].markdown(f'<div class="reg-stat-card"><div class="reg-stat-num">{len(db)}</div><div class="reg-stat-label">Total patients</div></div>', unsafe_allow_html=True)
+        cols_stat[1].markdown(f'<div class="reg-stat-card"><div class="reg-stat-num">{today_count}</div><div class="reg-stat-label">Aujourd\'hui</div></div>', unsafe_allow_html=True)
+        urgent_count = sum(v for k,v in niveaux_count.items() if k in ["M","1","2"])
+        cols_stat[2].markdown(f'<div class="reg-stat-card"><div class="reg-stat-num" style="color:#f87171">{urgent_count}</div><div class="reg-stat-label">Tri M/1/2</div></div>', unsafe_allow_html=True)
+        moderate_count = sum(v for k,v in niveaux_count.items() if k in ["3A","3B"])
+        cols_stat[3].markdown(f'<div class="reg-stat-card"><div class="reg-stat-num" style="color:#fbbf24">{moderate_count}</div><div class="reg-stat-label">Tri 3A/3B</div></div>', unsafe_allow_html=True)
+        low_count = sum(v for k,v in niveaux_count.items() if k in ["4","5"])
+        cols_stat[4].markdown(f'<div class="reg-stat-card"><div class="reg-stat-num" style="color:#4ade80">{low_count}</div><div class="reg-stat-label">Tri 4/5</div></div>', unsafe_allow_html=True)
+
+    # --- Recherche & filtres ---
+    st.markdown('<div class="section-header">Recherche & Filtres</div>', unsafe_allow_html=True)
+    col_search, col_filter, col_actions = st.columns([3, 2, 2])
+    search_query = col_search.text_input("🔍 Rechercher", placeholder="Nom, motif, niveau, date...", key="reg_search", label_visibility="collapsed")
+    filter_niveau = col_filter.selectbox("Filtrer par niveau", ["Tous","M","1","2","3A","3B","4","5"], key="reg_filter")
+
+    # Filtrage
+    if search_query:
+        filtered_db = search_patients(search_query)
+    else:
+        filtered_db = db
+
+    if filter_niveau != "Tous":
+        filtered_db = [p for p in filtered_db if p.get("niveau") == filter_niveau]
+
+    # Export JSON
+    if col_actions.button("📥 Exporter tout (JSON)", use_container_width=True) and db:
+        export_data = json.dumps(db, ensure_ascii=False, indent=2)
+        st.download_button(
+            "Telecharger registre complet",
+            data=export_data,
+            file_name=f"registre_patients_{datetime.now().strftime('%Y%m%d')}.json",
+            mime="application/json",
+            key="export_json"
+        )
+
+    # --- Liste des patients ---
+    st.markdown(f'<div class="section-header">Patients ({len(filtered_db)} resultat{"s" if len(filtered_db) != 1 else ""})</div>', unsafe_allow_html=True)
+
+    if not filtered_db:
+        st.markdown(
+            '<div class="reg-empty">'
+            '<div class="reg-empty-icon">🗃️</div>'
+            '<div>Aucun patient dans le registre.<br>Utilisez le bouton "Sauver au registre" apres un triage.</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        for idx, pat in enumerate(filtered_db):
+            uid = pat.get("uid", "?")
+            niv = pat.get("niveau", "?")
+            nom_display = f"{pat.get('nom','').upper()} {pat.get('prenom','')}" if pat.get('nom') or pat.get('prenom') else "ANONYME"
+            em = TRI_EMOJI.get(niv, "")
+
+            st.markdown(
+                f'<div class="reg-card">'
+                f'<div class="reg-card-header">'
+                f'  <div class="reg-card-title">{nom_display} — {pat.get("age","?")} ans</div>'
+                f'  <div class="reg-card-date">ID {uid} | {pat.get("saved_at","")}</div>'
+                f'</div>'
+                f'<div style="margin-bottom:8px;">'
+                f'  <span class="reg-badge reg-badge-{niv}">{em} Tri {niv}</span>'
+                f'  <span style="font-size:0.82rem;color:#94a3b8;">{pat.get("motif","")} ({pat.get("cat","")})</span>'
+                f'</div>'
+                f'<div class="reg-card-body">'
+                f'  <div class="reg-field"><span class="reg-field-label">T°</span><span class="reg-field-value">{pat.get("temp","")} C</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">FC</span><span class="reg-field-value">{pat.get("fc","")} bpm</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">PAS</span><span class="reg-field-value">{pat.get("pas","")} mmHg</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">SpO2</span><span class="reg-field-value">{pat.get("spo2","")} %</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">GCS</span><span class="reg-field-value">{pat.get("gcs","")}/15</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">NEWS2</span><span class="reg-field-value">{pat.get("news2","")}</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">EVA</span><span class="reg-field-value">{pat.get("eva","")}/10</span></div>'
+                f'  <div class="reg-field"><span class="reg-field-label">Allergies</span><span class="reg-field-value">{pat.get("allergies","RAS")}</span></div>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+            # Actions par patient
+            col_d1, col_d2, col_d3 = st.columns([3, 1, 1])
+            with col_d1:
+                with st.expander(f"📄 SBAR complet — {nom_display}"):
+                    sbar_txt = pat.get("sbar", "Pas de SBAR genere.")
+                    st.markdown(f'<div class="sbar-block">{sbar_txt}</div>', unsafe_allow_html=True)
+                    st.download_button(
+                        "Telecharger SBAR",
+                        data=sbar_txt,
+                        file_name=f"SBAR_{uid}_{niv}.txt",
+                        mime="text/plain",
+                        key=f"dl_reg_{uid}_{idx}"
+                    )
+
+            # Suppression avec confirmation
+            if col_d3.button(f"🗑️ Supprimer", key=f"del_{uid}_{idx}", use_container_width=True):
+                st.session_state.confirm_delete = uid
+
+            if st.session_state.confirm_delete == uid:
+                st.warning(f"⚠️ Confirmer la suppression de **{nom_display}** (ID: {uid}) ?")
+                col_conf1, col_conf2, _ = st.columns([1,1,3])
+                if col_conf1.button("✅ Oui, supprimer", key=f"conf_del_{uid}_{idx}", type="primary"):
+                    delete_patient_from_db(uid)
+                    st.session_state.confirm_delete = None
+                    st.success(f"Patient {uid} supprime du registre.")
+                    st.rerun()
+                if col_conf2.button("❌ Annuler", key=f"cancel_del_{uid}_{idx}"):
+                    st.session_state.confirm_delete = None
+                    st.rerun()
+
+    # --- Purge totale ---
+    if db:
+        st.markdown("---")
+        st.markdown('<div class="section-header">Administration</div>', unsafe_allow_html=True)
+        with st.expander("⚠️ Zone dangereuse — Purge complete"):
+            st.warning("Cette action supprimera **tous** les patients du registre de maniere irreversible.")
+            if st.button("🗑️ PURGER TOUT LE REGISTRE", type="primary", key="purge_all"):
+                save_patient_db([])
+                st.session_state.confirm_delete = None
+                st.success("Registre vide.")
+                st.rerun()
