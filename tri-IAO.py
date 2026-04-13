@@ -1344,7 +1344,7 @@ else:
             st.markdown(score_badge_custom(f"{mal_score}/10", mc), unsafe_allow_html=True)
             st.markdown(f'<div class="score-interp">→ {mi}</div>', unsafe_allow_html=True)
             if mal_score >= 8:
-                st.markdown('<div class="alert-danger">NE PAS TRANSPORTER - Activer protocole accouchement inopiné (protocole d'urgence)</div>', unsafe_allow_html=True)
+                st.markdown('<div class="alert-danger">NE PAS TRANSPORTER - Activer protocole accouchement inopiné (protocole d\'urgence)</div>', unsafe_allow_html=True)
 
         with st.expander("Score Brulure - Regle des 9 + Baux", expanded=False):
             st.markdown('<div class="score-title">Regle des 9 de Wallace + Indice de Baux</div>', unsafe_allow_html=True)
