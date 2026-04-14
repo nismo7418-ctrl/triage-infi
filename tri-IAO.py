@@ -2208,3 +2208,4 @@ with t_registre:
                 st.session_state.confirm_delete = None
                 st.success("Registre vide.")
                 st.rerun()
+                
