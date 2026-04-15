@@ -94,6 +94,36 @@ GLYCEMIE = {
     "hyperglycemie_severe": 360,  # > 20,0 mmol/l
 }
 
+# --- Seuils vitaux pediatriques par tranche d'age (PDF SFMU V1.1 p.5 + references PALS) ---
+# Structure : (fc_min, fc_max, pas_min)
+# Utilise par french_triage() pour les motifs "Pediatrie - Bradycardie/Tachycardie/Hypotension"
+SEUILS_PEDIATRIQUES = {
+    # Tranche       : (FC_min_normal, FC_max_normal, PAS_min_normale)
+    "0_1m":  (100, 180, 60),   # 0 a 1 mois
+    "1_6m":  (100, 160, 70),   # 1 a 6 mois
+    "6_24m": (80,  150, 75),   # 6 a 24 mois
+    "1_10a": (70,  140, 70),   # 1 a 10 ans (formule PAS : 70 + age*2)
+}
+
+
+def _seuils_ped(age_annees):
+    """
+    Retourne (fc_min, fc_max, pas_min) pour l'age donne en annees.
+    Utilise SEUILS_PEDIATRIQUES. Formule PAS pour 1-10 ans : 70 + age*2.
+    """
+    if age_annees < 1/12:          # < 1 mois
+        fc_min, fc_max, pas_min = SEUILS_PEDIATRIQUES["0_1m"]
+    elif age_annees < 0.5:         # 1 a 6 mois
+        fc_min, fc_max, pas_min = SEUILS_PEDIATRIQUES["1_6m"]
+    elif age_annees <= 2:          # 6 a 24 mois
+        fc_min, fc_max, pas_min = SEUILS_PEDIATRIQUES["6_24m"]
+    elif age_annees <= 10:         # 1 a 10 ans
+        fc_min, fc_max = SEUILS_PEDIATRIQUES["1_10a"][:2]
+        pas_min = int(70 + age_annees * 2)   # formule PDF
+    else:
+        fc_min, fc_max, pas_min = 60, 120, 80
+    return fc_min, fc_max, pas_min
+
 # --- Antecedents / Facteurs de risque disponibles ---
 LISTE_ATCD = [
     "HTA", "Diabete de type 1", "Diabete de type 2", "Tabagisme actif",
@@ -742,8 +772,15 @@ def calculer_timi(age, nb_frcv, stenose_50, aspirine_7j, troponine_pos, deviatio
     Reference : Antman et al., JAMA 2000.
     """
     try:
-        s = int(age >= 65) + int(nb_frcv >= 3) + int(stenose_50) + int(aspirine_7j) \
-            + int(troponine_pos) + int(deviation_st) + int(crises_24h >= 2)
+        s = (
+            int(age >= 65)
+            + int(nb_frcv >= 3)
+            + int(stenose_50)
+            + int(aspirine_7j)
+            + int(troponine_pos)
+            + int(deviation_st)
+            + int(crises_24h >= 2)
+        )
         return s, []
     except (TypeError, ValueError) as exc:
         return 0, [f"Erreur calcul TIMI : {exc}"]
@@ -861,8 +898,13 @@ def calculer_algoplus(visage, regard, plaintes, attitude_corpo, comportement):
     Reference : Bercovitch et al. Pain 2006 - validation SFGG.
     """
     try:
-        s = int(bool(visage)) + int(bool(regard)) + int(bool(plaintes)) \
-            + int(bool(attitude_corpo)) + int(bool(comportement))
+        s = (
+            int(bool(visage))
+            + int(bool(regard))
+            + int(bool(plaintes))
+            + int(bool(attitude_corpo))
+            + int(bool(comportement))
+        )
         if   s >= 4: interp, css = "Douleur intense - traitement antalgique IV urgent", "sv-haut"
         elif s >= 2: interp, css = "Douleur probable - traitement antalgique a initier", "sv-moy"
         else:        interp, css = "Douleur peu probable ou absente", "sv-bas"
@@ -923,19 +965,24 @@ def calculer_debit_perfusion(volume_ml, duree_h):
 def _ci_ains(atcd):
     """
     Verifie les contre-indications communes aux AINS (Taradyl et Diclofenac).
-    Retourne une liste de contre-indications detectees.
+    Inclut : IR, ulcere, anticoagulants, grossesse, IC, IH, chimiotherapie.
+    Retourne une liste de contre-indications detectees depuis les ATCD.
     """
     ci = []
     if "Insuffisance renale chronique" in atcd:
-        ci.append("CONTRE-INDICATION : Insuffisance renale chronique")
+        ci.append("CONTRE-INDICATION : Insuffisance renale chronique (risque d'insuffisance renale aigue)")
     if "Ulcere gastro-duodenal" in atcd:
-        ci.append("CONTRE-INDICATION : Ulcere gastro-duodenal actif")
+        ci.append("CONTRE-INDICATION : Ulcere gastro-duodenal actif ou antecedent recent")
     if "Anticoagulants / AOD" in atcd:
         ci.append("CONTRE-INDICATION relative : Anticoagulants / AOD - risque hemorragique majore")
     if "Grossesse en cours" in atcd:
-        ci.append("CONTRE-INDICATION : Grossesse (surtout >= T2 - fermeture prematuree canal arteriel)")
+        ci.append("CONTRE-INDICATION : Grossesse (surtout >= T2 - fermeture prematuree du canal arteriel)")
     if "Insuffisance cardiaque chronique" in atcd:
         ci.append("CONTRE-INDICATION relative : Insuffisance cardiaque - retention hydrosodee")
+    if "Insuffisance hepatique" in atcd:
+        ci.append("CONTRE-INDICATION : Insuffisance hepatique - risque d'aggravation et de toxicite systemique")
+    if "Chimiotherapie en cours" in atcd:
+        ci.append("CONTRE-INDICATION relative : Chimiotherapie en cours - risque de nephrotoxicite additive et thrombopenie")
     return ci
 
 
@@ -1910,35 +1957,40 @@ def french_triage(motif, details, fc, pas, spo2, fr, gcs, temp, age, news2, glyc
             return "4", "Troubles alimentaires nourrisson : perte de poids <= 10 %.", "FRENCH Pediatrie - Tri 4"
 
         if motif == "Pediatrie - Bradycardie":
-            # Seuils pédiatriques specifiques
-            # Avant 1 an : FC <= 80/min
-            # Apres 1 an : FC <= 60/min
-            seuil_brady = 80 if age < 1 else 60
-            if fc <= seuil_brady:
-                return "4", f"Bradycardie pediatrique : FC {fc} bpm <= {seuil_brady} bpm pour age {age} an(s).", "FRENCH Pediatrie - Tri 4"
-            return "5", "FC normale pour l'age.", "FRENCH Pediatrie - Tri 5"
+            # Seuils centralises dans SEUILS_PEDIATRIQUES via _seuils_ped()
+            fc_min, _fc_max, _pas_min = _seuils_ped(age)
+            if fc <= fc_min:
+                return "4", (
+                    f"Bradycardie pediatrique : FC {fc} bpm <= {fc_min} bpm "
+                    f"pour age {age} an(s)."
+                ), "FRENCH Pediatrie - Tri 4"
+            return "5", "FC dans les valeurs normales pour l'age.", "FRENCH Pediatrie - Tri 5"
 
         if motif == "Pediatrie - Ictere neonatal":
-            # Tri 2 si perte de poids <= 10 % ou selles decolorees
+            # Tri 2 si perte de poids ou selles decolorees (PDF p.5)
             # Tri 4 par defaut
             if details.get("perte_poids") or details.get("selles_decolorees"):
                 return "2", "Ictere neonatal avec perte de poids ou selles decolorees.", "FRENCH Pediatrie - Tri 2"
             return "4", "Ictere neonatal sans signe de gravite.", "FRENCH Pediatrie - Tri 4"
 
         if motif == "Pediatrie - Tachycardie":
-            # Seuils pédiatriques specifiques
-            # Avant 1 an : FC >= 180/min
-            # Apres 1 an : FC >= 160/min
-            seuil_tachy = 180 if age < 1 else 160
-            if fc >= seuil_tachy:
-                return "4", f"Tachycardie pediatrique : FC {fc} bpm >= {seuil_tachy} bpm pour age {age} an(s).", "FRENCH Pediatrie - Tri 4"
+            # Seuils centralises dans SEUILS_PEDIATRIQUES via _seuils_ped()
+            _fc_min, fc_max, _pas_min = _seuils_ped(age)
+            if fc >= fc_max:
+                return "4", (
+                    f"Tachycardie pediatrique : FC {fc} bpm >= {fc_max} bpm "
+                    f"pour age {age} an(s)."
+                ), "FRENCH Pediatrie - Tri 4"
             return "5", "FC dans les valeurs normales pour l'age.", "FRENCH Pediatrie - Tri 5"
 
         if motif == "Pediatrie - Hypotension":
-            # Formule PDF : PAS <= 70 + (age en annees × 2) pour 1-10 ans
-            seuil_pas_ped = 70 + (age * 2) if 1 <= age <= 10 else 70
-            if pas <= seuil_pas_ped:
-                return "4", f"Hypotension pediatrique : PAS {pas} mmHg <= {seuil_pas_ped:.0f} mmHg pour age {age} an(s).", "FRENCH Pediatrie - Tri 4"
+            # Seuils centralises dans SEUILS_PEDIATRIQUES via _seuils_ped()
+            _fc_min, _fc_max, pas_min = _seuils_ped(age)
+            if pas <= pas_min:
+                return "4", (
+                    f"Hypotension pediatrique : PAS {pas} mmHg <= {pas_min} mmHg "
+                    f"pour age {age} an(s)."
+                ), "FRENCH Pediatrie - Tri 4"
             return "5", "PA normale pour l'age.", "FRENCH Pediatrie - Tri 5"
 
         if motif == "Pediatrie - Pleurs incoercibles":
@@ -2328,10 +2380,21 @@ def _sauvegarder_registre(data):
 
 
 def ajouter_registre(donnees):
-    """Ajoute une fiche anonyme. Toute donnee nominative est supprimee (RGPD)."""
+    """
+    Ajoute une fiche anonyme au registre local.
+    RGPD strict : tous les champs nominatifs sont supprimes avant stockage.
+    Seul l'UUID genere par l'application sert d'identifiant.
+    """
     reg = _charger_registre()
-    donnees.pop("nom",    None)
-    donnees.pop("prenom", None)
+    # Suppression exhaustive de tout champ pouvant identifier le patient
+    _champs_nominatifs = (
+        "nom", "prenom", "nom_prenom", "identite", "patient_name",
+        "naissance", "date_naissance", "niss", "numero_national",
+        "adresse", "telephone", "email", "mutualite",
+    )
+    for champ in _champs_nominatifs:
+        donnees.pop(champ, None)
+    # Generation d'un UUID court (8 caracteres hex majuscules)
     donnees["uid"]        = str(uuid.uuid4())[:8].upper()
     donnees["date_heure"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     donnees["date"]       = datetime.now().strftime("%Y-%m-%d")
@@ -3295,15 +3358,13 @@ else:
                 "Seuils pediatriques appliques automatiquement selon l'age saisi dans la sidebar. "
                 "Verifier que l'age est correct avant de valider le triage."
             )
-            _seuil_brady = 80 if age < 1 else 60
-            _seuil_tachy = 180 if age < 1 else 160
-            _seuil_pas_p = 70 + (age * 2) if 1 <= age <= 10 else 70
+            _fc_min_ui, _fc_max_ui, _pas_min_ui = _seuils_ped(age)
             st.markdown(
                 f'<div class="ib">'
                 f'Seuils pour age {age} an(s) :<br>'
-                f'Bradycardie : FC <= {_seuil_brady} bpm  |  '
-                f'Tachycardie : FC >= {_seuil_tachy} bpm  |  '
-                f'Hypotension : PAS <= {_seuil_pas_p:.0f} mmHg'
+                f'Bradycardie : FC <= {_fc_min_ui} bpm  |  '
+                f'Tachycardie : FC >= {_fc_max_ui} bpm  |  '
+                f'Hypotension : PAS <= {_pas_min_ui} mmHg'
                 f'</div>',
                 unsafe_allow_html=True,
             )
