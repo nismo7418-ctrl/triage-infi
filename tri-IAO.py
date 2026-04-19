@@ -1,11 +1,11 @@
 """
 ================================================================================
-  AKIR-IAO v18.0 — Hospital Pro
+  AKIR-IAO v18.0 — Pro Edition
   Développeur exclusif : Ismail Ibn-Daifa
-  Application d'aide au triage infirmier — Urgences du Hainaut, Belgique
-  Référence clinique : FRENCH Triage SFMU V1.1 — Juin 2018
-  Pharmacologie      : BCFI — Répertoire Commenté des Médicaments — Belgique
-  RGPD               : Aucun nom ni prénom collecté — UUID anonyme uniquement
+  Urgences du Hainaut — Wallonie, Belgique
+  Référence clinique  : FRENCH Triage SFMU V1.1 — Juin 2018
+  Pharmacologie       : BCFI — Répertoire Commenté des Médicaments — Belgique
+  RGPD                : UUID anonyme — aucun identifiant nominal collecté
 ================================================================================
 """
 
@@ -13,2052 +13,1516 @@ from __future__ import annotations
 from typing import Optional
 from datetime import datetime
 import streamlit as st
-import uuid
-import json
-import os
+import uuid, json, os, io, csv as csv_mod
 
 st.set_page_config(
-    page_title="AKIR-IAO v18.0 — Hospital Pro",
+    page_title="AKIR-IAO — Pro",
+    page_icon=None,
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# ==============================================================================
-# DESIGN SYSTEM — CSS HOSPITAL PRO
-# ==============================================================================
-
-CSS = """
+# ══════════════════════════════════════════════════════════════════════════════
+# CSS — MOBILE-FIRST HOSPITAL GRADE
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* ─── VARIABLES ─────────────────────────────────────── */
 :root {
-    --brand:         #004A99;
-    --brand-light:   #1A69B8;
-    --brand-pale:    #E8F1FB;
-    --brand-dark:    #002F66;
-    --slate:         #1A202C;
-    --slate-mid:     #2D3748;
-    --slate-light:   #4A5568;
-    --slate-pale:    #718096;
-    --bg:            #F0F4F8;
-    --bg-card:       #FFFFFF;
-    --bg-input:      #F7FAFC;
-    --border:        #E2E8F0;
-    --border-focus:  #004A99;
-    --text:          #1A202C;
-    --text-muted:    #4A5568;
-    --text-white:    #FFFFFF;
-    /* Urgences */
-    --tri-M-bg:      #1A0A2E; --tri-M-fg:  #D946EF; --tri-M-bd: #9333EA;
-    --tri-1-bg:      #7F1D1D; --tri-1-fg:  #FCA5A5; --tri-1-bd: #EF4444;
-    --tri-2-bg:      #78350F; --tri-2-fg:  #FCD34D; --tri-2-bd: #F59E0B;
-    --tri-3A-bg:     #1E3A5F; --tri-3A-fg: #93C5FD; --tri-3A-bd:#3B82F6;
-    --tri-3B-bg:     #1E3A5F; --tri-3B-fg: #BAE6FD; --tri-3B-bd:#60A5FA;
-    --tri-4-bg:      #14532D; --tri-4-fg:  #86EFAC; --tri-4-bd: #22C55E;
-    --tri-5-bg:      #334155; --tri-5-fg:  #CBD5E1; --tri-5-bd: #94A3B8;
-    /* Alertes */
-    --danger-bg:     #FEF2F2; --danger-bd: #EF4444; --danger-tx: #B91C1C;
-    --warn-bg:       #FFFBEB; --warn-bd:   #F59E0B; --warn-tx:   #92400E;
-    --success-bg:    #F0FDF4; --success-bd:#22C55E; --success-tx:#166534;
-    --info-bg:       #EFF6FF; --info-bd:   #3B82F6; --info-tx:   #1E40AF;
-    /* Shadows */
-    --shadow-sm:     0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
-    --shadow-md:     0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
-    --shadow-lg:     0 10px 15px rgba(0,0,0,.1), 0 4px 6px rgba(0,0,0,.05);
-    --shadow-brand:  0 4px 14px rgba(0,74,153,.25);
-    --radius:        12px;
-    --radius-sm:     8px;
+  --P:     #004A99;   /* Primary blue          */
+  --PL:    #1A69B8;   /* Primary light         */
+  --PD:    #002F66;   /* Primary dark          */
+  --PP:    #EBF3FD;   /* Primary pale          */
+  --BG:    #F8F9FA;   /* Background            */
+  --CARD:  #FFFFFF;   /* Card background       */
+  --B:     #E2E8F0;   /* Border                */
+  --T:     #1A202C;   /* Text                  */
+  --TM:    #64748B;   /* Text muted            */
+  --TW:    #FFFFFF;   /* Text white            */
+  /* Urgences haute visibilité */
+  --TM-bg: #1A0A2E;  --TM-ac: #E879F9;  /* Tri M   */
+  --T1-bg: #7F1D1D;  --T1-ac: #FCA5A5;  /* Tri 1   */
+  --T2-bg: #78350F;  --T2-ac: #FDE68A;  /* Tri 2   */
+  --T3A-bg:#1E3A5F;  --T3A-ac:#93C5FD;  /* Tri 3A  */
+  --T3B-bg:#1E3A5F;  --T3B-ac:#BAE6FD;  /* Tri 3B  */
+  --T4-bg: #14532D;  --T4-ac: #86EFAC;  /* Tri 4   */
+  --T5-bg: #334155;  --T5-ac: #CBD5E1;  /* Tri 5   */
+  /* Alertes */
+  --ERR: #FEF2F2; --ERR-b: #EF4444; --ERR-t: #B91C1C;
+  --WRN: #FFFBEB; --WRN-b: #F59E0B; --WRN-t: #92400E;
+  --SUC: #F0FDF4; --SUC-b: #22C55E; --SUC-t: #166534;
+  --INF: #EFF6FF; --INF-b: #3B82F6; --INF-t: #1D4ED8;
+  /* Ombres & géométrie */
+  --s1: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --s2: 0 4px 12px rgba(0,74,153,.12);
+  --s3: 0 8px 24px rgba(0,74,153,.18);
+  --r:  12px;
+  --r2: 8px;
 }
 
-/* Base */
+/* ─── RESET ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+#MainMenu, footer, header, [data-testid="stToolbar"] { display:none!important; }
+.block-container { padding: .75rem 1rem 4rem!important; max-width: 860px; margin: 0 auto; }
 html, body, [class*="st-"] {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    color: var(--text);
-    background: var(--bg);
-    -webkit-font-smoothing: antialiased;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--T);
+  background: var(--BG);
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-thumb { background:var(--B); border-radius:3px; }
+
+/* ─── APP HEADER ────────────────────────────────────── */
+.app-hdr {
+  background: linear-gradient(130deg, var(--PD) 0%, var(--P) 55%, var(--PL) 100%);
+  border-radius: var(--r);
+  padding: 18px 22px 16px;
+  margin-bottom: 18px;
+  box-shadow: var(--s3);
+  position: relative; overflow: hidden;
+}
+.app-hdr::after {
+  content:''; position:absolute; right:-40px; top:-40px;
+  width:200px; height:200px;
+  background: rgba(255,255,255,.06); border-radius:50%;
+}
+.app-hdr-title { font-size:1.2rem; font-weight:800; color:#fff; letter-spacing:-.02em; }
+.app-hdr-sub   { font-size:.72rem; color:rgba(255,255,255,.75); margin-top:3px; }
+.app-hdr-tags  { margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; }
+.tag {
+  background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.28);
+  color:#fff; font-size:.62rem; font-weight:600; padding:2px 9px;
+  border-radius:20px; letter-spacing:.04em;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* Hide Streamlit chrome */
-#MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
-
-/* ======= HEADER ======= */
-.hp-header {
-    background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 50%, var(--brand-light) 100%);
-    border-radius: var(--radius);
-    padding: 22px 28px;
-    margin-bottom: 24px;
-    box-shadow: var(--shadow-brand);
-    position: relative;
-    overflow: hidden;
-}
-.hp-header::before {
-    content: '';
-    position: absolute;
-    top: -50%; right: -10%;
-    width: 300px; height: 300px;
-    background: rgba(255,255,255,.05);
-    border-radius: 50%;
-}
-.hp-header::after {
-    content: '';
-    position: absolute;
-    bottom: -60%; left: 5%;
-    width: 200px; height: 200px;
-    background: rgba(255,255,255,.04);
-    border-radius: 50%;
-}
-.hp-title {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #FFFFFF;
-    letter-spacing: -0.01em;
-    margin-bottom: 4px;
-}
-.hp-subtitle {
-    font-size: 0.75rem;
-    color: rgba(255,255,255,.75);
-    font-weight: 400;
-    letter-spacing: 0.02em;
-}
-.hp-badge {
-    display: inline-block;
-    background: rgba(255,255,255,.15);
-    border: 1px solid rgba(255,255,255,.3);
-    color: #FFFFFF;
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 20px;
-    margin-right: 6px;
-    margin-top: 8px;
-    backdrop-filter: blur(4px);
-}
-
-/* ======= CARDS ======= */
-.hp-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow .2s ease;
-}
-.hp-card:hover { box-shadow: var(--shadow-md); }
-.hp-card-title {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--brand);
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--brand-pale);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* ======= SECTION LABEL ======= */
-.hp-sec {
-    font-size: 0.63rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--brand);
-    margin: 20px 0 10px 0;
-    padding-bottom: 6px;
-    border-bottom: 2px solid var(--brand-pale);
-}
-
-/* ======= TRIAGE RESULT CARDS ======= */
-.tri-result {
-    border-radius: var(--radius);
-    padding: 24px 28px;
-    margin: 16px 0;
-    text-align: center;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
-}
-.tri-result::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 4px;
-}
-.tri-M  { background: var(--tri-M-bg);  color: var(--tri-M-fg);  border: 1px solid var(--tri-M-bd); }
-.tri-M::before  { background: var(--tri-M-bd); }
-.tri-1  { background: var(--tri-1-bg);  color: var(--tri-1-fg);  border: 1px solid var(--tri-1-bd); }
-.tri-1::before  { background: var(--tri-1-bd); }
-.tri-2  { background: var(--tri-2-bg);  color: var(--tri-2-fg);  border: 1px solid var(--tri-2-bd); }
-.tri-2::before  { background: var(--tri-2-bd); }
-.tri-3A { background: var(--tri-3A-bg); color: var(--tri-3A-fg); border: 1px solid var(--tri-3A-bd); }
-.tri-3A::before { background: var(--tri-3A-bd); }
-.tri-3B { background: var(--tri-3B-bg); color: var(--tri-3B-fg); border: 1px solid var(--tri-3B-bd); }
-.tri-3B::before { background: var(--tri-3B-bd); }
-.tri-4  { background: var(--tri-4-bg);  color: var(--tri-4-fg);  border: 1px solid var(--tri-4-bd); }
-.tri-4::before  { background: var(--tri-4-bd); }
-.tri-5  { background: var(--tri-5-bg);  color: var(--tri-5-fg);  border: 1px solid var(--tri-5-bd); }
-.tri-5::before  { background: var(--tri-5-bd); }
-.tri-label {
-    font-size: 1.6rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-bottom: 6px;
-}
-.tri-sector {
-    font-size: 0.78rem;
-    opacity: .85;
-    font-weight: 400;
-    margin-top: 6px;
-}
-.tri-justif {
-    font-size: 0.82rem;
-    opacity: .9;
-    margin-top: 8px;
-    font-weight: 500;
-}
-.tri-badge {
-    display: inline-block;
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 2px 10px;
-    border-radius: 20px;
-    border: 1px solid currentColor;
-    margin-top: 8px;
-    opacity: .8;
-}
-
-/* ======= NEWS2 GAUGE ======= */
-.news2-gauge {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px 22px;
-    box-shadow: var(--shadow-sm);
-    text-align: center;
-}
-.news2-score {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 3rem;
-    font-weight: 700;
-    line-height: 1;
-    margin: 8px 0 4px;
-}
-.news2-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-}
-.news2-bar-track {
-    background: #E2E8F0;
-    border-radius: 6px;
-    height: 10px;
-    overflow: hidden;
-    margin: 8px 0;
-}
-.news2-bar-fill {
-    height: 10px;
-    border-radius: 6px;
-    transition: width .5s ease;
-}
-.n2-0 { color: #22C55E; }  /* vert */
-.n2-1 { color: #84CC16; }
-.n2-2 { color: #EAB308; }  /* jaune */
-.n2-3 { color: #F97316; }  /* orange */
-.n2-4 { color: #EF4444; }  /* rouge */
-.n2-5 { color: #7C3AED; }  /* violet critique */
-
-/* ======= VITAL BADGES ======= */
-.vit-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin: 12px 0;
-}
-.vit-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-}
-.vit-item.warn  { border-color: var(--warn-bd);    background: var(--warn-bg); }
-.vit-item.crit  { border-color: var(--danger-bd);  background: var(--danger-bg); }
-.vit-label { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
-.vit-value { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; margin: 2px 0; }
-.vit-unit  { font-size: 0.65rem; color: var(--text-muted); }
-.vit-item.warn .vit-value { color: var(--warn-tx); }
-.vit-item.crit .vit-value { color: var(--danger-tx); }
-
-/* ======= ALERTES ======= */
-.hp-alert {
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-    margin: 8px 0;
-    font-size: 0.84rem;
-    font-weight: 500;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    line-height: 1.5;
-}
-.hp-alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
-.hp-alert.danger  { background: var(--danger-bg);  border-left: 4px solid var(--danger-bd);  color: var(--danger-tx); }
-.hp-alert.warning { background: var(--warn-bg);    border-left: 4px solid var(--warn-bd);    color: var(--warn-tx);   }
-.hp-alert.success { background: var(--success-bg); border-left: 4px solid var(--success-bd); color: var(--success-tx);}
-.hp-alert.info    { background: var(--info-bg);    border-left: 4px solid var(--info-bd);    color: var(--info-tx);   }
-
-/* ======= PURPURA BANNER ======= */
-.purpura-banner {
-    background: linear-gradient(135deg, #7F1D1D, #991B1B);
-    border: 2px solid #EF4444;
-    border-radius: var(--radius);
-    padding: 18px 22px;
-    margin: 12px 0;
-    box-shadow: 0 0 20px rgba(239,68,68,.4);
-    animation: pulse-red 2s ease-in-out infinite;
-}
-.purpura-title {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #FCA5A5;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-}
-.purpura-body {
-    font-size: 0.85rem;
-    color: #FEE2E2;
-    line-height: 1.6;
-}
-@keyframes pulse-red {
-    0%, 100% { box-shadow: 0 0 20px rgba(239,68,68,.4); }
-    50%       { box-shadow: 0 0 35px rgba(239,68,68,.7); }
-}
-
-/* ======= PHARMA CARDS ======= */
-.pharma-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px 22px;
-    margin: 10px 0;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
-}
-.pharma-card::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 5px;
-    border-radius: var(--radius) 0 0 var(--radius);
-}
-.pharma-card.palier-1::before { background: #22C55E; }
-.pharma-card.palier-2::before { background: #F59E0B; }
-.pharma-card.palier-3::before { background: #EF4444; }
-.pharma-card.urgence::before  { background: #7C3AED; }
-.pharma-card.antidote::before { background: #3B82F6; }
-.pharma-name {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 4px;
-}
-.pharma-dose {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--brand);
-    margin: 6px 0;
-}
-.pharma-detail {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    line-height: 1.6;
-}
-.pharma-ref {
-    font-size: 0.68rem;
-    color: var(--slate-pale);
-    margin-top: 8px;
-    font-style: italic;
-}
-.pharma-locked {
-    background: #F8FAFC;
-    border: 2px dashed #CBD5E1;
-    border-radius: var(--radius);
-    padding: 20px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.84rem;
-}
-
-/* ======= SHOCK INDEX ======= */
-.si-box {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 14px 18px;
-    text-align: center;
-}
-.si-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 2rem;
-    font-weight: 700;
-}
-.si-normal { color: #22C55E; }
-.si-warn   { color: #F59E0B; }
-.si-crit   { color: #EF4444; }
-.si-label  { font-size: 0.65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); }
-
-/* ======= SBAR PRO ======= */
-.sbar-report {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-}
-.sbar-header {
-    background: linear-gradient(135deg, var(--brand-dark), var(--brand));
-    padding: 16px 24px;
-    color: white;
-}
-.sbar-header-title { font-size: 1rem; font-weight: 700; }
-.sbar-header-sub   { font-size: 0.72rem; opacity: .8; margin-top: 2px; }
-.sbar-section {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border);
-}
-.sbar-section:last-child { border-bottom: none; }
-.sbar-section-letter {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px; height: 28px;
-    background: var(--brand);
-    color: white;
-    font-weight: 800;
-    font-size: 0.85rem;
-    border-radius: 6px;
-    margin-right: 10px;
-    flex-shrink: 0;
-}
-.sbar-section-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--brand);
-}
-.sbar-section-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-.sbar-content {
-    font-size: 0.85rem;
-    color: var(--text);
-    line-height: 1.7;
-    margin-top: 8px;
-}
-.sbar-vital-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-top: 10px;
-}
-.sbar-vital-item {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px 10px;
-    text-align: center;
-}
-.sbar-vital-key   { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; }
-.sbar-vital-val   { font-family: 'JetBrains Mono', monospace; font-size: 1.0rem; font-weight: 700; color: var(--text); }
-.sbar-footer {
-    background: #F8FAFC;
-    padding: 12px 24px;
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    font-style: italic;
-    border-top: 1px solid var(--border);
-}
-
-/* ======= REEVAL HISTORY ======= */
-.reeval-line {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    margin: 4px 0;
-    font-size: 0.82rem;
-    border-left: 4px solid transparent;
-}
-.reeval-up     { background: #FEF2F2; border-color: #EF4444; color: #B91C1C; }
-.reeval-down   { background: #F0FDF4; border-color: #22C55E; color: #166534; }
-.reeval-stable { background: var(--info-bg); border-color: #3B82F6; color: #1E40AF; }
-
-/* ======= NEWS2 TREND BAR ======= */
-.n2-trend-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 4px 0;
-}
-.n2-trend-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    width: 56px;
-    flex-shrink: 0;
-    color: var(--text-muted);
-}
-.n2-trend-track {
-    flex: 1;
-    background: var(--border);
-    border-radius: 4px;
-    height: 14px;
-    overflow: hidden;
-}
-.n2-trend-fill { height: 14px; border-radius: 4px; }
-.n2-trend-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    font-weight: 700;
-    width: 20px;
-    text-align: right;
-}
-
-/* ======= HIST LINES ======= */
-.hist-line {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    margin: 5px 0;
-    font-size: 0.82rem;
-    box-shadow: var(--shadow-sm);
-}
-.hist-badge {
-    display: inline-block;
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-}
-.hb-M   { background: var(--tri-M-bg);  color: var(--tri-M-fg);  }
-.hb-1   { background: var(--tri-1-bg);  color: var(--tri-1-fg);  }
-.hb-2   { background: var(--tri-2-bg);  color: var(--tri-2-fg);  }
-.hb-3A  { background: var(--tri-3A-bg); color: var(--tri-3A-fg); }
-.hb-3B  { background: var(--tri-3B-bg); color: var(--tri-3B-fg); }
-.hb-4   { background: var(--tri-4-bg);  color: var(--tri-4-fg);  }
-.hb-5   { background: var(--tri-5-bg);  color: var(--tri-5-fg);  }
-
-/* ======= DISCLAIMER ======= */
-.hp-disclaimer {
-    background: #F8FAFC;
-    border: 1px solid var(--border);
-    border-top: 3px solid var(--brand);
-    border-radius: var(--radius-sm);
-    padding: 14px 18px;
-    margin-top: 28px;
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    line-height: 1.8;
-}
-.hp-disclaimer-sig {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--brand);
-    border-top: 1px solid var(--border);
-    padding-top: 8px;
-    margin-top: 8px;
-}
-
-/* ======= BUTTONS ======= */
-.stButton > button {
-    min-height: 46px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm) !important;
-    transition: all .2s ease !important;
-}
-.stButton > button[kind="primary"] {
-    background: var(--brand) !important;
-    border-color: var(--brand) !important;
-}
-.stButton > button[kind="primary"]:hover {
-    background: var(--brand-dark) !important;
-    box-shadow: var(--shadow-brand) !important;
-}
-
-/* ======= INPUTS ======= */
-.stNumberInput input, .stTextInput input, .stSelectbox select {
-    border-radius: var(--radius-sm) !important;
-    border-color: var(--border) !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    font-size: 0.95rem !important;
-}
-.stNumberInput input:focus, .stTextInput input:focus {
-    border-color: var(--brand) !important;
-    box-shadow: 0 0 0 3px rgba(0,74,153,.15) !important;
-}
-
-/* ======= TABS ======= */
+/* ─── TABS ──────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 4px;
-    background: var(--bg);
-    padding: 4px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
+  gap: 3px; background: #ECEFF4; padding: 4px;
+  border-radius: 10px; border: 1px solid var(--B);
+  overflow-x: auto; flex-wrap: nowrap;
 }
 .stTabs [data-baseweb="tab"] {
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.82rem;
-    padding: 8px 14px;
-    color: var(--text-muted);
-    transition: all .2s;
+  border-radius: 7px; font-weight:600; font-size:.78rem;
+  padding: 7px 12px; color: var(--TM); white-space: nowrap;
+  min-width: auto; transition: all .2s;
 }
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background: var(--brand) !important;
-    color: white !important;
+.stTabs [aria-selected="true"] {
+  background: var(--P)!important; color: white!important;
+  box-shadow: var(--s2)!important;
 }
-.stTabs [data-baseweb="tab-panel"] {
-    padding-top: 16px;
+.stTabs [data-baseweb="tab-panel"] { padding-top: 14px; }
+
+/* ─── CARDS ─────────────────────────────────────────── */
+.card {
+  background: var(--CARD); border: 1px solid var(--B);
+  border-radius: var(--r); padding: 16px 18px;
+  margin-bottom: 14px; box-shadow: var(--s1);
+}
+.card-title {
+  font-size:.63rem; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--P);
+  border-bottom: 2px solid var(--PP);
+  padding-bottom:8px; margin-bottom:12px;
+}
+.card-title-inline {
+  display:flex; align-items:center; gap:8px; margin-bottom:12px;
+}
+.card-icon {
+  width:32px; height:32px; border-radius:8px;
+  background:var(--PP); display:flex; align-items:center;
+  justify-content:center; font-size:1rem; flex-shrink:0;
 }
 
-/* ======= SIDEBAR ======= */
-.css-1d391kg, [data-testid="stSidebar"] {
-    background: var(--slate) !important;
-}
-[data-testid="stSidebar"] .stMarkdown,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] .stSelectbox,
-[data-testid="stSidebar"] p {
-    color: #E2E8F0 !important;
-}
-[data-testid="stSidebar"] .hp-sec {
-    color: #93C5FD !important;
-    border-color: rgba(147,197,253,.3) !important;
+/* ─── SECTION LABEL ─────────────────────────────────── */
+.sec {
+  font-size:.6rem; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--P);
+  border-bottom:2px solid var(--PP); padding-bottom:5px;
+  margin:16px 0 10px 0;
 }
 
-/* ======= METRICS ======= */
-[data-testid="metric-container"] {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-    box-shadow: var(--shadow-sm);
+/* ─── NEWS2 DASHBOARD ───────────────────────────────── */
+.n2-dash {
+  border-radius:var(--r); padding:18px 20px; text-align:center;
+  border:2px solid; margin-bottom:14px;
+  transition: all .3s ease;
+}
+.n2-dash.n2-0  { background:#F0FDF4; border-color:#22C55E; }
+.n2-dash.n2-1  { background:#F0FDF4; border-color:#22C55E; }
+.n2-dash.n2-2  { background:#FEFCE8; border-color:#EAB308; }
+.n2-dash.n2-3  { background:#FFF7ED; border-color:#F97316; }
+.n2-dash.n2-4  { background:#FFF1F2; border-color:#F43F5E; }
+.n2-dash.n2-5  { background:#FAF5FF; border-color:#7C3AED; }
+.n2-big {
+  font-family:'JetBrains Mono',monospace;
+  font-size:3.5rem; font-weight:700; line-height:1;
+  margin:6px 0 2px;
+}
+.n2-0 .n2-big, .n2-1 .n2-big { color:#16A34A; }
+.n2-2 .n2-big { color:#CA8A04; }
+.n2-3 .n2-big { color:#EA580C; }
+.n2-4 .n2-big { color:#E11D48; }
+.n2-5 .n2-big { color:#7C3AED; }
+.n2-lbl { font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.n2-0 .n2-lbl, .n2-1 .n2-lbl { color:#166534; }
+.n2-2 .n2-lbl { color:#854D0E; }
+.n2-3 .n2-lbl { color:#9A3412; }
+.n2-4 .n2-lbl { color:#881337; }
+.n2-5 .n2-lbl { color:#4C1D95; }
+.n2-bar-wrap { background:#E2E8F0; border-radius:6px; height:8px; margin:10px 0 6px; overflow:hidden; }
+.n2-bar { height:8px; border-radius:6px; transition:width .4s ease; }
+.n2-0 .n2-bar, .n2-1 .n2-bar { background:#22C55E; }
+.n2-2 .n2-bar { background:#EAB308; }
+.n2-3 .n2-bar { background:#F97316; }
+.n2-4 .n2-bar { background:#F43F5E; }
+.n2-5 .n2-bar { background:#7C3AED; }
+.n2-scale { display:flex; justify-content:space-between; font-size:.58rem; color:var(--TM); }
+
+/* ─── VITAUX GRID ───────────────────────────────────── */
+.vit-wrap { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0; }
+.vit {
+  background:var(--CARD); border:1.5px solid var(--B); border-radius:var(--r2);
+  padding:10px 12px; text-align:center; box-shadow:var(--s1);
+  transition: border-color .2s;
+}
+.vit.warn  { border-color:#F59E0B; background:#FFFBEB; }
+.vit.crit  { border-color:#EF4444; background:#FEF2F2; animation:vit-pulse 2s infinite; }
+.vit-k { font-size:.58rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--TM); margin-bottom:2px; }
+.vit-v { font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:700; }
+.vit-u { font-size:.6rem; color:var(--TM); }
+.vit.warn .vit-v { color:#92400E; }
+.vit.crit .vit-v { color:#B91C1C; }
+@keyframes vit-pulse { 0%,100%{ border-color:#EF4444; } 50%{ border-color:#FCA5A5; } }
+
+/* ─── ALERTES ───────────────────────────────────────── */
+.al {
+  border-radius:var(--r2); padding:11px 14px; margin:7px 0;
+  font-size:.82rem; font-weight:500; line-height:1.5;
+  display:flex; align-items:flex-start; gap:9px;
+  border-left: 4px solid;
+}
+.al.danger  { background:var(--ERR); border-color:var(--ERR-b); color:var(--ERR-t); }
+.al.warning { background:var(--WRN); border-color:var(--WRN-b); color:var(--WRN-t); }
+.al.success { background:var(--SUC); border-color:var(--SUC-b); color:var(--SUC-t); }
+.al.info    { background:var(--INF); border-color:var(--INF-b); color:var(--INF-t); }
+.al-ico     { font-size:.9rem; flex-shrink:0; margin-top:1px; }
+
+/* ─── PURPURA BANNER ────────────────────────────────── */
+.purp {
+  background:linear-gradient(135deg,#7F1D1D,#991B1B);
+  border:2px solid #EF4444; border-radius:var(--r);
+  padding:16px 20px; margin:10px 0;
+  animation: purp-glow 1.8s ease-in-out infinite;
+}
+.purp-title { font-size:.95rem; font-weight:800; color:#FECACA; text-transform:uppercase; margin-bottom:6px; }
+.purp-body  { font-size:.82rem; color:#FEE2E2; line-height:1.6; }
+@keyframes purp-glow {
+  0%,100%{ box-shadow:0 0 0 0 rgba(239,68,68,0); }
+  50%{ box-shadow:0 0 0 8px rgba(239,68,68,.25); }
 }
 
-/* ======= MOBILE ======= */
-@media (max-width: 768px) {
-    .tri-label     { font-size: 1.3rem; }
-    .news2-score   { font-size: 2.2rem; }
-    .vit-grid      { grid-template-columns: repeat(2, 1fr); }
-    .sbar-vital-grid { grid-template-columns: repeat(2, 1fr); }
-    .stButton > button { min-height: 52px !important; font-size: 1rem !important; }
-    .hp-header     { padding: 16px 18px; }
-    .hp-title      { font-size: 1.05rem; }
+/* ─── TRIAGE BANNER (fixed bottom) ─────────────────── */
+.tri-banner-wrap {
+  position:fixed; bottom:0; left:0; right:0; z-index:999;
+  padding:0 0 env(safe-area-inset-bottom,0);
 }
-/* iPhone PWA */
-@media (display-mode: standalone) {
-    .block-container { padding-top: 2rem !important; }
+.tri-banner {
+  padding:14px 20px; display:flex; align-items:center;
+  justify-content:space-between; flex-wrap:wrap; gap:8px;
 }
+.tri-M   { background:var(--TM-bg); }
+.tri-1   { background:var(--T1-bg); }
+.tri-2   { background:var(--T2-bg); }
+.tri-3A  { background:var(--T3A-bg); }
+.tri-3B  { background:var(--T3B-bg); }
+.tri-4   { background:var(--T4-bg); }
+.tri-5   { background:var(--T5-bg); }
+.tri-niv {
+  font-family:'JetBrains Mono',monospace;
+  font-size:1.1rem; font-weight:800; letter-spacing:.04em;
+}
+.tri-M .tri-niv   { color:var(--TM-ac); }
+.tri-1 .tri-niv   { color:var(--T1-ac); }
+.tri-2 .tri-niv   { color:var(--T2-ac); }
+.tri-3A .tri-niv  { color:var(--T3A-ac); }
+.tri-3B .tri-niv  { color:var(--T3B-ac); }
+.tri-4 .tri-niv   { color:var(--T4-ac); }
+.tri-5 .tri-niv   { color:var(--T5-ac); }
+.tri-sec  { font-size:.72rem; color:rgba(255,255,255,.8); max-width:60%; }
+.tri-just { font-size:.7rem; color:rgba(255,255,255,.65); font-style:italic; }
+.tri-delai {
+  background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.25);
+  color:#fff; font-size:.68rem; font-weight:700; padding:4px 12px;
+  border-radius:20px; white-space:nowrap;
+}
+
+/* ─── INLINE TRIAGE CARD ────────────────────────────── */
+.tri-card {
+  border-radius:var(--r); padding:20px 22px; text-align:center;
+  margin:12px 0; box-shadow:var(--s3); position:relative; overflow:hidden;
+}
+.tri-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:4px;
+}
+.tri-M .tri-card::before   { background:var(--TM-ac); }
+.tri-1 .tri-card::before   { background:var(--T1-ac); }
+.tri-2 .tri-card::before   { background:var(--T2-ac); }
+.tri-3A .tri-card::before  { background:var(--T3A-ac); }
+.tri-3B .tri-card::before  { background:var(--T3B-ac); }
+.tri-4 .tri-card::before   { background:var(--T4-ac); }
+.tri-5 .tri-card::before   { background:var(--T5-ac); }
+.tri-lbl { font-size:1.5rem; font-weight:800; letter-spacing:-.01em; }
+.tri-detail { font-size:.78rem; margin-top:5px; opacity:.88; }
+.tri-sector { font-size:.72rem; margin-top:4px; opacity:.75; }
+.tri-chips  { margin-top:10px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
+.tri-chip {
+  font-size:.65rem; font-weight:700; padding:3px 12px;
+  border-radius:20px; border:1px solid currentColor; opacity:.8;
+}
+
+/* ─── PHARMA CARDS ──────────────────────────────────── */
+.rx {
+  background:var(--CARD); border:1px solid var(--B);
+  border-radius:var(--r); padding:16px 18px; margin:8px 0;
+  box-shadow:var(--s1); position:relative; overflow:hidden;
+}
+.rx::before {
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:4px; border-radius:var(--r) 0 0 var(--r);
+}
+.rx.p1::before { background:#22C55E; }
+.rx.p2::before { background:#F59E0B; }
+.rx.p3::before { background:#EF4444; }
+.rx.urg::before { background:#7C3AED; }
+.rx.ant::before { background:#3B82F6; }
+.rx-name { font-size:.88rem; font-weight:700; color:var(--T); margin-bottom:3px; }
+.rx-dose {
+  font-family:'JetBrains Mono',monospace;
+  font-size:1.4rem; font-weight:700; color:var(--P); margin:5px 0 8px;
+}
+.rx-detail { font-size:.78rem; color:var(--TM); line-height:1.65; }
+.rx-ref    { font-size:.62rem; color:#94A3B8; margin-top:8px; font-style:italic; }
+.rx-lock {
+  background:#F8FAFC; border:2px dashed #CBD5E1; border-radius:var(--r);
+  padding:22px; text-align:center; color:var(--TM); font-size:.82rem; margin:8px 0;
+}
+.rx-lock-icon { font-size:1.6rem; margin-bottom:6px; }
+
+/* ─── SBAR REPORT ───────────────────────────────────── */
+.sbar { background:var(--CARD); border:1px solid var(--B); border-radius:var(--r); overflow:hidden; box-shadow:var(--s2); }
+.sbar-hdr { background:linear-gradient(135deg,var(--PD),var(--P)); padding:16px 22px; }
+.sbar-hdr-title { font-size:.95rem; font-weight:800; color:#fff; }
+.sbar-hdr-sub   { font-size:.68rem; color:rgba(255,255,255,.75); margin-top:2px; }
+.sbar-sec { padding:14px 22px; border-bottom:1px solid var(--B); }
+.sbar-sec:last-child { border-bottom:none; }
+.sbar-sec-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.sbar-letter {
+  width:28px; height:28px; border-radius:7px; background:var(--P);
+  color:#fff; font-weight:800; font-size:.84rem;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.sbar-sec-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--P); }
+.sbar-body { font-size:.82rem; color:var(--T); line-height:1.75; }
+.sbar-vit-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-top:10px; }
+.sbar-vit { background:var(--BG); border:1px solid var(--B); border-radius:7px; padding:8px; text-align:center; }
+.sbar-vit-k { font-size:.56rem; text-transform:uppercase; color:var(--TM); letter-spacing:.06em; }
+.sbar-vit-v { font-family:'JetBrains Mono',monospace; font-size:.95rem; font-weight:700; }
+.sbar-ftr { background:#F8FAFC; padding:10px 22px; font-size:.64rem; color:var(--TM); font-style:italic; border-top:1px solid var(--B); }
+
+/* ─── SI BOX ─────────────────────────────────────────── */
+.si-box { background:var(--CARD); border:1.5px solid var(--B); border-radius:var(--r2); padding:12px 16px; text-align:center; }
+.si-v { font-family:'JetBrains Mono',monospace; font-size:1.8rem; font-weight:700; }
+.si-ok { color:#22C55E; } .si-w { color:#F59E0B; } .si-c { color:#EF4444; }
+.si-l { font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; color:var(--TM); }
+
+/* ─── HISTORY LINES ─────────────────────────────────── */
+.hl { display:flex; align-items:center; gap:10px; background:var(--CARD); border:1px solid var(--B); border-radius:var(--r2); padding:10px 14px; margin:4px 0; box-shadow:var(--s1); font-size:.8rem; }
+.hbadge { font-size:.62rem; font-weight:700; padding:2px 8px; border-radius:5px; white-space:nowrap; flex-shrink:0; }
+.hb-M   { background:var(--TM-bg); color:var(--TM-ac); }
+.hb-1   { background:var(--T1-bg); color:var(--T1-ac); }
+.hb-2   { background:var(--T2-bg); color:var(--T2-ac); }
+.hb-3A  { background:var(--T3A-bg);color:var(--T3A-ac);}
+.hb-3B  { background:var(--T3B-bg);color:var(--T3B-ac);}
+.hb-4   { background:var(--T4-bg); color:var(--T4-ac); }
+.hb-5   { background:var(--T5-bg); color:var(--T5-ac); }
+
+/* ─── REEVAL LINES ──────────────────────────────────── */
+.rr { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r2); margin:4px 0; font-size:.79rem; border-left:4px solid; }
+.rr-up     { background:#FEF2F2; border-color:#EF4444; color:#B91C1C; }
+.rr-down   { background:#F0FDF4; border-color:#22C55E; color:#166534; }
+.rr-stable { background:#EFF6FF; border-color:#3B82F6; color:#1D4ED8; }
+
+/* ─── N2 TREND BAR ──────────────────────────────────── */
+.n2t { display:flex; align-items:center; gap:8px; margin:3px 0; }
+.n2t-lbl { font-family:'JetBrains Mono',monospace; font-size:.66rem; width:52px; flex-shrink:0; color:var(--TM); }
+.n2t-trk { flex:1; background:var(--B); border-radius:4px; height:12px; overflow:hidden; }
+.n2t-fill { height:12px; border-radius:4px; }
+.n2t-val { font-family:'JetBrains Mono',monospace; font-size:.7rem; font-weight:700; width:18px; text-align:right; }
+
+/* ─── DISCLAIMER ─────────────────────────────────────── */
+.disc {
+  background:#F8FAFC; border:1px solid var(--B); border-top:3px solid var(--P);
+  border-radius:var(--r2); padding:12px 16px; margin-top:24px;
+  font-size:.64rem; color:var(--TM); line-height:1.8;
+}
+.disc-sig { font-size:.66rem; font-weight:700; color:var(--P); border-top:1px solid var(--B); padding-top:6px; margin-top:6px; }
+
+/* ─── BUTTONS ────────────────────────────────────────── */
+.stButton > button {
+  min-height:46px!important; font-size:.88rem!important;
+  font-weight:600!important; border-radius:var(--r2)!important;
+  transition:all .2s!important;
+}
+.stButton > button[kind="primary"] { background:var(--P)!important; border-color:var(--P)!important; }
+.stButton > button[kind="primary"]:hover { background:var(--PD)!important; }
+
+/* ─── INPUTS ─────────────────────────────────────────── */
+.stNumberInput input, .stTextInput input {
+  border-radius:var(--r2)!important; font-family:'JetBrains Mono',monospace!important;
+  font-size:.95rem!important; min-height:42px!important;
+}
+.stSelectbox > div > div { border-radius:var(--r2)!important; }
+[data-testid="stMetricValue"] {
+  font-family:'JetBrains Mono',monospace; font-size:1.5rem!important;
+}
+
+/* ─── MOBILE ─────────────────────────────────────────── */
+@media(max-width:640px){
+  .vit-wrap { grid-template-columns:repeat(2,1fr); }
+  .sbar-vit-grid { grid-template-columns:repeat(2,1fr); }
+  .tri-lbl { font-size:1.3rem; }
+  .n2-big  { font-size:2.8rem; }
+  .block-container { padding:.5rem .6rem 4rem!important; }
+  .stButton>button { min-height:52px!important; font-size:1rem!important; }
+  .stNumberInput input { min-height:48px!important; }
+  .app-hdr-title { font-size:1.05rem; }
+}
+
+/* ─── PWA iPhone ─────────────────────────────────────── */
+@media(display-mode:standalone){ .block-container{ padding-top:2rem!important; } }
 </style>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AKIR-IAO">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23004A99'/%3E%3Ctext y='.9em' font-size='72' x='12'%3E%2B%3C/text%3E%3C/svg%3E">
-"""
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23004A99'/%3E%3Ctext y='.9em' font-size='72' x='12' fill='white'%3E%2B%3C/text%3E%3C/svg%3E">
+""", unsafe_allow_html=True)
 
-st.markdown(CSS, unsafe_allow_html=True)
-
-# ==============================================================================
-# [1] CONSTANTES CLINIQUES
-# ==============================================================================
-
-LABELS_TRI = {
-    "M":  "TRI M — IMMEDIAT",
-    "1":  "TRI 1 — URGENCE EXTREME",
-    "2":  "TRI 2 — TRES URGENT",
-    "3A": "TRI 3A — URGENT",
-    "3B": "TRI 3B — URGENT DIFFERE",
-    "4":  "TRI 4 — MOINS URGENT",
-    "5":  "TRI 5 — NON URGENT",
+# ══════════════════════════════════════════════════════════════════════════════
+# CONSTANTES CLINIQUES
+# ══════════════════════════════════════════════════════════════════════════════
+LABELS = {"M":"TRI M — IMMEDIAT","1":"TRI 1 — URGENCE EXTREME","2":"TRI 2 — TRES URGENT",
+          "3A":"TRI 3A — URGENT","3B":"TRI 3B — URGENT DIFFERE",
+          "4":"TRI 4 — MOINS URGENT","5":"TRI 5 — NON URGENT"}
+SECTEURS = {"M":"Dechocage — Immediat","1":"Dechocage — Immediat",
+            "2":"Soins aigus — Med. <20 min","3A":"Soins aigus — Med. <30 min",
+            "3B":"Polyclinique — Med. <1 h","4":"Consultation — Med. <2 h",
+            "5":"Salle attente — Reorientation MG"}
+DELAIS   = {"M":5,"1":5,"2":15,"3A":30,"3B":60,"4":120,"5":999}
+TCSS     = {"M":"tri-M","1":"tri-1","2":"tri-2","3A":"tri-3A","3B":"tri-3B","4":"tri-4","5":"tri-5"}
+HBCSS    = {"M":"hb-M","1":"hb-1","2":"hb-2","3A":"hb-3A","3B":"hb-3B","4":"hb-4","5":"hb-5"}
+ORD      = {"M":0,"1":1,"2":2,"3A":3,"3B":4,"4":5,"5":6}
+GLYC     = {"hs":54,"hm":70,"Hs":180,"Hs2":360}
+ATCD     = ["HTA","Diabete type 1","Diabete type 2","Tabagisme actif","Dyslipidaemie",
+            "ATCD familial coronarien","Insuffisance cardiaque","BPCO","Anticoagulants/AOD",
+            "Grossesse en cours","Immunodepression","Neoplasie evolutive","Epilepsie",
+            "Insuffisance renale chronique","Ulcere gastro-duodenal","Insuffisance hepatique",
+            "Deficit vitamine B12","Drepanocytose","Chimiotherapie en cours",
+            "IMAO (inhibiteurs MAO)","Antidepresseurs ISRS/IRSNA"]
+CFS_LBL  = {1:"Tres en forme",2:"En forme",3:"Bien portant",4:"Vulnerable",
+            5:"Fragilite legere",6:"Fragilite moderee",7:"Fragilite severe",
+            8:"Fragilite tres severe",9:"Maladie terminale"}
+MOTS_CAT = {
+  "Cardio":["Arret cardio-respiratoire","Hypotension arterielle","Douleur thoracique / SCA",
+            "Tachycardie / tachyarythmie","Bradycardie / bradyarythmie","Palpitations",
+            "Hypertension arterielle","Allergie / anaphylaxie"],
+  "Respiratoire":["Dyspnee / insuffisance respiratoire","Dyspnee / insuffisance cardiaque"],
+  "Digestif":["Douleur abdominale","Vomissements / Diarrhee","Hematemese / Rectorragie"],
+  "Neuro":["AVC / Deficit neurologique","Traumatisme cranien","Alteration de conscience / Coma",
+           "Cephalee","Convulsions / EME","Syndrome confusionnel","Malaise"],
+  "Trauma":["Traumatisme thorax/abdomen/rachis cervical","Traumatisme bassin/hanche/femur",
+            "Traumatisme membre / epaule"],
+  "Infectio":["Fievre"],
+  "Pediatrie":["Pediatrie - Fievre <= 3 mois"],
+  "Peau":["Petechie / Purpura","Erytheme etendu"],
+  "Gyneco":["Accouchement imminent","Complication grossesse T1/T2","Menorragie / Metrorragie"],
+  "Metabolique":["Hypoglycemie","Hyperglycemie / Cetoacidose"],
+  "Divers":["Renouvellement ordonnance","Examen administratif"],
 }
-SECTEURS_TRI = {
-    "M":  "Dechocage — Prise en charge immediate",
-    "1":  "Dechocage — Prise en charge immediate",
-    "2":  "Soins aigus — Medecin en moins de 20 min",
-    "3A": "Soins aigus — Medecin en moins de 30 min",
-    "3B": "Polyclinique — Medecin en moins de 1 h",
-    "4":  "Consultation — Medecin en moins de 2 h",
-    "5":  "Salle d'attente — Reorientation MG possible",
-}
-DELAIS_TRI = {"M":5,"1":5,"2":15,"3A":30,"3B":60,"4":120,"5":999}
-CSS_TRI    = {"M":"tri-M","1":"tri-1","2":"tri-2","3A":"tri-3A","3B":"tri-3B","4":"tri-4","5":"tri-5"}
-HB_CSS     = {"M":"hb-M","1":"hb-1","2":"hb-2","3A":"hb-3A","3B":"hb-3B","4":"hb-4","5":"hb-5"}
-ORD_NIV    = {"M":0,"1":1,"2":2,"3A":3,"3B":4,"4":5,"5":6}
+MOTIFS_RAPIDES = ["Douleur thoracique / SCA","Dyspnee / insuffisance respiratoire",
+                  "AVC / Deficit neurologique","Alteration de conscience / Coma",
+                  "Traumatisme cranien","Hypotension arterielle","Tachycardie / tachyarythmie",
+                  "Fievre","Douleur abdominale","Allergie / anaphylaxie","Hypoglycemie",
+                  "Convulsions / EME","Pediatrie - Fievre <= 3 mois","Autre motif"]
 
-GLYCEMIE = {
-    "hypoglycemie_severe":  54,
-    "hypoglycemie_moderee": 70,
-    "hyperglycemie_seuil":  180,
-    "hyperglycemie_severe": 360,
-}
-SEUILS_PEDIATRIQUES = {
-    "0_1m":  (100,180,60),
-    "1_6m":  (100,160,70),
-    "6_24m": (80, 150,75),
-    "1_10a": (70, 140,70),
-}
-LISTE_ATCD = [
-    "HTA","Diabete de type 1","Diabete de type 2","Tabagisme actif",
-    "Dyslipidaemie","ATCD familial coronarien","Insuffisance cardiaque chronique",
-    "BPCO","Anticoagulants / AOD","Grossesse en cours","Immunodepression",
-    "Neoplasie evolutive","Epilepsie","Insuffisance renale chronique",
-    "Ulcere gastro-duodenal","Insuffisance hepatique","Deficit en vitamine B12",
-    "Drepanocytose / hemoglobinopathie","Chimiotherapie en cours",
-    "IMAO (inhibiteurs MAO)","Antidepresseurs serotoninergiques (ISRS / IRSNA)",
-]
-CFS_NIVEAUX = {
-    1:"Tres en forme",2:"En forme",3:"Bien portant",4:"Vulnerable",
-    5:"Fragilite legere",6:"Fragilite moderee",7:"Fragilite severe",
-    8:"Fragilite tres severe",9:"Maladie terminale",
-}
+# ══════════════════════════════════════════════════════════════════════════════
+# MOTEUR CLINIQUE
+# ══════════════════════════════════════════════════════════════════════════════
 
-# ==============================================================================
-# [2] MOTEUR CLINIQUE
-# ==============================================================================
-
-def calculer_news2(fr,spo2,o2_supp,temp,pas,fc,gcs,bpco=False):
-    warns=[]
-    s=0
-    if   fr<=8:  s+=3;warns.append(f"FR {fr}/min <=8")
+def calculer_news2(fr,spo2,o2,temp,pas,fc,gcs,bpco=False):
+    s=0; w=[]
+    # FR
+    if   fr<=8:  s+=3; w.append(f"FR {fr}/min critique")
     elif fr<=11: s+=1
-    elif fr<=20: s+=0
+    elif fr<=20: pass
     elif fr<=24: s+=2
-    else:        s+=3;warns.append(f"FR {fr}/min >=25")
+    else:        s+=3; w.append(f"FR {fr}/min — tachypnee severe")
+    # SpO2 (echelle 1 ou 2 selon BPCO)
     if bpco:
-        if   spo2<=83: s+=3;warns.append(f"SpO2 {spo2}% critique (BPCO)")
+        if   spo2<=83: s+=3; w.append(f"SpO2 {spo2}% critique (BPCO)")
         elif spo2<=85: s+=2
         elif spo2<=87: s+=1
-        elif spo2<=92: s+=0
-        elif spo2<=94: s+=0
-        elif spo2<=96: s+=1
-        else:          s+=2;warns.append(f"SpO2 {spo2}% hyperoxie en contexte BPCO")
+        elif spo2<=92: pass   # BPCO target 88-92%
+        elif spo2<=94: pass
+        elif spo2<=96: s+=1; w.append(f"SpO2 {spo2}% élevée — risque hyperoxie BPCO")
+        else:          s+=3; w.append(f"SpO2 {spo2}% > 96% — RISQUE NARCOSE CO₂ (BPCO)")
     else:
-        if   spo2<=91: s+=3;warns.append(f"SpO2 {spo2}% <=91% — hypoxemie severe")
+        if   spo2<=91: s+=3; w.append(f"SpO2 {spo2}% — hypoxemie severe")
         elif spo2<=93: s+=2
         elif spo2<=95: s+=1
-        else:          s+=0
-    if o2_supp: s+=2;warns.append("O2 supplementaire — +2 pts NEWS2")
-    if   temp<=35.0: s+=3;warns.append(f"T {temp}C — hypothermie")
+    # O2 supp
+    if o2: s+=2; w.append("O2 supplementaire +2 pts")
+    # Temp
+    if   temp<=35.0: s+=3; w.append(f"T {temp}C — hypothermie")
     elif temp<=36.0: s+=1
-    elif temp<=38.0: s+=0
+    elif temp<=38.0: pass
     elif temp<=39.0: s+=1
-    else:            s+=2;warns.append(f"T {temp}C — hyperthermie")
-    if   pas<=90:  s+=3;warns.append(f"PAS {pas}mmHg — etat de choc")
+    else:            s+=2; w.append(f"T {temp}C — hyperthermie")
+    # PAS
+    if   pas<=90:  s+=3; w.append(f"PAS {pas}mmHg — etat de choc")
     elif pas<=100: s+=2
     elif pas<=110: s+=1
-    elif pas<=219: s+=0
-    else:          s+=3;warns.append(f"PAS {pas}mmHg — HTA hypertensive")
-    if   fc<=40:  s+=3;warns.append(f"FC {fc}bpm — bradycardie severe")
+    elif pas<=219: pass
+    else:          s+=3; w.append(f"PAS {pas}mmHg — HTA extreme")
+    # FC
+    if   fc<=40:  s+=3; w.append(f"FC {fc}bpm — bradycardie critique")
     elif fc<=50:  s+=1
-    elif fc<=90:  s+=0
+    elif fc<=90:  pass
     elif fc<=110: s+=1
     elif fc<=130: s+=2
-    else:         s+=3;warns.append(f"FC {fc}bpm — tachycardie severe")
-    if   gcs==15: s+=0
-    elif gcs>=13: s+=3;warns.append(f"GCS {gcs}/15")
-    else:         s+=3;warns.append(f"GCS {gcs}/15 — alteration majeure")
-    return s, warns
+    else:         s+=3; w.append(f"FC {fc}bpm — tachycardie critique")
+    # GCS
+    if   gcs==15: pass
+    elif gcs>=13: s+=3; w.append(f"GCS {gcs}/15")
+    else:         s+=3; w.append(f"GCS {gcs}/15 — alteration majeure")
+    return s, w
 
-def news2_meta(score):
-    if   score==0: return "Risque nul",    "n2-0", "#22C55E", 0
-    elif score<=4: return "Risque faible", "n2-1", "#84CC16", int(score/12*100)
-    elif score<=6: return "Risque modere", "n2-2", "#EAB308", int(score/12*100)
-    elif score<=8: return "Risque eleve",  "n2-3", "#F97316", int(score/12*100)
-    else:          return "CRITIQUE",      "n2-5", "#7C3AED", min(int(score/12*100),100)
+def n2_meta(s):
+    if   s==0: return "Risque nul",    "n2-0", 0
+    elif s<=4: return "Risque faible", "n2-1", int(s/12*100)
+    elif s<=6: return "Risque modere", "n2-2", int(s/12*100)
+    elif s<=8: return "Risque élevé",  "n2-3", int(s/12*100)
+    else:      return "CRITIQUE",      "n2-5", min(int(s/12*100),100)
 
 def calculer_gcs(y,v,m):
-    try:    return max(3,min(15,int(y)+int(v)+int(m))),[]
+    try: return max(3,min(15,int(y)+int(v)+int(m))),[]
     except: return 15,["Erreur GCS"]
 
 def calculer_qsofa(fr,gcs,pas):
-    pos=[]; w=[]; s=0
-    if fr  is None: w.append("FR manquante")
-    elif fr>=22: s+=1; pos.append(f"FR {fr}/min >=22")
+    s=0; pos=[]; w=[]
+    if fr is None: w.append("FR manquante")
+    elif fr>=22: s+=1; pos.append(f"FR {fr}/min")
     if gcs is None: w.append("GCS manquant")
-    elif gcs<15:  s+=1; pos.append(f"GCS {gcs}/15")
+    elif gcs<15: s+=1; pos.append(f"GCS {gcs}/15")
     if pas is None: w.append("PAS manquante")
-    elif pas<=100: s+=1; pos.append(f"PAS {pas}mmHg <=100")
+    elif pas<=100: s+=1; pos.append(f"PAS {pas}mmHg")
     return s,pos,w
 
-def calculer_timi(age,nb_frcv,stenose_50,aspirine_7j,troponine_pos,deviation_st,crises_24h):
+def calculer_timi(age,nb_frcv,sten,aspi,trop,dst,cris):
     try:
-        s = (
-            int(age>=65)
-            + int(nb_frcv>=3)
-            + int(bool(stenose_50))
-            + int(bool(aspirine_7j))
-            + int(bool(troponine_pos))
-            + int(bool(deviation_st))
-            + int(crises_24h>=2)
-        )
+        s=(int(age>=65)+int(nb_frcv>=3)+int(bool(sten))+int(bool(aspi))
+           +int(bool(trop))+int(bool(dst))+int(cris>=2))
         return s,[]
-    except (TypeError,ValueError) as e:
-        return 0,[str(e)]
+    except Exception as e: return 0,[str(e)]
 
-def evaluer_fast(face,bras,lang,debut):
-    s=int(bool(face))+int(bool(bras))+int(bool(lang))+int(bool(debut))
-    if s>=2: return s,"FAST positif — AVC suspect — Filiere Stroke",True
-    if s==1: return s,"FAST partiel — Evaluation neurologique urgente",False
-    return s,"FAST negatif",False
+def evaluer_fast(f,a,s,t):
+    sc=int(bool(f))+int(bool(a))+int(bool(s))+int(bool(t))
+    if sc>=2: return sc,"FAST positif — AVC probable — Filiere Stroke",True
+    if sc==1: return sc,"FAST partiel — Evaluation urgente",False
+    return sc,"FAST negatif",False
 
-def calculer_algoplus(visage,regard,plaintes,attitude_corpo,comportement):
+def calculer_algoplus(v,r,p,ac,co):
     try:
-        s = (
-            int(bool(visage))
-            + int(bool(regard))
-            + int(bool(plaintes))
-            + int(bool(attitude_corpo))
-            + int(bool(comportement))
-        )
-        if   s>=4: interp,css="Douleur intense — IV urgent","danger"
-        elif s>=2: interp,css="Douleur probable — traitement","warning"
-        else:      interp,css="Douleur absente ou faible","success"
-        return s,interp,css,[]
-    except (TypeError,ValueError) as e:
-        return 0,"Erreur","info",[str(e)]
+        s=(int(bool(v))+int(bool(r))+int(bool(p))+int(bool(ac))+int(bool(co)))
+        if   s>=4: return s,"Douleur intense — traitement IV urgent","danger",[]
+        elif s>=2: return s,"Douleur probable — traitement à initier","warning",[]
+        return s,"Douleur absente ou peu probable","success",[]
+    except Exception as e: return 0,"Erreur","info",[str(e)]
 
-def evaluer_cfs(score):
-    if score<=3: return "Robuste","success",False
-    if score<=4: return "Vulnerable","warning",False
-    if score<=6: return "Fragile","warning",True
-    if score<=8: return "Tres fragile","danger",True
+def evaluer_cfs(sc):
+    if sc<=3: return "Robuste","success",False
+    if sc<=4: return "Vulnerable","warning",False
+    if sc<=6: return "Fragile","warning",True
+    if sc<=8: return "Tres fragile","danger",True
     return "Terminal","danger",True
 
-def calculer_shock_index(fc,pas):
-    return round(fc/pas,2) if pas and pas>0 else 0.0
+def si(fc,pas): return round(fc/pas,2) if pas and pas>0 else 0.0
 
-def calculer_sipa(fc,age_annees):
-    sipa=round(fc/max(1.0,float(age_annees+1)*15+70),2)
-    seuil=2.2 if age_annees<=1 else (2.0 if age_annees<=4 else (1.8 if age_annees<=7 else 1.7))
-    if sipa>seuil:
-        return sipa,f"SIPA {sipa} > {seuil} — Choc pediatrique probable — Tri 1",True
-    return sipa,f"SIPA {sipa} <= {seuil} — Hemodynamique preservee",False
+def sipa(fc,age):
+    v=round(fc/max(1.0,float(age+1)*15+70),2)
+    s=2.2 if age<=1 else (2.0 if age<=4 else (1.8 if age<=7 else 1.7))
+    return v,f"SIPA {v} {'>' if v>s else '<='} {s} — {'Choc pediatrique probable' if v>s else 'Hemodynamique preservee'}",v>s
 
-def mgdl_vers_mmol(v): return round(v/18.016,1)
-def mmol_vers_mgdl(v): return round(v*18.016,0)
+def mgdl_mmol(v): return round(v/18.016,1)
 
-def seuils_pediatriques(age_annees):
-    if age_annees<1/12:   return SEUILS_PEDIATRIQUES["0_1m"]
-    elif age_annees<0.5:  return SEUILS_PEDIATRIQUES["1_6m"]
-    elif age_annees<=2:   return SEUILS_PEDIATRIQUES["6_24m"]
-    elif age_annees<=10:
-        fc_min,fc_max=SEUILS_PEDIATRIQUES["1_10a"][:2]
-        return fc_min,fc_max,int(70+age_annees*2)
-    return 60,120,80
-
-def french_triage(motif,details,fc,pas,spo2,fr,gcs,temp,age,news2,glycemie_mgdl=None):
+def french_triage(motif,det,fc,pas,spo2,fr,gcs,temp,age,n2,gl=None):
     fc=fc or 80; pas=pas or 120; spo2=spo2 or 98
-    fr=fr or 16; gcs=gcs or 15; temp=temp or 37.0; news2=news2 or 0
-    if details is None: details={}
+    fr=fr or 16; gcs=gcs or 15; temp=temp or 37.0; n2=n2 or 0
+    det=det or {}
     try:
-        if news2>=9: return "M",f"NEWS2 {news2} >=9 — engagement vital","NEWS2 Tri M"
-        if details.get("purpura"):
-            return "1","PURPURA FULMINANS — Ceftriaxone 2g IV IMMEDIAT","SPILF/SFP 2017"
-        if motif=="Arret cardio-respiratoire":
-            return "1","ACR confirme","FRENCH Tri 1"
+        if n2>=9: return "M",f"NEWS2 {n2}>=9 — engagement vital","NEWS2 Tri M"
+        if det.get("purpura"): return "1","PURPURA FULMINANS — Céfotriaxone 2 g IV","SPILF/SFP 2017"
+        if motif=="Arret cardio-respiratoire": return "1","ACR confirme","FRENCH Tri 1"
         if motif=="Hypotension arterielle":
             if pas<=70: return "1",f"PAS {pas}<=70","FRENCH Tri 1"
-            if pas<=90 or (pas<=100 and fc>100): return "2",f"PAS {pas} — choc debutant","FRENCH Tri 2"
-            if pas<=100: return "3B",f"PAS {pas} — valeur limite","FRENCH Tri 3B"
+            if pas<=90 or (pas<=100 and fc>100): return "2","Choc débutant","FRENCH Tri 2"
+            if pas<=100: return "3B","PAS limite","FRENCH Tri 3B"
             return "4","PAS normale","FRENCH Tri 4"
         if motif=="Douleur thoracique / SCA":
-            ecg=details.get("ecg","Normal"); doul=details.get("douleur_type","Atypique")
-            if ecg=="Anormal typique SCA" or doul=="Typique persistante/intense":
-                return "1","SCA avec ECG anormal ou douleur typique","FRENCH Tri 1"
+            ecg=det.get("ecg","Normal"); doul=det.get("douleur","Atypique")
+            if ecg=="Anormal typique SCA" or doul=="Typique (constrictive, irradiante)": return "1","SCA — ECG anormal ou douleur typique","FRENCH Tri 1"
             if fc>=120 or spo2<94: return "2","Douleur thoracique instable","FRENCH Tri 2"
-            if doul=="Type coronaire" or details.get("frcv_count",0)>=2:
-                return "2","Douleur coronaire probable","FRENCH Tri 2"
-            if ecg=="Anormal non typique": return "2","ECG non typique","FRENCH Tri 2"
+            if doul=="Coronaire probable" or det.get("frcv",0)>=2: return "2","Douleur coronaire probable","FRENCH Tri 2"
             return "3A","Douleur atypique stable","FRENCH Tri 3A"
-        if motif in ("Tachycardie / tachyarythmie","Bradycardie / bradyarythmie","Palpitations"):
+        if motif in("Tachycardie / tachyarythmie","Bradycardie / bradyarythmie","Palpitations"):
             if fc>=180 or fc<=30: return "1",f"FC {fc}bpm extreme","FRENCH Tri 1"
             if fc>=150 or fc<=40: return "2",f"FC {fc}bpm severe","FRENCH Tri 2"
-            if details.get("mauvaise_tolerance"): return "2","Arythmie mal toleree","FRENCH Tri 2"
-            return "3B",f"FC {fc}bpm toleree","FRENCH Tri 3B"
+            if det.get("tol_mal"): return "2","Arythmie mal tolérée","FRENCH Tri 2"
+            return "3B",f"FC {fc} bpm — tolérée","FRENCH Tri 3B"
         if motif=="Hypertension arterielle":
-            if pas>=220: return "2",f"PAS {pas}>=220 — urgence hypertensive","FRENCH Tri 2"
-            if details.get("sf_associes") or (pas>=180 and fc>100):
-                return "2","HTA avec signes fonctionnels","FRENCH Tri 2"
-            if pas>=180: return "3B",f"PAS {pas} severe sans SF","FRENCH Tri 3B"
-            return "4",f"PAS {pas} moderee","FRENCH Tri 4"
+            if pas>=220: return "2",f"PAS {pas}>=220","FRENCH Tri 2"
+            if det.get("sf") or (pas>=180 and fc>100): return "2","HTA avec SF","FRENCH Tri 2"
+            if pas>=180: return "3B","HTA sévère sans signe fonctionnel","FRENCH Tri 3B"
+            return "4","HTA modérée","FRENCH Tri 4"
         if motif=="Allergie / anaphylaxie":
-            if spo2<94 or pas<90 or gcs<15: return "1","Anaphylaxie severe","FRENCH Tri 1"
-            if details.get("dyspnee") or details.get("urticaire"): return "2","Allergie systemique","FRENCH Tri 2"
-            return "3B","Reaction allergique localisee","FRENCH Tri 3B"
+            if spo2<94 or pas<90 or gcs<15: return "1","Anaphylaxie sévère","FRENCH Tri 1"
+            if det.get("dyspnee") or det.get("urticaire"): return "2","Allergie systemique","FRENCH Tri 2"
+            return "3B","Réaction allergique localisée","FRENCH Tri 3B"
         if motif=="AVC / Deficit neurologique":
-            delai=details.get("delai_heures",99)
-            if delai<=4.5: return "1",f"AVC {delai}h <=4h30 — filiere Stroke","FRENCH Tri 1"
-            if details.get("deficit_progressif") or gcs<15:
-                return "2","Deficit progressif ou GCS altere","FRENCH Tri 2"
-            return "2","Deficit neurologique — bilan urgent","FRENCH Tri 2"
+            d=det.get("delai",99)
+            if d<=4.5: return "1",f"AVC {d}h — filiere Stroke","FRENCH Tri 1"
+            if det.get("def_prog") or gcs<15: return "2","Déficit progressif ou GCS altéré","FRENCH Tri 2"
+            return "2","Déficit neurologique — bilan urgent","FRENCH Tri 2"
         if motif=="Traumatisme cranien":
             if gcs<=8: return "1",f"TC grave GCS {gcs}","FRENCH Tri 1"
-            if gcs<=12 or details.get("aod_avk"):
-                return "2",f"TC GCS {gcs} ou anticoagulant","FRENCH Tri 2"
-            if details.get("perte_conscience"): return "3A","TC avec PDC","FRENCH Tri 3A"
-            return "4","TC benin","FRENCH Tri 4"
+            if gcs<=12 or det.get("aod"): return "2",f"TC GCS {gcs} ou AOD","FRENCH Tri 2"
+            if det.get("pdc"): return "3A","TC avec perte de conscience","FRENCH Tri 3A"
+            return "4","TC bénin","FRENCH Tri 4"
         if motif=="Alteration de conscience / Coma":
-            gl=glycemie_mgdl or details.get("glycemie_mgdl",0)
-            if gl and gl<GLYCEMIE["hypoglycemie_severe"]:
-                return "2",f"Hypoglycemie {gl}mg/dl — Glucose 30% IV","FRENCH Tri 2"
+            if gl and gl<GLYC["hs"]: return "2",f"Hypoglycemie {gl}mg/dl — Glucose 30%","FRENCH Tri 2"
             if gcs<=8: return "1",f"Coma GCS {gcs}","FRENCH Tri 1"
-            if gcs<=13: return "2",f"Alteration GCS {gcs}","FRENCH Tri 2"
-            return "2","Alteration legere — evaluation urgente","FRENCH Tri 2"
-        if motif=="Etat de mal epileptique / Convulsions":
-            if details.get("crises_multiples"): return "2","Crises multiples ou EME","FRENCH Tri 2"
-            if details.get("confusion"): return "2","Confusion post-critique","FRENCH Tri 2"
-            return "3B","Convulsion recuperee","FRENCH Tri 3B"
+            if gcs<=13: return "2",f"Altération GCS {gcs}","FRENCH Tri 2"
+            return "2","Altération légère","FRENCH Tri 2"
+        if motif=="Convulsions / EME":
+            if det.get("multi"): return "2","Crises multiples ou état de mal épileptique","FRENCH Tri 2"
+            if det.get("conf"): return "2","Confusion post-critique","FRENCH Tri 2"
+            return "3B","Convulsion récupérée","FRENCH Tri 3B"
         if motif=="Cephalee":
-            if details.get("brutal"): return "1","Cephalee foudroyante — HSA","FRENCH Tri 1"
-            if details.get("raideur_nuque") or details.get("fievre_cephalee"):
-                return "2","Cephalee avec signes meninges","FRENCH Tri 2"
-            return "3B","Cephalee sans signe de gravite","FRENCH Tri 3B"
+            if det.get("brutal"): return "1","Cephalee foudroyante — HSA","FRENCH Tri 1"
+            if det.get("nuque") or det.get("fiev_ceph"): return "2","Signes méningés","FRENCH Tri 2"
+            return "3B","Céphalée sans signe de gravité","FRENCH Tri 3B"
         if motif=="Malaise":
-            gl=glycemie_mgdl or details.get("glycemie_mgdl",0)
-            if gl and gl<GLYCEMIE["hypoglycemie_severe"]:
-                return "2",f"Malaise hypoglycemique {gl}mg/dl","FRENCH Tri 2"
-            if news2>=2 or details.get("anomalie_vitaux"): return "2","Malaise avec anomalie vitale","FRENCH Tri 2"
-            return "3B","Malaise recupere","FRENCH Tri 3B"
-        if motif in ("Dyspnee / insuffisance respiratoire","Dyspnee / insuffisance cardiaque"):
-            bpco_dysp="BPCO" in details.get("atcd",[]) or details.get("bpco_dyspnee",False)
-            cible=92 if bpco_dysp else 95
-            if spo2<(88 if bpco_dysp else 91) or fr>=40:
-                return "1",f"Detresse respiratoire SpO2 {spo2}% FR {fr}/min","FRENCH Tri 1"
-            if spo2<cible or fr>=30 or not details.get("parole_ok",True):
-                return "2",f"Dyspnee severe SpO2 {spo2}%","FRENCH Tri 2"
-            if details.get("orthopnee") or details.get("tirage"):
-                return "2","Dyspnee avec orthopnee ou tirage","FRENCH Tri 2"
-            return "3B",f"Dyspnee moderee SpO2 {spo2}%","FRENCH Tri 3B"
+            if gl and gl<GLYC["hs"]: return "2",f"Malaise hypoglycémique {gl}mg/dl","FRENCH Tri 2"
+            if n2>=2 or det.get("anom_vit"): return "2","Malaise avec anomalie vitale","FRENCH Tri 2"
+            return "3B","Malaise récupéré","FRENCH Tri 3B"
+        if motif in("Dyspnee / insuffisance respiratoire","Dyspnee / insuffisance cardiaque"):
+            bp=det.get("bpco",False); cible=92 if bp else 95
+            if spo2<(88 if bp else 91) or fr>=40: return "1",f"Detresse respi SpO2 {spo2}% FR {fr}","FRENCH Tri 1"
+            if spo2<cible or fr>=30 or not det.get("parole",True): return "2",f"Dyspnée sévère SpO2 {spo2}%","FRENCH Tri 2"
+            if det.get("orth") or det.get("tirage"): return "2","Orthopnée ou tirage","FRENCH Tri 2"
+            return "3B",f"Dyspnée modérée SpO2 {spo2}%","FRENCH Tri 3B"
         if motif=="Douleur abdominale":
-            si=calculer_shock_index(fc,pas)
-            if pas<90 or si>=1.0: return "2",f"Douleur abdominale avec choc SI {si}","FRENCH Tri 2"
-            if details.get("grossesse") or details.get("geu"): return "2","Abdomen sur grossesse — GEU","FRENCH Tri 2"
-            if details.get("defense"): return "2","Abdomen chirurgical","FRENCH Tri 2"
-            if details.get("mauvaise_tolerance"): return "3A","Douleur mal toleree","FRENCH Tri 3A"
+            sh=si(fc,pas)
+            if pas<90 or sh>=1.0: return "2",f"Abdomen avec état de choc SI {sh}","FRENCH Tri 2"
+            if det.get("grossesse") or det.get("geu"): return "2","Abdomen sur grossesse / GEU","FRENCH Tri 2"
+            if det.get("defense"): return "2","Abdomen chirurgical","FRENCH Tri 2"
+            if det.get("tol_mal"): return "3A","Douleur mal toleree","FRENCH Tri 3A"
             return "3B","Douleur toleree","FRENCH Tri 3B"
         if motif=="Fievre":
-            si=calculer_shock_index(fc,pas)
-            if details.get("purpura"): return "1","Fievre + purpura — Ceftriaxone 2g IV","FRENCH Tri 1"
-            if temp>=40 or temp<=35.2 or details.get("confusion"):
-                return "2",f"Fievre severe T {temp}C","FRENCH Tri 2"
-            if details.get("mauvaise_tolerance") or pas<100 or si>=1.0:
-                return "3B",f"Fievre mal toleree SI {si}","FRENCH Tri 3B"
-            return "5","Fievre bien toleree","FRENCH Tri 5"
-        if motif=="Pediatrie - Fievre <= 3 mois":
-            return "2","Fievre nourrisson <=3 mois — systematique","FRENCH Pediatrie Tri 2"
+            if det.get("purpura"): return "1","Fievre + purpura — Ceftriaxone 2g","FRENCH Tri 1"
+            if temp>=40 or temp<=35.2 or det.get("conf"): return "2",f"Fièvre avec critère de gravité T {temp}C","FRENCH Tri 2"
+            if det.get("tol_mal") or pas<100 or si(fc,pas)>=1.0: return "3B","Fièvre mal tolérée","FRENCH Tri 3B"
+            return "5","Fièvre bien tolérée","FRENCH Tri 5"
+        if motif=="Pediatrie - Fievre <= 3 mois": return "2","Fièvre nourrisson <=3 mois","FRENCH Pediatrie Tri 2"
         if motif=="Petechie / Purpura":
-            if details.get("non_effacable"):
-                return "1","Purpura non effacable — Ceftriaxone 2g IV","SPILF/SFP 2017"
-            if temp>=38.0 or details.get("mauvaise_tolerance"):
-                return "2","Purpura febrile — suspicion fulminans","FRENCH Tri 2"
-            return "3B","Petechies — bilan hemostase","FRENCH Tri 3B"
-        if motif in ("Traumatisme du thorax / abdomen / rachis cervical","Traumatisme du bassin / hanche / femur"):
-            if details.get("penetrant") or details.get("cinetique")=="Haute":
-                return "1","Traumatisme penetrant haute cinetique","FRENCH Tri 1"
-            si=calculer_shock_index(fc,pas)
-            if si>=1.0 or spo2<94: return "2",f"Traumatisme avec choc SI {si}","FRENCH Tri 2"
+            if det.get("neff"): return "1","Purpura non effaçable — Ceftriaxone 2g IV","SPILF/SFP 2017"
+            if temp>=38.0: return "2","Purpura fébrile — suspicion fulminans","FRENCH Tri 2"
+            return "3B","Pétéchies — bilan hémostase","FRENCH Tri 3B"
+        if motif in("Traumatisme thorax/abdomen/rachis cervical","Traumatisme bassin/hanche/femur"):
+            if det.get("pen") or det.get("cin")=="Haute": return "1","Traumatisme penetrant haute cinetique","FRENCH Tri 1"
+            if si(fc,pas)>=1.0 or spo2<94: return "2","Traumatisme avec choc","FRENCH Tri 2"
             return "2","Traumatisme axial — evaluation urgente","FRENCH Tri 2"
-        if motif=="Traumatisme d'un membre / epaule":
-            if details.get("ischemie"): return "1","Ischemie distale","FRENCH Tri 1"
-            if details.get("impotence_totale") and details.get("deformation"):
-                return "2","Fracture deplacee","FRENCH Tri 2"
-            if details.get("impotence_totale"): return "3A","Impotence totale","FRENCH Tri 3A"
-            if details.get("deformation"): return "3A","Deformation visible","FRENCH Tri 3A"
-            return "4","Traumatisme distal modere","FRENCH Tri 4"
+        if motif=="Traumatisme membre / epaule":
+            if det.get("isch"): return "1","Ischémie distale","FRENCH Tri 1"
+            if det.get("imp") and det.get("deform"): return "2","Fracture déplacée","FRENCH Tri 2"
+            if det.get("imp"): return "3A","Impotence fonctionnelle totale","FRENCH Tri 3A"
+            if det.get("deform"): return "3A","Déformation visible","FRENCH Tri 3A"
+            return "4","Traumatisme distal modéré","FRENCH Tri 4"
         if motif=="Hypoglycemie":
-            gl=glycemie_mgdl or details.get("glycemie_mgdl",0)
-            if gl and gl<GLYCEMIE["hypoglycemie_severe"]:
-                return "2",f"Hypoglycemie severe {gl}mg/dl","FRENCH Tri 2"
-            if gcs<15: return "2",f"Hypoglycemie avec GCS {gcs}","FRENCH Tri 2"
-            if gl and gl<GLYCEMIE["hypoglycemie_moderee"]:
-                return "3A",f"Hypoglycemie moderee {gl}mg/dl","FRENCH Tri 3A"
-            return "3B","Hypoglycemie legere","FRENCH Tri 3B"
-        if motif=="Hyperglycemie / Cetoacidose diabetique":
-            gl=glycemie_mgdl or details.get("glycemie_mgdl",0)
-            if details.get("cetose") or gcs<15: return "2","Cetoacidose ou GCS altere","FRENCH Tri 2"
-            if gl and gl>=GLYCEMIE["hyperglycemie_severe"]: return "3B",f"Hyperglycemie severe {gl}mg/dl","FRENCH Tri 3B"
-            return "4","Hyperglycemie toleree","FRENCH Tri 4"
-        if motif in ("Renouvellement ordonnance","Examen administratif"):
-            return "5","Consultation non urgente","FRENCH Tri 5"
-        if news2>=7: return "2",f"NEWS2 {news2}>=7","NEWS2 Tri 2"
-        if news2>=5: return "3A",f"NEWS2 {news2}>=5","NEWS2 Tri 3A"
-        return "3B",f"Motif '{motif}' — evaluation standard","FRENCH Tri 3B"
+            if gl and gl<GLYC["hs"]: return "2",f"Hypoglycémie sévère {gl}mg/dl","FRENCH Tri 2"
+            if gcs<15: return "2",f"Hypoglycémie avec GCS {gcs}","FRENCH Tri 2"
+            return "3B","Hypoglycémie légère","FRENCH Tri 3B"
+        if motif=="Hyperglycemie / Cetoacidose":
+            if det.get("ceto") or gcs<15: return "2","Cétoacidose ou GCS altéré","FRENCH Tri 2"
+            return "4","Hyperglycémie tolérée","FRENCH Tri 4"
+        if motif in("Renouvellement ordonnance","Examen administratif"): return "5","Non urgent","FRENCH Tri 5"
+        if n2>=7: return "2",f"NEWS2 {n2}>=7","NEWS2 Tri 2"
+        if n2>=5: return "3A",f"NEWS2 {n2}>=5","NEWS2 Tri 3A"
+        return "3B",f"Evaluation standard — {motif}","FRENCH Tri 3B"
     except Exception as e:
-        return "2",f"Erreur moteur triage : {e}","Securite Tri 2"
+        return "2",f"Erreur moteur : {e}","Securite Tri 2"
 
-def verifier_coherence(fc,pas,spo2,fr,gcs,temp,eva,motif,atcd,details,news2,glycemie_mgdl=None):
-    danger=[]; attention=[]; infos=[]
-    sous_ac="Anticoagulants / AOD" in atcd
+def verifier_coherence(fc,pas,spo2,fr,gcs,temp,eva,motif,atcd,det,n2,gl=None):
+    D=[]; A=[]
     if "IMAO (inhibiteurs MAO)" in atcd:
-        danger.append("IMAO DETECTES — Tramadol CONTRE-INDIQUE (syndrome serotoninergique fatal)")
-    if "Antidepresseurs serotoninergiques (ISRS / IRSNA)" in atcd:
-        attention.append("ISRS/IRSNA — Tramadol deconseille. Preferer Dipidolor ou Morphine")
-    gl=glycemie_mgdl or (details.get("glycemie_mgdl") if details else None)
+        D.append("IMAO — Tramadol CONTRE-INDIQUE (syndrome serotoninergique fatal)")
+    if "Antidepresseurs ISRS/IRSNA" in atcd:
+        A.append("ISRS/IRSNA — Tramadol deconseille — Preferer Dipidolor ou Morphine")
     if gl:
-        if gl<GLYCEMIE["hypoglycemie_severe"]:
-            danger.append(f"HYPOGLYCEMIE SEVERE {gl}mg/dl ({mgdl_vers_mmol(gl)}mmol/l) — Glucose 30% IV immediat")
-        elif gl<GLYCEMIE["hypoglycemie_moderee"]:
-            attention.append(f"Hypoglycemie moderee {gl}mg/dl — corriger avant antalgique")
-    si=calculer_shock_index(fc,pas)
-    if si>=1.0: danger.append(f"Shock Index {si} >=1.0 — etat de choc probable")
-    if spo2<90: danger.append(f"SpO2 {spo2}% — hypoxemie severe — O2 urgent")
-    if fr>=30:  attention.append(f"FR {fr}/min — tachypnee significative")
-    if fc>=150 or fc<=40: danger.append(f"FC {fc}bpm — arythmie critique")
-    if sous_ac and "Traumatisme cranien" in motif:
-        danger.append("TC sous AOD/AVK — TDM cerebral urgent — risque hematome differe")
-    return danger,attention,infos
+        if gl<GLYC["hs"]: D.append(f"HYPOGLYCEMIE SEVERE {gl}mg/dl ({mgdl_mmol(gl)}mmol/l) — Glucose 30% IV")
+        elif gl<GLYC["hm"]: A.append(f"Hypoglycemie moderee {gl}mg/dl — corriger avant antalgique")
+    sh=si(fc,pas)
+    if sh>=1.0: D.append(f"Shock Index {sh}>=1.0 — etat de choc probable")
+    if spo2<90: D.append(f"SpO2 {spo2}% — O2 urgent")
+    if fr>=30:  A.append(f"FR {fr}/min — tachypnee")
+    if fc>=150 or fc<=40: D.append(f"FC {fc}bpm — arythmie critique")
+    if "Anticoagulants/AOD" in atcd and "Traumatisme cranien" in motif:
+        D.append("TC sous AOD/AVK — TDM urgent")
+    return D,A
 
-def generer_sbar(age,motif,cat,atcd,allergies,o2_supp,temp,fc,pas,spo2,fr,gcs,eva,news2,
-                 niveau,justif,critere,code_operateur="IAO",glycemie_mgdl=None):
-    heure=datetime.now().strftime("%d/%m/%Y %H:%M")
-    atcd_str=", ".join(atcd) if atcd else "Aucun antecedent notable"
-    gl_str=f"{glycemie_mgdl}mg/dl ({mgdl_vers_mmol(glycemie_mgdl)}mmol/l)" if glycemie_mgdl else "Non mesuree"
-    o2_str="O2 supplementaire" if o2_supp else "Air ambiant"
-    return {
-        "heure":    heure,
-        "op":       code_operateur,
-        "age":      age,
-        "motif":    motif,
-        "cat":      cat,
-        "atcd":     atcd_str,
-        "allergies": allergies or "Aucune connue",
-        "niveau":   LABELS_TRI.get(niveau,niveau),
-        "secteur":  SECTEURS_TRI.get(niveau,""),
-        "critere":  critere,
-        "justif":   justif,
-        "delai":    DELAIS_TRI.get(niveau,"?"),
-        "fc": fc,"pas":pas,"spo2":spo2,"fr":fr,"temp":temp,"gcs":gcs,
-        "eva":eva,"news2":news2,"glycemie":gl_str,"o2":o2_str,
-    }
+def build_sbar(age,motif,cat,atcd,alg,o2,temp,fc,pas,spo2,fr,gcs,eva,n2,niv,just,crit,op="IAO",gl=None):
+    return {"heure":datetime.now().strftime("%d/%m/%Y %H:%M"),"op":op,"age":int(age),
+            "motif":motif,"cat":cat,"atcd":", ".join(atcd) if atcd else "Aucun",
+            "alg":alg or "Aucune","o2":"O2 supp" if o2 else "Air ambiant",
+            "gl":f"{gl}mg/dl ({mgdl_mmol(gl)}mmol/l)" if gl else "Non mesuree",
+            "niv":LABELS.get(niv,niv),"sec":SECTEURS.get(niv,""),"delai":DELAIS.get(niv,"?"),
+            "crit":crit,"just":just,"fc":fc,"pas":pas,"spo2":spo2,"fr":fr,
+            "temp":temp,"gcs":gcs,"eva":eva,"n2":n2}
 
-# ==============================================================================
-# [3] PHARMACOLOGIE BCFI
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# PHARMACOLOGIE BCFI
+# ══════════════════════════════════════════════════════════════════════════════
+_CI_A=["Ulcere gastro-duodenal","Insuffisance renale chronique","Insuffisance hepatique",
+       "Grossesse en cours","Chimiotherapie en cours"]
 
-_CI_AINS = ["Ulcere gastro-duodenal","Insuffisance renale chronique",
-            "Insuffisance hepatique","Grossesse en cours","Chimiotherapie en cours"]
+def ci_ains(atcd): return [c for c in _CI_A if c in atcd]
 
-def _ci_ains(atcd): return [c for c in _CI_AINS if c in atcd]
+def paracetamol(poids):
+    if poids<=0: return None,"Poids invalide"
+    if poids>=50: return {"dose_g":1.0,"vol":"100ml NaCl 0.9% sur 15min","freq":"Toutes les 6h (max 4g/24h)","ref":"BCFI — Paracetamol IV"},None
+    dg=min(round(15*poids/1000,2),1.0)
+    return {"dose_g":dg,"vol":f"{dg*1000:.0f}mg dans 100ml NaCl 0.9%","freq":"Toutes les 6h","ref":"BCFI — Paracetamol IV"},None
 
-def dose_paracetamol_iv(poids_kg):
-    if poids_kg<=0: return None,"Poids invalide"
-    if poids_kg>=50:
-        return {"dose_g":1.0,"volume":"100ml NaCl 0.9% sur 15min","freq":"Toutes les 6h (max 4g/24h)","ref":"BCFI — Paracetamol IV"},None
-    dg=min(round(15*poids_kg/1000,2),1.0)
-    return {"dose_g":dg,"volume":f"{dg*1000:.0f}mg dans 100ml NaCl 0.9%","freq":"Toutes les 6h","ref":"BCFI — Paracetamol IV"},None
-
-def dose_ketorolac_iv(poids_kg,atcd):
-    ci=_ci_ains(atcd)
+def ketorolac(poids,atcd):
+    ci=ci_ains(atcd)
     if ci: return None,f"Contre-indique : {', '.join(ci)}"
-    d=15.0 if poids_kg<50 else 30.0
-    return {"dose_mg":d,"admin":"IV lent 15 secondes","freq":"Toutes les 6h — max 5j","ref":"BCFI — Ketorolac (Taradyl)"},None
+    d=15.0 if poids<50 else 30.0
+    return {"dose_mg":d,"admin":"IV lent 15s","freq":"Toutes 6h — max 5j","ref":"BCFI — Ketorolac (Taradyl)"},None
 
-def dose_tramadol_iv(poids_kg,atcd,age_patient):
-    alertes=[]
-    if "Epilepsie" in atcd: alertes.append("CONTRE-INDIQUE — Epilepsie (seuil epileptogene abaisse)")
-    if "IMAO (inhibiteurs MAO)" in atcd: alertes.append("CONTRE-INDICATION ABSOLUE — SYNDROME SEROTONINERGIQUE FATAL avec IMAO")
-    if "Antidepresseurs serotoninergiques (ISRS / IRSNA)" in atcd: alertes.append("INTERACTION MAJEURE — ISRS/IRSNA — risque syndrome serotoninergique")
-    d=100.0 if poids_kg>=50 else round(1.5*poids_kg,0)
-    return {"dose_mg":d,"admin":f"{d:.0f}mg dans 100ml NaCl 0.9% — IV sur 30min","freq":"Toutes les 6h (max 400mg/24h)","alertes":alertes,"ref":"BCFI — Tramadol"},None
+def tramadol(poids,atcd,age):
+    als=[]
+    if "Epilepsie" in atcd: als.append("CONTRE-INDIQUE — Epilepsie (seuil epileptogene)")
+    if "IMAO (inhibiteurs MAO)" in atcd: als.append("CONTRE-INDICATION ABSOLUE — SYNDROME SEROTONINERGIQUE FATAL avec IMAO")
+    if "Antidepresseurs ISRS/IRSNA" in atcd: als.append("INTERACTION MAJEURE — ISRS/IRSNA — risque serotoninergique")
+    d=100.0 if poids>=50 else round(1.5*poids,0)
+    return {"dose_mg":d,"admin":f"{d:.0f}mg dans 100ml NaCl 0.9% — IV 30min","freq":"Toutes 6h (max 400mg/24h)","alertes":als,"ref":"BCFI — Tramadol"},None
 
-def dose_piritramide_iv(poids_kg,age_patient,atcd):
-    red=(age_patient>=70 or "Insuffisance renale chronique" in atcd or "Insuffisance hepatique" in atcd)
+def piritramide(poids,age,atcd):
+    red=(age>=70 or "Insuffisance renale chronique" in atcd or "Insuffisance hepatique" in atcd)
     f=0.5 if red else 1.0
-    dmin=min(round(0.03*poids_kg*f,2),(3.0 if poids_kg<70 else 6.0)*f)
-    dmax=min(round(0.05*poids_kg*f,2),(3.0 if poids_kg<70 else 6.0)*f)
-    return {"bolus_min":dmin,"bolus_max":dmax,"admin":"IV lent sur 1-2min — titrer si EVA>3 apres 10-15min","note":"Dose reduite 50% si age>=70, IRC ou IH" if red else "","ref":"BCFI — Piritramide (Dipidolor)"},None
+    dmin=min(round(0.03*poids*f,2),(3.0 if poids<70 else 6.0)*f)
+    dmax=min(round(0.05*poids*f,2),(3.0 if poids<70 else 6.0)*f)
+    return {"dmin":dmin,"dmax":dmax,"admin":"IV lent 1-2min — titrer si EVA>3 apres 15min","note":"Dose -50% si age>=70/IRC/IH" if red else "","ref":"BCFI — Piritramide (Dipidolor)"},None
 
-def dose_morphine_iv(poids_kg,age_patient):
-    red=age_patient>=70
-    f=0.5 if red else 1.0
-    dmin=min(round(0.05*poids_kg*f,1),2.5)
-    dmax=min(round(0.10*poids_kg*f,1),5.0)
-    return {"bolus_min":dmin,"bolus_max":dmax,"admin":"IV lent 2-3min — titrer par paliers 2mg/5-10min","note":"Dose reduite 50% si age>=70" if red else "","ref":"BCFI — Morphine IV"},None
+def morphine(poids,age):
+    f=0.5 if age>=70 else 1.0
+    return {"dmin":min(round(0.05*poids*f,1),2.5),"dmax":min(round(0.10*poids*f,1),5.0),
+            "admin":"IV lent 2-3min — titrer par paliers 2mg/5-10min","ref":"BCFI — Morphine IV"},None
 
-def dose_naloxone(poids_kg,age_patient,dependance=False):
-    alertes=[]
-    if dependance:
-        d=0.04; admin="0.04mg IV par paliers de 2min — titration douce"
-        note="DEPENDANCE — objectif : ventilation adequate, PAS levee totale"
-        alertes.append("Risque sevrage aigu si surdosage Naloxone")
-    elif age_patient<18:
-        d=min(round(0.01*poids_kg,3),0.4); admin=f"{d}mg IV direct — 0.01mg/kg"
-        note=f"Dose pediatrique : {d}mg pour {poids_kg}kg"
+def naloxone(poids,age,dep=False):
+    als=[]
+    if dep:
+        d=0.04; a="0.04mg IV/2min — titration douce"; n="Dependance — objectif : ventilation, pas levee totale"
+        als.append("Risque sevrage si surdosage")
+    elif age<18:
+        d=min(round(0.01*poids,3),0.4); a=f"{d}mg IV (0.01mg/kg)"; n=f"Ped : {d}mg pour {poids}kg"
     else:
-        d=0.4; admin="0.4mg IV direct — repeter toutes les 2-3min (max 10mg)"
-        note="Absence reponse apres 10mg : reconsiderer le diagnostic"
-    return {"dose_bolus":d,"admin":admin,"note":note,"alertes":alertes,
-            "surveillance":"Monitoring SpO2+FR+conscience — demi-vie courte 30-90min","ref":"BCFI — Naloxone (Narcan)"},None
+        d=0.4; a="0.4mg IV — repeter 2-3min (max 10mg)"; n="Si pas de reponse a 10mg : reconsiderer"
+    return {"dose":d,"admin":a,"note":n,"alertes":als,"surv":"Monitor SpO2+FR — demi-vie courte 30-90min","ref":"BCFI — Naloxone (Narcan)"},None
 
-def dose_adrenaline_anaphylaxie(poids_kg):
-    if poids_kg<=0: return None,"Poids invalide"
-    if poids_kg>=30: d=0.5; note="0.5ml solution 1mg/ml"
-    else: d=min(round(0.01*poids_kg,3),0.5); note=f"0.01mg/kg = {d}mg ({round(d*1000):.0f}µg)"
-    return {"dose_mg":d,"voie":"IM face antero-laterale cuisse","note":note,
-            "repeter":"Repeter 5-15min si pas d'amelioration","moniteur":"Monitoring FC PA SpO2",
-            "ref":"BCFI — Adrenaline Sterop 1mg/ml — Lignes directrices anaphylaxie 2023"},None
+def adrenaline(poids):
+    if poids<=0: return None,"Poids invalide"
+    d=0.5 if poids>=30 else min(round(0.01*poids,3),0.5)
+    n="0.5ml sol 1mg/ml" if poids>=30 else f"0.01mg/kg = {d}mg"
+    return {"dose_mg":d,"voie":"IM face antero-lat cuisse","note":n,"rep":"Repeter 5-15min si pas d'amelioration","ref":"BCFI — Adrenaline Sterop 1mg/ml"},None
 
-def dose_glucose_hypoglycemie(poids_kg,voie="IV",glycemie_mgdl=None):
-    if glycemie_mgdl is None:
-        return None,"Glycemie non mesuree — protocole desactive par securite. Mesurer avant administration."
-    if poids_kg<=0: return None,"Poids invalide"
-    if voie=="IV":
-        dg=min(round(0.3*poids_kg,1),15.0); dm=round(dg/0.3,0)
-        return {"dose_g":dg,"volume":f"{dm:.0f}ml Glucose 30% IV lent sur 5min","controle":"Glycemie de controle a 15min","ref":"BCFI — Glucose 30% (Glucosie)"},None
-    return {"dose":"1mg Glucagon","admin":"IM ou SC si acces veineux impossible","controle":"Glycemie a 20min","ref":"BCFI — Glucagon (GlucaGen HypoKit)"},None
+def glucose(poids,gl=None):
+    if gl is None: return None,"Glycémie non mesurée — protocole désactivé"
+    dg=min(round(0.3*poids,1),15.0); dm=round(dg/0.3,0)
+    return {"dose_g":dg,"vol":f"{dm:.0f}ml Glucose 30% IV lent 5min","ctrl":"Glycémie de contrôle à 15 min","ref":"BCFI — Glucose 30% (Glucosie)"},None
 
-def dose_ceftriaxone_iv(poids_kg,age_patient):
-    if poids_kg<=0: return None,"Poids invalide"
-    if age_patient<18:
-        dg=min(round(0.1*poids_kg,1),2.0); note=f"100mg/kg = {dg*1000:.0f}mg pour {poids_kg}kg"
-    else:
-        dg=2.0; note="Ne pas attendre le medecin si purpura fulminans"
-    return {"dose_g":dg,"admin":"IV direct 3-5min ou IM si VVP impossible","note":note,"ref":"BCFI — Ceftriaxone — SPILF 2017"},None
+def ceftriaxone(poids,age):
+    dg=2.0 if age>=18 else min(round(0.1*poids,1),2.0)
+    n="Ne pas attendre le medecin si purpura" if age>=18 else f"100mg/kg = {dg*1000:.0f}mg"
+    return {"dose_g":dg,"admin":"IV 3-5min ou IM si VVP impossible","note":n,"ref":"BCFI — Ceftriaxone — SPILF 2017"},None
 
-def protocole_antalgique_eva(eva,poids_kg,age,atcd,glycemie_mgdl=None):
-    alertes=[]; recs=[]
-    imao="IMAO (inhibiteurs MAO)" in atcd
-    isrs="Antidepresseurs serotoninergiques (ISRS / IRSNA)" in atcd
-    ci_ains=_ci_ains(atcd)
-    if imao: alertes.append("IMAO — Tramadol CONTRE-INDIQUE. Utiliser Paracetamol IV ou Dipidolor.")
-    if isrs: alertes.append("ISRS/IRSNA — Tramadol deconseille. Preferer Dipidolor ou Morphine.")
-    res_para,_=dose_paracetamol_iv(poids_kg)
-    if res_para: recs.append({"palier":"1","med":"Paracetamol IV","dose":f"{res_para['dose_g']}g","detail":res_para["volume"],"ref":res_para["ref"],"alertes":[]})
+def protocole_eva(eva,poids,age,atcd,gl=None):
+    als=[]; recs=[]
+    imao="IMAO (inhibiteurs MAO)" in atcd; isrs="Antidepresseurs ISRS/IRSNA" in atcd
+    ci=ci_ains(atcd)
+    if imao: als.append("IMAO — Tramadol CONTRE-INDIQUE — Utiliser Paracetamol ou Dipidolor")
+    if isrs: als.append("ISRS/IRSNA — Tramadol deconseille — Preferer Dipidolor ou Morphine")
+    r,_=paracetamol(poids)
+    if r: recs.append({"p":"1","nom":"Paracetamol IV","dose":f"{r['dose_g']}g","d":r["vol"],"al":[],"ref":r["ref"]})
     if eva>=4:
-        if not ci_ains:
-            res,err=dose_ketorolac_iv(poids_kg,atcd)
-            if res: recs.append({"palier":"2","med":"Ketorolac (Taradyl) IV","dose":f"{res['dose_mg']}mg","detail":res["admin"],"ref":res["ref"],"alertes":[]})
+        if not ci:
+            r2,e2=ketorolac(poids,atcd)
+            if r2: recs.append({"p":"2","nom":"Ketorolac (Taradyl) IV","dose":f"{r2['dose_mg']}mg","d":r2["admin"],"al":[],"ref":r2["ref"]})
         if not imao and "Epilepsie" not in atcd:
-            res,err=dose_tramadol_iv(poids_kg,atcd,age)
-            if res: recs.append({"palier":"2","med":"Tramadol IV","dose":f"{res['dose_mg']:.0f}mg","detail":res["admin"],"ref":res["ref"],"alertes":res.get("alertes",[])})
+            r3,_=tramadol(poids,atcd,age)
+            if r3: recs.append({"p":"2","nom":"Tramadol IV","dose":f"{r3['dose_mg']:.0f}mg","d":r3["admin"],"al":r3.get("alertes",[]),"ref":r3["ref"]})
     if eva>=7:
-        res,_=dose_piritramide_iv(poids_kg,age,atcd)
-        if res: recs.append({"palier":"3","med":"Piritramide (Dipidolor) IV","dose":f"{res['bolus_min']}-{res['bolus_max']}mg","detail":res["admin"],"ref":res["ref"],"alertes":[]})
-    return {"alertes":alertes,"recs":recs}
+        r4,_=piritramide(poids,age,atcd)
+        if r4: recs.append({"p":"3","nom":"Piritramide (Dipidolor) IV","dose":f"{r4['dmin']}-{r4['dmax']}mg","d":r4["admin"],"al":[],"ref":r4["ref"]})
+    return {"als":als,"recs":recs}
 
-# ==============================================================================
-# [4] HELPERS UI
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS UI
+# ══════════════════════════════════════════════════════════════════════════════
+def H(s): st.markdown(s, unsafe_allow_html=True)
 
-def html(code): st.markdown(code, unsafe_allow_html=True)
+def SEC(t): H(f'<div class="sec">{t}</div>')
 
-def sec(titre):
-    html(f'<div class="hp-sec">{titre}</div>')
+def AL(msg, typ="danger"):
+    ico={"danger":"","warning":"","success":"","info":""}
+    H(f'<div class="al {typ}"><span class="al-ico">{ico.get(typ,"")}</span><span>{msg}</span></div>')
 
-def alerte(msg, typ="danger"):
-    icons={"danger":"","warning":"","success":"","info":""}
-    html(f'<div class="hp-alert {typ}"><span class="hp-alert-icon">{icons.get(typ,"")}</span><span>{msg}</span></div>')
-
-def carte_debut(titre=""):
-    html(f'<div class="hp-card"><div class="hp-card-title">{titre}</div>' if titre else '<div class="hp-card">')
-
-def carte_fin():
-    html('</div>')
-
-def banniere_purpura(details):
-    if details and details.get("purpura"):
-        html(
-            '<div class="purpura-banner">'
-            '<div class="purpura-title">PURPURA FULMINANS — TRI 1 IMMEDIAT</div>'
-            '<div class="purpura-body">'
-            'Ceftriaxone 2g IV (ou IM si VVP impossible) — NE PAS ATTENDRE le bilan.<br>'
-            'Appel medecin senior immediat — Transfert dechocage.'
-            '</div></div>'
-        )
-
-def banniere_news2_critique(n2):
-    if n2>=9:
-        html(
-            f'<div class="purpura-banner" style="background:linear-gradient(135deg,#1A0A2E,#2D1B69);border-color:#7C3AED;">'
-            f'<div class="purpura-title" style="color:#D8B4FE;">NEWS2 {n2} — ENGAGEMENT VITAL — APPEL MEDICAL IMMEDIAT</div>'
-            f'<div class="purpura-body" style="color:#EDE9FE;">Transfert dechocage — Medecin au chevet sans delai.</div></div>'
-        )
-    elif n2>=7:
-        alerte(f"NEWS2 {n2} >= 7 — Risque critique — Appel medical immediat","danger")
-    elif n2>=5:
-        alerte(f"NEWS2 {n2} >= 5 — Risque eleve — Reevaluation toutes les 30min","warning")
-
-def gauge_news2(n2, bpco=False):
-    lbl, css_n2, color, pct = news2_meta(n2)
-    pct_bar = min(int(n2/12*100), 100)
-    bpco_note = '<br><small style="opacity:.7;font-size:.65rem;">Echelle 2 BPCO (SpO2 cible 88-92%) activee</small>' if bpco else ""
-    html(
-        f'<div class="news2-gauge">'
-        f'<div class="hp-sec" style="margin-top:0;">Score NEWS2</div>'
-        f'<div class="news2-score {css_n2}">{n2}</div>'
-        f'<div class="news2-label {css_n2}">{lbl}{bpco_note}</div>'
-        f'<div class="news2-bar-track">'
-        f'<div class="news2-bar-fill" style="width:{pct_bar}%;background:{color};"></div>'
-        f'</div>'
-        f'<div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--text-muted);margin-top:4px;">'
-        f'<span>0</span><span>Faible</span><span>Modere</span><span>Eleve</span><span>12</span>'
-        f'</div>'
-        f'</div>'
-    )
-
-def vitaux_grid(fc, pas, spo2, fr, temp, gcs, bpco=False):
-    def niv(val, seuil_w, seuil_c, inverse=False):
-        ok = val >= seuil_w if not inverse else val <= seuil_w
-        bad = val >= seuil_c if not inverse else val <= seuil_c
-        return "crit" if bad else ("warn" if not ok else "")
-
-    spo2_warn = 88 if bpco else 94
-    spo2_crit = 85 if bpco else 90
-    spo2_niv = "crit" if spo2<=spo2_crit else ("warn" if spo2<=spo2_warn else "")
-
-    fc_niv  = "crit" if fc>=150 or fc<=40 else ("warn" if fc>=120 or fc<=50 else "")
-    pas_niv = "crit" if pas<=90 else ("warn" if pas<=100 else "")
-    fr_niv  = "crit" if fr>=30 else ("warn" if fr>=22 else "")
-    t_niv   = "crit" if temp>=40 or temp<=35 else ("warn" if temp>=38.5 or temp<=36 else "")
-    g_niv   = "crit" if gcs<=8 else ("warn" if gcs<=13 else "")
-
-    html(
-        f'<div class="vit-grid">'
-        f'<div class="vit-item {fc_niv}"><div class="vit-label">FC</div><div class="vit-value">{fc}</div><div class="vit-unit">bpm</div></div>'
-        f'<div class="vit-item {pas_niv}"><div class="vit-label">PAS</div><div class="vit-value">{pas}</div><div class="vit-unit">mmHg</div></div>'
-        f'<div class="vit-item {spo2_niv}"><div class="vit-label">SpO2{"*" if bpco else ""}</div><div class="vit-value">{spo2}</div><div class="vit-unit">%</div></div>'
-        f'<div class="vit-item {fr_niv}"><div class="vit-label">FR</div><div class="vit-value">{fr}</div><div class="vit-unit">/min</div></div>'
-        f'<div class="vit-item {t_niv}"><div class="vit-label">Temperature</div><div class="vit-value">{temp}</div><div class="vit-unit">degres C</div></div>'
-        f'<div class="vit-item {g_niv}"><div class="vit-label">GCS</div><div class="vit-value">{gcs}</div><div class="vit-unit">/15</div></div>'
-        f'</div>'
-    )
-    if bpco:
-        alerte("BPCO — Cible SpO2 : 88-92% — Echelle 2 NEWS2 activee — Eviter l'hyperoxie","warning")
-
-def carte_triage(niv, justif, n2):
-    css = CSS_TRI.get(niv,"tri-5")
-    lbl = LABELS_TRI.get(niv,niv)
-    sec_lbl = SECTEURS_TRI.get(niv,"")
-    delai = DELAIS_TRI.get(niv,"?")
-    html(
-        f'<div class="tri-result {css}">'
-        f'<div class="tri-label">{lbl}</div>'
-        f'<div class="tri-justif">{justif}</div>'
-        f'<div class="tri-sector">{sec_lbl}</div>'
-        f'<span class="tri-badge">Delai max : {delai} min</span>'
-        f'<span class="tri-badge" style="margin-left:8px;">NEWS2 : {n2}</span>'
-        f'</div>'
-    )
-
-def pharma_card(nom, dose, details_lines, ref, palier="2", alertes=None):
-    palier_css={"1":"palier-1","2":"palier-2","3":"palier-3","U":"urgence","A":"antidote"}.get(palier,"palier-2")
-    if alertes:
-        for a in alertes:
-            alerte(a,"danger")
-    detail_html="<br>".join([l for l in details_lines if l])
-    html(
-        f'<div class="pharma-card {palier_css}">'
-        f'<div class="pharma-name">{nom}</div>'
-        f'<div class="pharma-dose">{dose}</div>'
-        f'<div class="pharma-detail">{detail_html}</div>'
-        f'<div class="pharma-ref">{ref}</div>'
-        f'</div>'
-    )
-
-def pharma_locked(msg="Glycemie requise avant activation du protocole glucose / insuline"):
-    html(f'<div class="pharma-locked"><strong>Protocole desactive</strong><br>{msg}</div>')
-
-def disclaimer():
-    html(
-        '<div class="hp-disclaimer">'
-        'AKIR-IAO est un outil d\'aide a la decision clinique. Il ne se substitue pas au jugement '
-        'clinique du medecin responsable. Les doses affichees sont conformes au BCFI (Belgique) et '
-        'doivent etre validees par un medecin prescripteur avant administration.<br>'
-        'RGPD : aucun nom ni prenom collecte — UUID anonyme uniquement — stockage local.<br>'
-        '<div class="disclaimer-sig">'
-        'AKIR-IAO v18.0 Hospital Pro — Ismail Ibn-Daifa — FRENCH Triage SFMU V1.1 — Hainaut, Wallonie, Belgique'
-        '</div></div>'
-    )
-
-def widget_glycemie(key, label="Glycemie capillaire (mg/dl)", required=False):
-    v = st.number_input(label, min_value=0, max_value=1500, value=0, step=5, key=key)
-    if v==0:
-        if required:
-            alerte("Glycemie non mesuree — Saisir la valeur pour activer les protocoles glucose","warning")
+def CARD(title="", icon=""):
+    if title:
+        if icon:
+            H(f'<div class="card"><div class="card-title-inline"><div class="card-icon">{icon}</div><div class="card-title" style="margin:0;border:none;padding:0;">{title}</div></div>')
         else:
-            st.caption("Saisir 0 si non realisee")
+            H(f'<div class="card"><div class="card-title">{title}</div>')
+    else:
+        H('<div class="card">')
+
+def CARD_END(): H('</div>')
+
+def PURPURA(det):
+    if det and det.get("purpura"):
+        H('<div class="purp"><div class="purp-title">PURPURA FULMINANS — TRI 1 IMMEDIAT</div>'
+          '<div class="purp-body">Ceftriaxone 2g IV (ou IM si VVP impossible) — NE PAS ATTENDRE LE BILAN.<br>'
+          'Appel medecin senior — Transfert dechocage immediat.</div></div>')
+
+def N2_BANNER(n2):
+    if n2>=9:
+        H(f'<div class="purp" style="background:linear-gradient(135deg,#1A0A2E,#2D1B69);border-color:#7C3AED;">'
+          f'<div class="purp-title" style="color:#E879F9;">NEWS2 {n2} — ENGAGEMENT VITAL — APPEL IMMEDIAT</div>'
+          f'<div class="purp-body" style="color:#EDE9FE;">Transfert dechocage — Medecin sans delai.</div></div>')
+    elif n2>=7: AL(f"NEWS2 {n2}>=7 — Appel medical immediat","danger")
+    elif n2>=5: AL(f"NEWS2 {n2}>=5 — Reevaluation toutes les 30min","warning")
+
+def GAUGE(n2, bpco=False):
+    lbl,css,pct=n2_meta(n2)
+    note=f'<div style="font-size:.62rem;opacity:.75;margin-top:4px;">Echelle 2 BPCO — Cible SpO2 88-92%</div>' if bpco else ""
+    H(f'<div class="n2-dash {css}">'
+      f'<div style="font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.7;">SCORE NEWS2</div>'
+      f'<div class="n2-big">{n2}</div>'
+      f'<div class="n2-lbl">{lbl}</div>'
+      f'{note}'
+      f'<div class="n2-bar-wrap"><div class="n2-bar" style="width:{max(pct,4)}%;"></div></div>'
+      f'<div class="n2-scale"><span>0</span><span>Faible</span><span>Modere</span><span>Eleve</span><span>12+</span></div>'
+      f'</div>')
+
+def VITAUX(fc,pas,spo2,fr,temp,gcs,bpco=False):
+    def niv(v,wb,cb,inv=False):
+        if not inv: return "crit" if v>=cb else ("warn" if v>=wb else "")
+        return "crit" if v<=cb else ("warn" if v<=wb else "")
+    sp_warn=88 if bpco else 94; sp_crit=85 if bpco else 90
+    fc_n="crit" if fc>=150 or fc<=40 else ("warn" if fc>=120 or fc<=50 else "")
+    pas_n="crit" if pas<=90 else ("warn" if pas<=100 else "")
+    sp_n="crit" if spo2<=sp_crit else ("warn" if spo2<=sp_warn else "")
+    fr_n="crit" if fr>=30 else ("warn" if fr>=22 else "")
+    t_n ="crit" if temp>=40 or temp<=35 else ("warn" if temp>=38.5 or temp<=36 else "")
+    g_n ="crit" if gcs<=8 else ("warn" if gcs<=13 else "")
+    H(f'<div class="vit-wrap">'
+      f'<div class="vit {fc_n}"><div class="vit-k">FC</div><div class="vit-v">{fc}</div><div class="vit-u">bpm</div></div>'
+      f'<div class="vit {pas_n}"><div class="vit-k">PAS</div><div class="vit-v">{pas}</div><div class="vit-u">mmHg</div></div>'
+      f'<div class="vit {sp_n}"><div class="vit-k">SpO2{"*" if bpco else ""}</div><div class="vit-v">{spo2}</div><div class="vit-u">%</div></div>'
+      f'<div class="vit {fr_n}"><div class="vit-k">FR</div><div class="vit-v">{fr}</div><div class="vit-u">/min</div></div>'
+      f'<div class="vit {t_n}"><div class="vit-k">Temp</div><div class="vit-v">{temp}</div><div class="vit-u">°C</div></div>'
+      f'<div class="vit {g_n}"><div class="vit-k">GCS</div><div class="vit-v">{gcs}</div><div class="vit-u">/15</div></div>'
+      f'</div>')
+    if bpco: AL("BPCO — Cible SpO2 : 88–92 % — Éviter la normoxie (risque narcose CO₂)","warning")
+
+def TRI_CARD_INLINE(niv,just,n2):
+    css=TCSS.get(niv,"tri-5"); lbl=LABELS.get(niv,niv); sec_=SECTEURS.get(niv,""); d=DELAIS.get(niv,"?")
+    H(f'<div class="{css}"><div class="tri-card">'
+      f'<div class="tri-lbl">{lbl}</div>'
+      f'<div class="tri-detail">{just}</div>'
+      f'<div class="tri-sector">{sec_}</div>'
+      f'<div class="tri-chips">'
+      f'<span class="tri-chip">Delai max : {d} min</span>'
+      f'<span class="tri-chip">NEWS2 : {n2}</span>'
+      f'</div></div></div>')
+
+def TRI_BANNER_FIXED(niv,just,n2):
+    css=TCSS.get(niv,"tri-5"); lbl=LABELS.get(niv,niv); sec_=SECTEURS.get(niv,""); d=DELAIS.get(niv,"?")
+    H(f'<div class="tri-banner-wrap"><div class="tri-banner {css}">'
+      f'<div><div class="tri-niv">{lbl}</div>'
+      f'<div class="tri-sec">{sec_}</div>'
+      f'<div class="tri-just">{just}</div></div>'
+      f'<span class="tri-delai">Max {d} min | N2={n2}</span>'
+      f'</div></div>')
+
+def RX(nom,dose,details,ref,palier="2",alertes=None):
+    pc={"1":"p1","2":"p2","3":"p3","U":"urg","A":"ant"}.get(palier,"p2")
+    if alertes:
+        for a in alertes: AL(a,"danger")
+    dt="<br>".join([x for x in details if x])
+    H(f'<div class="rx {pc}"><div class="rx-name">{nom}</div><div class="rx-dose">{dose}</div>'
+      f'<div class="rx-detail">{dt}</div><div class="rx-ref">{ref}</div></div>')
+
+def RX_LOCK(msg="Donnée manquante : Glycémie requise — Protocoles désactivés"):
+    H(f'<div class="rx-lock"><div class="rx-lock-icon"></div><strong>Protocole désactivé</strong><br>{msg}</div>')
+
+def GLYC_WIDGET(key, label="Glycémie capillaire (mg/dl)", req=False):
+    v=st.number_input(label,0,1500,0,5,key=key)
+    if v==0:
+        if req: AL("Glycémie non saisie — saisir la valeur pour activer les protocoles","warning")
+        else: st.caption("Saisir 0 si non réalisée")
         return None
-    mmol=mgdl_vers_mmol(v)
-    st.caption(f"Reference : {mmol} mmol/l")
-    if v<GLYCEMIE["hypoglycemie_severe"]:
-        alerte(f"HYPOGLYCEMIE SEVERE : {v}mg/dl ({mmol}mmol/l) — Glucose 30% IV immediat","danger")
-    elif v<GLYCEMIE["hypoglycemie_moderee"]:
-        alerte(f"Hypoglycemie moderee : {v}mg/dl ({mmol}mmol/l)","warning")
+    mm=mgdl_mmol(v); st.caption(f"→ {mm} mmol/l")
+    if v<GLYC["hs"]: AL(f"HYPOGLYCEMIE SEVERE {v}mg/dl ({mm}mmol/l) — Glucose 30% IV immédiat","danger")
+    elif v<GLYC["hm"]: AL(f"Hypoglycemie moderee {v}mg/dl","warning")
     return float(v)
 
-def widget_bpco(key_prefix):
-    bpco=st.checkbox("Patient BPCO connu ?",key=f"{key_prefix}_bpco",
-        help="Active l'echelle 2 NEWS2 — cible SpO2 88-92%")
-    if bpco:
-        alerte("BPCO — Cible SpO2 : 88-92% — Eviter la normoxie — Echelle 2 NEWS2","warning")
-    parole=st.radio("Peut s'exprimer en phrases completes ?",
-        [True,False],format_func=lambda x:"Oui — phrases completes" if x else "Non — mots isoles",
-        horizontal=True,key=f"{key_prefix}_parole")
-    return bpco, parole
+def BPCO_WIDGET(pfx):
+    bp=st.checkbox("Patient BPCO connu ?",key=f"{pfx}_bp",help="Cible SpO2 88-92% — Echelle 2 NEWS2")
+    if bp: AL("BPCO — Cible SpO2 88-92% — Echelle 2 activee","warning")
+    pa=st.radio("S'exprime en phrases complètes ?",[True,False],format_func=lambda x:"Oui — phrases complètes" if x else "Non — mots isolés",horizontal=True,key=f"{pfx}_pa")
+    return bp,pa
 
-# ==============================================================================
-# [5] PERSISTANCE RGPD
-# ==============================================================================
+def SI_WIDGET(fc,pas):
+    sh=si(fc,pas); css="si-c" if sh>=1.0 else ("si-w" if sh>=0.8 else "si-ok")
+    lbl="CHOC PROBABLE" if sh>=1.0 else ("Surveillance rapprochée" if sh>=0.8 else "Normal")
+    H(f'<div class="si-box"><div class="si-l">Shock Index</div><div class="si-v {css}">{sh}</div><div class="si-l">{lbl}</div></div>')
 
-REG_FILE="akir_registre_anon.json"
-ANT_FILE="akir_antalgie_log.json"
-ALR_FILE="akir_journal_alertes.json"
-ERR_FILE="akir_errors.log"
+def SBAR_RENDER(s):
+    H(f'<div class="sbar">'
+      # Header
+      f'<div class="sbar-hdr"><div class="sbar-hdr-title">RAPPORT SBAR — AKIR-IAO v18.0 Pro Edition</div>'
+      f'<div class="sbar-hdr-sub">Opérateur : {s["op"]} | {s["heure"]} | FRENCH SFMU V1.1 — Hainaut, Belgique</div></div>'
+      # S
+      f'<div class="sbar-sec"><div class="sbar-sec-head"><div class="sbar-letter">S</div>'
+      f'<div class="sbar-sec-title">Situation</div></div>'
+      f'<div class="sbar-body">Patient de {s["age"]} ans | Motif : <strong>{s["motif"]}</strong><br>'
+      f'Niveau : <strong>{s["niv"]}</strong> | Secteur : {s["sec"]} | Delai max : {s["delai"]} min<br>'
+      f'Critere : {s["crit"]}</div>'
+      f'<div class="sbar-vit-grid">'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">FC</div><div class="sbar-vit-v">{s["fc"]}</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">PAS</div><div class="sbar-vit-v">{s["pas"]}</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">SpO2</div><div class="sbar-vit-v">{s["spo2"]}%</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">FR</div><div class="sbar-vit-v">{s["fr"]}/min</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">Temp</div><div class="sbar-vit-v">{s["temp"]}C</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">GCS</div><div class="sbar-vit-v">{s["gcs"]}/15</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">EVA</div><div class="sbar-vit-v">{s["eva"]}/10</div></div>'
+      f'<div class="sbar-vit"><div class="sbar-vit-k">NEWS2</div><div class="sbar-vit-v">{s["n2"]}</div></div>'
+      f'</div></div>'
+      # B
+      f'<div class="sbar-sec"><div class="sbar-sec-head"><div class="sbar-letter">B</div>'
+      f'<div class="sbar-sec-title">Background</div></div>'
+      f'<div class="sbar-body">ATCD : {s["atcd"]}<br>Allergies : {s["alg"]}<br>'
+      f'O2 : {s["o2"]} | Glycemie : {s["gl"]}</div></div>'
+      # A
+      f'<div class="sbar-sec"><div class="sbar-sec-head"><div class="sbar-letter">A</div>'
+      f'<div class="sbar-sec-title">Assessment</div></div>'
+      f'<div class="sbar-body">{s["just"]}</div></div>'
+      # R
+      f'<div class="sbar-sec"><div class="sbar-sec-head"><div class="sbar-letter">R</div>'
+      f'<div class="sbar-sec-title">Recommendation</div></div>'
+      f'<div class="sbar-body">Orientation : <strong>{s["sec"]}</strong><br>'
+      f'Delai maximum : {s["delai"]} min<br>Remarques : [À compléter]</div></div>'
+      # Footer
+      f'<div class="sbar-ftr">Document d\'aide a la decision — Ne se substitue pas au jugement clinique du medecin responsable. '
+      f'AR 18/06/1990 modifie — Hainaut, Wallonie, Belgique.</div></div>')
 
-def _charger(f):
+def DISC():
+    H('<div class="disc">AKIR-IAO est un outil d\'aide a la decision clinique. Il ne remplace pas le jugement '
+      'du medecin responsable. Doses conformes au BCFI Belgique — validation medicale obligatoire avant administration. '
+      'RGPD : UUID anonyme — aucun identifiant nominal collecté — stockage local uniquement.'
+      '<div class="disc-sig">AKIR-IAO v18.0 — Hospital Pro Edition — Développeur : Ismail Ibn-Daifa — FRENCH Triage SFMU V1.1 — Hainaut, Wallonie, Belgique</div></div>')
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PERSISTANCE
+# ══════════════════════════════════════════════════════════════════════════════
+RF="akir_reg.json"; EF="akir_errors.log"
+
+def _load(f):
     if os.path.exists(f):
         try:
             with open(f,"r",encoding="utf-8") as fp: return json.load(fp)
         except: return []
     return []
 
-def _sauver(f,data):
+def _save(f,d):
     try:
-        with open(f,"w",encoding="utf-8") as fp: json.dump(data,fp,ensure_ascii=False,indent=2)
+        with open(f,"w",encoding="utf-8") as fp: json.dump(d,fp,ensure_ascii=False,indent=2)
     except Exception as e:
         try:
-            with open(ERR_FILE,"a") as fe: fe.write(f"[{datetime.now()}] {e}\n")
+            with open(EF,"a") as fe: fe.write(f"[{datetime.now()}] {e}\n")
         except: pass
 
-def ajouter_registre(d):
+def enreg(d):
     uid=str(uuid.uuid4())[:8].upper()
-    entree={
-        "uid":uid,"heure":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        "motif":d.get("motif",""),"categorie":d.get("categorie",""),
-        "niveau":d.get("niveau",""),"news2":d.get("news2",0),
-        "fc":d.get("fc"),"pas":d.get("pas"),"spo2":d.get("spo2"),
-        "fr":d.get("fr"),"temp":d.get("temp"),"gcs":d.get("gcs"),
-        "code_operateur":d.get("code_operateur","IAO"),
-    }
-    reg=_charger(REG_FILE); reg.insert(0,entree); _sauver(REG_FILE,reg[:500])
-    return uid
+    r=_load(RF)
+    r.insert(0,{"uid":uid,"heure":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                "motif":d.get("motif",""),"cat":d.get("cat",""),"niv":d.get("niv",""),
+                "n2":d.get("n2",0),"fc":d.get("fc"),"pas":d.get("pas"),
+                "spo2":d.get("spo2"),"fr":d.get("fr"),"temp":d.get("temp"),
+                "gcs":d.get("gcs"),"op":d.get("op","IAO")})
+    _save(RF,r[:500]); return uid
 
-def enregistrer_alerte(uid,n2,niv,alertes,op="IAO"):
-    e={"uid":uid,"heure":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-       "news2":n2,"niveau":niv,"alertes":alertes,"operateur":op}
-    j=_charger(ALR_FILE); j.insert(0,e); _sauver(ALR_FILE,j[:500])
+# ══════════════════════════════════════════════════════════════════════════════
+# SESSION STATE
+# ══════════════════════════════════════════════════════════════════════════════
+_DEF={"sid":lambda:str(uuid.uuid4())[:8].upper(),"op":"",
+      "t_arr":None,"t_cont":None,"t_reev":None,
+      "histo":[],"reevs":[],"uid_cur":None}
+for k,v in _DEF.items():
+    if k not in st.session_state: st.session_state[k]=v() if callable(v) else v
 
-# ==============================================================================
-# [6] SESSION STATE
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# EN-TETE
+# ══════════════════════════════════════════════════════════════════════════════
+H('<div class="app-hdr">'
+  '<div class="app-hdr-title">AKIR-IAO v18.0 — Pro Edition</div>'
+  '<div class="app-hdr-sub">Aide au Triage Infirmier — Urgences — Hainaut, Wallonie, Belgique</div>'
+  '<div class="app-hdr-tags">'
+  '<span class="tag">FRENCH SFMU V1.1</span>'
+  '<span class="tag">BCFI Belgique</span>'
+  '<span class="tag">RGPD</span>'
+  '<span class="tag">Dév. : Ismail Ibn-Daifa</span>'
+  '</div></div>')
 
-DEFS={
-    "session_uid":          lambda: str(uuid.uuid4())[:8].upper(),
-    "code_operateur":       "",
-    "heure_arrivee":        None,
-    "heure_premier_contact":None,
-    "derniere_reeval":      None,
-    "historique":           [],
-    "histo_reeval":         [],
-    "uid_patient_courant":  None,
-}
-for k,v in DEFS.items():
-    if k not in st.session_state:
-        st.session_state[k]=v() if callable(v) else v
-
-# ==============================================================================
-# [7] EN-TETE
-# ==============================================================================
-
-html(
-    '<div class="hp-header">'
-    '<div class="hp-title">AKIR-IAO v18.0 — Hospital Pro</div>'
-    '<div class="hp-subtitle">Aide au Triage Infirmier — Urgences du Hainaut, Wallonie, Belgique</div>'
-    '<div>'
-    '<span class="hp-badge">FRENCH SFMU V1.1</span>'
-    '<span class="hp-badge">BCFI Belgique</span>'
-    '<span class="hp-badge">RGPD</span>'
-    '<span class="hp-badge">Ismail Ibn-Daifa</span>'
-    '</div>'
-    '</div>'
-)
-
-# ==============================================================================
-# [8] SIDEBAR
-# ==============================================================================
-
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR — PATIENT & SESSION
+# ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    html('<div class="hp-sec">Operateur IAO</div>')
-    code_op=st.text_input("Code operateur (anonyme)",value=st.session_state.code_operateur,
-        max_chars=10,placeholder="ex: IAO01",help="Ne saisir ni nom ni prenom (RGPD)")
-    if code_op: st.session_state.code_operateur=code_op.upper()
+    SEC("Opérateur IAO")
+    op_in=st.text_input("Code opérateur",value=st.session_state.op,max_chars=10,placeholder="IAO01",
+                         help="Ne saisir ni nom ni prenom — RGPD")
+    if op_in: st.session_state.op=op_in.upper()
 
-    html('<div class="hp-sec">Chronometre patient</div>')
-    cb1,cb2=st.columns(2)
-    if cb1.button("Arrivee",use_container_width=True):
-        st.session_state.heure_arrivee=datetime.now()
-        st.session_state.histo_reeval=[]; st.session_state.historique=[]
-    if cb2.button("Contact IAO",use_container_width=True):
-        st.session_state.heure_premier_contact=datetime.now()
+    SEC("Chronomètre")
+    sa,sb=st.columns(2)
+    if sa.button("Arrivee",use_container_width=True):
+        st.session_state.t_arr=datetime.now()
+        st.session_state.histo=[]; st.session_state.reevs=[]
+    if sb.button("Contact",use_container_width=True):
+        st.session_state.t_cont=datetime.now()
+    if st.session_state.t_arr:
+        el=(datetime.now()-st.session_state.t_arr).total_seconds()
+        m,s_=divmod(int(el),60)
+        col="#EF4444" if el>600 else ("#F59E0B" if el>300 else "#22C55E")
+        H(f'<div style="text-align:center;font-family:\'JetBrains Mono\',monospace;'
+          f'font-size:2.2rem;font-weight:700;color:{col};">{m:02d}:{s_:02d}</div>')
 
-    if st.session_state.heure_arrivee:
-        el=(datetime.now()-st.session_state.heure_arrivee).total_seconds()
-        m,s=divmod(int(el),60)
-        col=(f"#EF4444" if el>600 else ("#F59E0B" if el>300 else "#22C55E"))
-        html(f'<div style="text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:2rem;font-weight:700;color:{col};">{m:02d}:{s:02d}</div>')
-        st.caption(f"Arrivee : {st.session_state.heure_arrivee.strftime('%H:%M')}")
-    else:
-        st.info("Cliquer sur 'Arrivee' pour demarrer")
-
-    html('<div class="hp-sec">Patient</div>')
-    age=st.number_input("Age (annees)",0,120,45,key="sb_age")
+    SEC("Patient")
+    age=st.number_input("Âge (ans)",0,120,45,key="p_age")
     if age==0:
-        age_mois=st.number_input("Age en mois",0,11,3,key="sb_mois")
-        age=round(age_mois/12.0,4)
-        alerte(f"Nourrisson {age_mois} mois — seuils pediatriques appliques","info")
-    poids_kg=st.number_input("Poids (kg)",1,250,70,key="sb_poids")
-    atcd=st.multiselect("Antecedents",LISTE_ATCD,key="sb_atcd")
-    allergies=st.text_input("Allergies",key="sb_allergies",placeholder="ex: Penicilline")
-    o2_supp=st.checkbox("O2 supplementaire en cours",key="sb_o2")
+        am=st.number_input("Âge en mois",0,11,3,key="p_am")
+        age=round(am/12.0,4)
+        AL(f"Nourrisson {am} mois — seuils pediatriques","info")
+    poids=st.number_input("Poids (kg)",1,250,70,key="p_kg")
+    atcd=st.multiselect("Antécédents pertinents",ATCD,key="p_atcd")
+    alg=st.text_input("Allergies",key="p_alg",placeholder="ex: Penicilline")
+    o2=st.checkbox("O2 supplémentaire",key="p_o2")
 
-    html('<div class="hp-sec">Session RGPD</div>')
-    st.caption(f"Session : {st.session_state.session_uid}")
-    st.caption("Aucun nom collecte — UUID anonyme")
-    if st.button("Nouvelle session (reset)",use_container_width=True):
-        for k,v in DEFS.items(): st.session_state[k]=v() if callable(v) else v
+    SEC("Session RGPD")
+    st.caption(f"Session : {st.session_state.sid}")
+    st.caption("UUID anonyme — aucun nom collecté")
+    if st.button("Nouvelle session",use_container_width=True):
+        for k,v in _DEF.items(): st.session_state[k]=v() if callable(v) else v
         st.rerun()
 
-# ==============================================================================
-# [9] ONGLETS
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# ONGLETS PRINCIPAUX — Mobile-first avec icones
+# ══════════════════════════════════════════════════════════════════════════════
+T=st.tabs([
+    "Tri Rapide",
+    "Vitaux & GCS",
+    "Anamnèse",
+    "Triage",
+    "Scores Cliniques",
+    "Pharmacie",
+    "Réévaluation",
+    "Historique",
+    "Transmission SBAR",
+])
+t_rap,t_vit,t_ana,t_tri,t_sco,t_pha,t_rev,t_his,t_sbar=T
 
-TABS=["Tri Rapide","Signes Vitaux","Anamnesee","Triage","Scores","Pharmacie","Reevaluation","Historique","Transmission SBAR"]
-t_rapide,t_vitaux,t_anamnese,t_triage,t_scores,t_pharma,t_reeval,t_histo,t_sbar=st.tabs(TABS)
-
-# Variables partagees
+# Variables partagees — initialisees avec valeurs physiologiques par défaut
 temp=fr=fc=pas=spo2=gcs=news2=None
-motif=cat=""
-details: dict={}
-eva_sc=0
-niveau=justif=critere=""
-bpco_global=False
+motif=cat=""; details={}; eva=0; niv=just=crit=""; gl_global=None
+bpco_g=False
 
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 1 — TRI RAPIDE
-# ------------------------------------------------------------------------------
-with t_rapide:
-    sec("Constantes vitales")
+# ──────────────────────────────────────────────────────────────────────────────
+with t_rap:
+    CARD("Constantes vitales","")
     c1,c2,c3=st.columns(3)
-    temp=c1.number_input("T (degres C)",30.0,45.0,37.0,0.1,key="r_temp")
+    temp=c1.number_input("Température (°C)",30.0,45.0,37.0,.1,key="r_t")
     fc  =c2.number_input("FC (bpm)",20,220,80,key="r_fc")
     pas =c3.number_input("PAS (mmHg)",40,260,120,key="r_pas")
     c4,c5,c6=st.columns(3)
-    spo2=c4.number_input("SpO2 (%)",50,100,98,key="r_spo2")
+    spo2=c4.number_input("SpO2 (%)",50,100,98,key="r_sp")
     fr  =c5.number_input("FR (/min)",5,60,16,key="r_fr")
-    gcs =c6.number_input("GCS (3-15)",3,15,15,key="r_gcs")
+    gcs =c6.number_input("GCS (3–15)",3,15,15,key="r_gcs")
+    CARD_END()
 
-    bpco_r=st.checkbox("Patient BPCO",key="r_bpco",help="Active SpO2 cible 88-92%")
-    if bpco_r: alerte("BPCO — Cible SpO2 : 88-92% — Echelle 2 NEWS2","warning")
-
-    news2,n2w=calculer_news2(fr,spo2,o2_supp,temp,pas,fc,gcs,bpco_r)
-    for w in n2w: alerte(w,"warning")
-
-    gauge_news2(news2, bpco_r)
-    vitaux_grid(fc,pas,spo2,fr,temp,gcs,bpco_r)
-
-    si=calculer_shock_index(fc,pas)
-    si_css="si-crit" if si>=1.0 else ("si-warn" if si>=0.8 else "si-normal")
-    html(f'<div class="si-box"><div class="si-label">Shock Index</div><div class="si-value {si_css}">{si}</div><div class="si-label">FC/PAS — >1.0 = choc probable</div></div>')
-
-    if age<18:
-        sipa_v,sipa_i,sipa_a=calculer_sipa(fc,age)
-        alerte(sipa_i,"danger" if sipa_a else "info")
-
-    sec("Motif de recours")
-    MOTIFS_R=["Douleur thoracique / SCA","Dyspnee / insuffisance respiratoire",
-              "AVC / Deficit neurologique","Alteration de conscience / Coma",
-              "Traumatisme cranien","Hypotension arterielle","Tachycardie / tachyarythmie",
-              "Fievre","Douleur abdominale","Allergie / anaphylaxie","Hypoglycemie",
-              "Etat de mal epileptique / Convulsions","Pediatrie - Fievre <= 3 mois","Autre motif"]
-    motif=st.selectbox("Motif",MOTIFS_R,key="r_motif"); cat="Tri rapide"
-    eva_sc=int(st.select_slider("EVA (0-10)",[str(i) for i in range(11)],value="0",key="r_eva"))
-    details={"eva":eva_sc,"atcd":atcd}
-
-    details["purpura"]=st.checkbox("Purpura non effacable a la pression — TEST DU VERRE OBLIGATOIRE",
-        key="r_purpura",help="Purpura fulminans — Tri 1 absolu — Ceftriaxone 2g IV IMMEDIAT")
-    if details.get("purpura"): banniere_purpura(details)
-
-    gl_r=widget_glycemie("r_glyc","Glycemie capillaire (mg/dl)")
-    if gl_r: details["glycemie_mgdl"]=gl_r
+    CARD("Motif & Sécurité","")
+    bpco_r=st.checkbox("Patient BPCO connu ?",key="r_bp",help="Active l'Échelle 2 NEWS2 — Cible SpO2 88–92 %")
+    if bpco_r: AL("BPCO — Cible SpO2 : 88–92 % — Échelle 2 NEWS2 activée","warning")
+    news2,nw=calculer_news2(fr,spo2,o2,temp,pas,fc,gcs,bpco_r)
+    for w in nw: AL(w,"warning")
+    GAUGE(news2,bpco_r)
+    motif=st.selectbox("Motif de recours",MOTIFS_RAPIDES,key="r_mot")
+    cat="Tri rapide"
+    eva=int(st.select_slider("EVA",[str(i) for i in range(11)],value="0",key="r_eva"))
+    details={"eva":eva,"atcd":atcd}
+    details["purpura"]=st.checkbox("Purpura non effaçable (test du verre)",key="r_pur",
+        help="Purpura fulminans — Tri 1 absolu — Céfotriaxone 2 g IV IMMÉDIAT")
+    if details.get("purpura"): PURPURA(details)
+    gl_r=GLYC_WIDGET("r_gl","Glycémie capillaire (mg/dl)")
+    if gl_r: details["glycemie_mgdl"]=gl_r; gl_global=gl_r
+    CARD_END()
 
     if st.button("Calculer le niveau de triage",type="primary",use_container_width=True):
-        banniere_news2_critique(news2)
-        banniere_purpura(details)
-        niv_r,just_r,crit_r=french_triage(motif,details,fc,pas,spo2,fr,gcs,temp,age,news2,gl_r)
-        carte_triage(niv_r,just_r,news2)
-        d2,at2,_=verifier_coherence(fc,pas,spo2,fr,gcs,temp,eva_sc,motif,atcd,details,news2,gl_r)
-        for d in d2: alerte(d,"danger")
-        for a in at2: alerte(a,"warning")
+        N2_BANNER(news2); PURPURA(details)
+        nv,jt,cr=french_triage(motif,details,fc,pas,spo2,fr,gcs,temp,age,news2,gl_r)
+        niv,just,crit=nv,jt,cr
+        TRI_CARD_INLINE(nv,jt,news2)
+        D,A=verifier_coherence(fc,pas,spo2,fr,gcs,temp,eva,motif,atcd,details,news2,gl_r)
+        for d in D: AL(d,"danger")
+        for a in A: AL(a,"warning")
+    VITAUX(fc,pas,spo2,fr,temp,gcs,bpco_r)
 
-# ------------------------------------------------------------------------------
-# ONGLET 2 — SIGNES VITAUX
-# ------------------------------------------------------------------------------
-with t_vitaux:
-    sec("Parametres vitaux")
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 2 — VITAUX & GCS
+# ──────────────────────────────────────────────────────────────────────────────
+with t_vit:
+    CARD("Paramètres vitaux","")
     v1,v2,v3=st.columns(3)
-    temp=v1.number_input("T (degres C)",30.0,45.0,37.0,0.1,key="v_temp")
+    temp=v1.number_input("Température (°C)",30.0,45.0,37.0,.1,key="v_t")
     fc  =v1.number_input("FC (bpm)",20,220,80,key="v_fc")
     pas =v2.number_input("PAS (mmHg)",40,260,120,key="v_pas")
-    spo2=v2.number_input("SpO2 (%)",50,100,98,key="v_spo2")
+    spo2=v2.number_input("SpO2 (%)",50,100,98,key="v_sp")
     fr  =v3.number_input("FR (/min)",5,60,16,key="v_fr")
+    CARD_END()
 
-    sec("Glasgow Coma Scale")
+    CARD("Glasgow Coma Scale","")
     g1,g2,g3=st.columns(3)
-    gy=g1.selectbox("Yeux (Y)",[4,3,2,1],format_func=lambda x:{4:"4-Spontanee",3:"3-Demande",2:"2-Douleur",1:"1-Aucune"}[x],key="v_gy")
-    gv=g2.selectbox("Verbale (V)",[5,4,3,2,1],format_func=lambda x:{5:"5-Orientee",4:"4-Confuse",3:"3-Mots",2:"2-Sons",1:"1-Aucune"}[x],key="v_gv")
-    gm=g3.selectbox("Motrice (M)",[6,5,4,3,2,1],format_func=lambda x:{6:"6-Obeit",5:"5-Localise",4:"4-Evitement",3:"3-Flexion",2:"2-Extension",1:"1-Aucune"}[x],key="v_gm")
+    gy=g1.selectbox("Yeux (Y)",[4,3,2,1],format_func=lambda x:{4:"4 — Spontanée",3:"3 — À la demande",2:"2 — À la douleur",1:"1 — Aucune"}[x],key="v_gy")
+    gv=g2.selectbox("Verbale (V)",[5,4,3,2,1],format_func=lambda x:{5:"5 — Orientée",4:"4 — Confuse",3:"3 — Mots",2:"2 — Sons",1:"1 — Aucune"}[x],key="v_gv")
+    gm=g3.selectbox("Motrice (M)",[6,5,4,3,2,1],format_func=lambda x:{6:"6 — Obéit aux ordres",5:"5 — Localise",4:"4 — Évitement",3:"3 — Flexion anormale",2:"2 — Extension",1:"1 — Aucune"}[x],key="v_gm")
     gcs,_=calculer_gcs(gy,gv,gm)
-    st.metric("Score GCS",f"{gcs} / 15")
+    st.metric("Score GCS",f"{gcs} / 15", delta=None)
+    CARD_END()
 
     bpco_v="BPCO" in atcd
-    news2,n2w=calculer_news2(fr,spo2,o2_supp,temp,pas,fc,gcs,bpco_v)
-    for w in n2w: alerte(w,"warning")
-    bpco_global=bpco_v
+    news2,nw=calculer_news2(fr,spo2,o2,temp,pas,fc,gcs,bpco_v)
+    for w in nw: AL(w,"warning")
+    bpco_g=bpco_v
+    GAUGE(news2,bpco_v)
+    VITAUX(fc,pas,spo2,fr,temp,gcs,bpco_v)
+    N2_BANNER(news2)
+    c1,c2=st.columns(2)
+    with c1:
+        sh=si(fc,pas); css="si-c" if sh>=1.0 else ("si-w" if sh>=0.8 else "si-ok")
+        H(f'<div class="si-box"><div class="si-l">Shock Index</div><div class="si-v {css}">{sh}</div>'
+          f'<div class="si-l">{"CHOC PROBABLE" if sh>=1.0 else ("Surveillance rapprochée" if sh>=0.8 else "Normal")}</div></div>')
+    with c2:
+        if age<18:
+            sv,si_i,si_a=sipa(fc,age)
+            H(f'<div class="si-box"><div class="si-l">SIPA Pediatrique</div>'
+              f'<div class="si-v {"si-c" if si_a else "si-ok"}">{sv}</div>'
+              f'<div class="si-l" style="font-size:.6rem;">{si_i}</div></div>')
+    DISC()
 
-    gauge_news2(news2, bpco_v)
-    vitaux_grid(fc,pas,spo2,fr,temp,gcs,bpco_v)
-    banniere_news2_critique(news2)
-
-    if age<18:
-        sipa_v2,sipa_i2,sipa_a2=calculer_sipa(fc,age)
-        alerte(sipa_i2,"danger" if sipa_a2 else "info")
-
-    si=calculer_shock_index(fc,pas)
-    si_css="si-crit" if si>=1.0 else ("si-warn" if si>=0.8 else "si-normal")
-    html(f'<div class="si-box"><div class="si-label">Shock Index</div><div class="si-value {si_css}">{si}</div></div>')
-    disclaimer()
-
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 3 — ANAMNESE
-# ------------------------------------------------------------------------------
-with t_anamnese:
+# ──────────────────────────────────────────────────────────────────────────────
+with t_ana:
     if temp is None: temp=37.0; fc=80; pas=120; spo2=98; fr=16; gcs=15
 
-    sec("Evaluation de la douleur")
-    eva_sc=int(st.select_slider("EVA (0=aucune — 10=maximale)",[str(i) for i in range(11)],value="0",key="an_eva"))
+    CARD("Évaluation de la douleur","")
+    eva=int(st.select_slider("EVA (0=aucune — 10=maximale)",[str(i) for i in range(11)],value="0",key="a_eva"))
+    CARD_END()
 
-    sec("Motif de recours")
-    MOTS_CAT={
-        "Cardio-circulatoire":["Arret cardio-respiratoire","Hypotension arterielle","Douleur thoracique / SCA","Tachycardie / tachyarythmie","Bradycardie / bradyarythmie","Palpitations","Hypertension arterielle","Allergie / anaphylaxie"],
-        "Respiratoire":["Dyspnee / insuffisance respiratoire","Dyspnee / insuffisance cardiaque"],
-        "Digestif":["Douleur abdominale","Vomissements / Diarrhee","Hematemese / Rectorragie"],
-        "Neurologie":["AVC / Deficit neurologique","Traumatisme cranien","Alteration de conscience / Coma","Cephalee","Etat de mal epileptique / Convulsions","Syndrome confusionnel","Malaise"],
-        "Traumatologie":["Traumatisme du thorax / abdomen / rachis cervical","Traumatisme du bassin / hanche / femur","Traumatisme d'un membre / epaule"],
-        "Infectiologie":["Fievre"],
-        "Pediatrie":["Pediatrie - Fievre <= 3 mois"],
-        "Peau":["Petechie / Purpura","Erytheme etendu / Eruption cutanee"],
-        "Gynecologie":["Accouchement imminent","Complication de grossesse (1er / 2eme trimestre)","Menorragie / Metrorragie"],
-        "Metabolique":["Hypoglycemie","Hyperglycemie / Cetoacidose diabetique"],
-        "Divers":["Renouvellement ordonnance","Examen administratif"],
-    }
-    cat=st.selectbox("Categorie",list(MOTS_CAT.keys()),key="an_cat")
-    motif=st.selectbox("Motif",MOTS_CAT[cat],key="an_motif")
+    CARD("Motif de recours","")
+    cat=st.selectbox("Catégorie",list(MOTS_CAT.keys()),key="a_cat")
+    motif=st.selectbox("Motif principal",MOTS_CAT[cat],key="a_mot")
+    CARD_END()
 
-    sec("Alerte transversale")
-    details={"eva":eva_sc,"atcd":atcd}
-    details["purpura"]=st.checkbox("Purpura non effacable (test du verre)",key="an_purpura",
-        help="Purpura fulminans — Tri 1 absolu — Ceftriaxone 2g IV IMMEDIAT")
-    if details.get("purpura"): banniere_purpura(details)
+    CARD("Alerte transversale","")
+    details={"eva":eva,"atcd":atcd}
+    details["purpura"]=st.checkbox("Purpura non effaçable (test du verre — OBLIGATOIRE)",key="a_pur",
+        help="Purpura fulminans — Tri 1 absolu — Céfotriaxone 2 g IV IMMÉDIAT")
+    if details.get("purpura"): PURPURA(details)
+    CARD_END()
 
-    sec("Questions discriminantes")
+    CARD("Questions discriminantes — FRENCH V1.1","")
     if motif=="Douleur thoracique / SCA":
-        details["ecg"]=st.selectbox("ECG",["Normal","Anormal typique SCA","Anormal non typique"])
-        details["douleur_type"]=st.selectbox("Type douleur",["Atypique","Typique persistante/intense","Type coronaire"])
+        details["ecg"]=st.selectbox("ECG 12 dérivations",["Normal","Anormal typique SCA","Anormal non typique"])
+        details["douleur"]=st.selectbox("Caractère de la douleur",["Atypique","Typique (constrictive, irradiante)","Coronaire probable"])
         fx=st.columns(4)
-        fv=[fx[0].checkbox("HTA",key="f_hta",value="HTA" in atcd),fx[1].checkbox("Diabete",key="f_diab"),
-            fx[2].checkbox("Tabagisme",key="f_tab"),fx[3].checkbox("ATCD coronarien",key="f_atcd")]
-        details["frcv_count"]=sum(fv)
-    elif motif=="Dyspnee / insuffisance respiratoire":
-        bpco_d,parole_d=widget_bpco("an_dysp")
-        details["bpco_dyspnee"]=bpco_d; details["parole_ok"]=parole_d
-        details["orthopnee"]=st.checkbox("Orthopnee",key="an_orth")
-        details["tirage"]=st.checkbox("Tirage intercostal",key="an_tir")
+        fv=[fx[0].checkbox("HTA",key="f_hta",value="HTA" in atcd),
+            fx[1].checkbox("Diabete",key="f_dia"),
+            fx[2].checkbox("Tabagisme",key="f_tab"),
+            fx[3].checkbox("ATCD cor.",key="f_cor")]
+        details["frcv"]=sum(fv)
+    elif motif in("Dyspnee / insuffisance respiratoire","Dyspnee / insuffisance cardiaque"):
+        bp,pa=BPCO_WIDGET("a_dysp"); details["bpco"]=bp; details["parole"]=pa
+        details["orth"]=st.checkbox("Orthopnée",key="a_orth")
+        details["tirage"]=st.checkbox("Tirage intercostal / sus-sternal",key="a_tir")
     elif motif=="AVC / Deficit neurologique":
-        details["delai_heures"]=st.number_input("Delai depuis debut symptomes (h)",0.0,72.0,2.0,0.5,key="an_del")
-        details["deficit_progressif"]=st.checkbox("Deficit progressif",key="an_dp")
+        details["delai"]=st.number_input("Délai depuis début des symptômes (h)",0.0,72.0,2.0,.5,key="a_del")
+        details["def_prog"]=st.checkbox("Déficit neurologique progressif",key="a_dp")
     elif motif=="Traumatisme cranien":
-        details["aod_avk"]=st.checkbox("Sous anticoagulants / AOD",key="an_aod",value="Anticoagulants / AOD" in atcd)
-        details["perte_conscience"]=st.checkbox("Perte de conscience initiale",key="an_pc")
+        details["aod"]=st.checkbox("Sous anticoagulants / AOD",key="a_aod",value="Anticoagulants/AOD" in atcd)
+        details["pdc"]=st.checkbox("Perte de conscience initiale",key="a_pdc")
     elif motif=="Petechie / Purpura":
-        alerte("TEST DU VERRE OBLIGATOIRE — Appuyer un verre sur les taches. Si elles NE S'EFFACENT PAS = urgence absolue.","warning")
-        details["non_effacable"]=st.checkbox("Purpura NON effacable au verre",key="an_noneff")
-        details["etendu"]=st.checkbox("Purpura etendu",key="an_etend")
-        details["mauvaise_tolerance"]=st.checkbox("Mauvaise tolerance clinique",key="an_tol")
-        if details.get("non_effacable"): banniere_purpura({"purpura":True})
+        AL("TEST DU VERRE OBLIGATOIRE — taches non effacables = urgence absolue","warning")
+        details["neff"]=st.checkbox("NON effaçable à la pression du verre",key="a_neff")
+        details["etendu"]=st.checkbox("Purpura étendu (plusieurs régions)",key="a_eten")
+        if details.get("neff"): PURPURA({"purpura":True})
     elif motif=="Fievre":
-        details["confusion"]=st.checkbox("Confusion / alteration mentale",key="an_conf")
-        details["mauvaise_tolerance"]=st.checkbox("Mauvaise tolerance",key="an_tolv")
-    elif motif in ("Hypoglycemie","Alteration de conscience / Coma","Etat de mal epileptique / Convulsions"):
-        gl_an=widget_glycemie("an_glyc","Glycemie capillaire (mg/dl) — SYSTEMATIQUE")
-        if gl_an: details["glycemie_mgdl"]=gl_an
-    elif motif=="Hyperglycemie / Cetoacidose diabetique":
-        gl_an2=widget_glycemie("an_glyc2","Glycemie capillaire (mg/dl)")
-        if gl_an2: details["glycemie_mgdl"]=gl_an2
-        details["cetose"]=st.checkbox("Cetose elevee / cetoacidose",key="an_ceto")
+        details["conf"]=st.checkbox("Confusion / altération de l'état mental",key="a_conf")
+        details["tol_mal"]=st.checkbox("Mauvaise tolérance clinique",key="a_tol")
+    elif motif in("Hypoglycemie","Alteration de conscience / Coma","Convulsions / EME"):
+        gla=GLYC_WIDGET("a_gl","Glycémie capillaire (mg/dl) — SYSTÉMATIQUE")
+        if gla: details["glycemie_mgdl"]=gla; gl_global=gla
+    elif motif=="Hyperglycemie / Cetoacidose":
+        gla2=GLYC_WIDGET("a_gl2","Glycémie capillaire (mg/dl)")
+        if gla2: details["glycemie_mgdl"]=gla2; gl_global=gla2
+        details["ceto"]=st.checkbox("Cétose élevée / acidocétose confirmée",key="a_ceto")
+    CARD_END()
 
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 4 — TRIAGE
-# ------------------------------------------------------------------------------
-with t_triage:
+# ──────────────────────────────────────────────────────────────────────────────
+with t_tri:
     if temp is None: temp=37.0; fc=80; pas=120; spo2=98; fr=16; gcs=15
     if not motif: motif="Fievre"; cat="Infectiologie"
 
-    bpco_t="BPCO" in atcd or details.get("bpco_dyspnee",False)
-    news2,n2w=calculer_news2(fr,spo2,o2_supp,temp,pas,fc,gcs,bpco_t)
-    for w in n2w: alerte(w,"warning")
+    bpco_t="BPCO" in atcd or details.get("bpco",False)
+    news2,nw=calculer_news2(fr,spo2,o2,temp,pas,fc,gcs,bpco_t)
+    for w in nw: AL(w,"warning")
 
-    # Glycemie dans le triage (si pas encore saisie en anamnese)
-    if not details.get("glycemie_mgdl"):
-        gl_t_widget=widget_glycemie("t_glyc","Glycemie capillaire (mg/dl) — si non saisie en Anamnese")
-        if gl_t_widget:
-            details["glycemie_mgdl"]=gl_t_widget
-    gl_t=details.get("glycemie_mgdl")
+    # Glycemie si non saisie
+    if not details.get("glycemie_mgdl") and not gl_global:
+        glt=GLYC_WIDGET("t_gl","Glycémie capillaire (mg/dl)")
+        if glt: details["glycemie_mgdl"]=glt; gl_global=glt
+    gl_t=details.get("glycemie_mgdl") or gl_global
 
-    niveau,justif,critere=french_triage(motif,details,fc,pas,spo2,fr,gcs,temp,age,news2,gl_t)
+    niv,just,crit=french_triage(motif,details,fc,pas,spo2,fr,gcs,temp,age,news2,gl_t)
 
-    banniere_news2_critique(news2)
-    banniere_purpura(details)
+    N2_BANNER(news2); PURPURA(details)
 
-    # Shock Index affiché dans le triage
-    si_t=calculer_shock_index(fc,pas)
-    si_t_css="si-crit" if si_t>=1.0 else ("si-warn" if si_t>=0.8 else "si-normal")
-    html(f'<div class="si-box" style="margin-bottom:12px;">'
-         f'<div class="si-label">Shock Index (FC/PAS)</div>'
-         f'<div class="si-value {si_t_css}">{si_t}</div>'
-         f'<div class="si-label">{"CHOC PROBABLE" if si_t>=1.0 else ("Surveillance" if si_t>=0.8 else "Normal")}</div>'
-         f'</div>')
+    if st.session_state.t_reev:
+        mn=(datetime.now()-st.session_state.t_reev).total_seconds()/60
+        if mn>DELAIS.get(niv,60): AL(f"Reevaluation en retard : {int(mn)} min — max {DELAIS[niv]} min","danger")
 
-    if st.session_state.derniere_reeval:
-        mins=(datetime.now()-st.session_state.derniere_reeval).total_seconds()/60
-        if mins>DELAIS_TRI.get(niveau,60):
-            alerte(f"Reevaluation en retard : {int(mins)} min ecoulees — max {DELAIS_TRI[niveau]} min","danger")
+    GAUGE(news2,bpco_t)
+    TRI_CARD_INLINE(niv,just,news2)
+    st.caption(f"Critère : {crit}")
 
-    carte_triage(niveau,justif,news2)
-    st.caption(f"Critere : {critere}")
+    c1,c2=st.columns(2)
+    with c1: SI_WIDGET(fc,pas)
+    with c2:
+        sh=si(fc,pas)
+        if sh>=1.0: AL(f"Shock Index {sh} — Choc probable","danger")
 
-    d_coh,at_coh,_=verifier_coherence(fc,pas,spo2,fr,gcs,temp,details.get("eva",0),motif,atcd,details,news2,gl_t)
-    for d in d_coh:
-        alerte(d,"danger")
-        enregistrer_alerte(st.session_state.uid_patient_courant or "ANON",news2,niveau,[d],st.session_state.code_operateur)
-    for a in at_coh: alerte(a,"warning")
+    D,A=verifier_coherence(fc,pas,spo2,fr,gcs,temp,details.get("eva",0),motif,atcd,details,news2,gl_t)
+    for d in D: AL(d,"danger")
+    for a in A: AL(a,"warning")
 
-    if st.session_state.heure_arrivee and st.session_state.heure_premier_contact:
-        ds=(st.session_state.heure_premier_contact-st.session_state.heure_arrivee).total_seconds()
-        cm=10 if niveau in("M","1","2") else 30
-        alerte(f"Delai IAO : {int(ds/60)} min — cible {cm} min — {'DEPASSE' if ds/60>=cm else 'Dans les delais'}",
-               "danger" if ds/60>=cm else "success")
+    if st.session_state.t_arr and st.session_state.t_cont:
+        ds=(st.session_state.t_cont-st.session_state.t_arr).total_seconds()
+        cm=10 if niv in("M","1","2") else 30
+        AL(f"Delai IAO : {int(ds/60)} min — cible {cm} min — {'DEPASSE' if ds/60>=cm else 'Dans les delais'}",
+           "danger" if ds/60>=cm else "success")
 
-    if st.button("Enregistrer ce patient",use_container_width=True,type="primary"):
-        uid=ajouter_registre({"motif":motif,"categorie":cat,"niveau":niveau,"news2":news2,
-            "fc":fc,"pas":pas,"spo2":spo2,"fr":fr,"temp":temp,"gcs":gcs,
-            "code_operateur":st.session_state.code_operateur})
-        st.session_state.uid_patient_courant=uid
-        st.session_state.histo_reeval=[]
-        st.session_state.derniere_reeval=datetime.now()
-        st.session_state.historique.insert(0,{"uid":uid,"heure":datetime.now().strftime("%H:%M"),
-            "motif":motif,"niveau":niveau,"news2":news2})
+    if st.button("Enregistrer ce patient",type="primary",use_container_width=True):
+        uid=enreg({"motif":motif,"cat":cat,"niv":niv,"n2":news2,
+                   "fc":fc,"pas":pas,"spo2":spo2,"fr":fr,"temp":temp,"gcs":gcs,"op":st.session_state.op})
+        st.session_state.uid_cur=uid; st.session_state.reevs=[]
+        st.session_state.t_reev=datetime.now()
+        st.session_state.histo.insert(0,{"uid":uid,"h":datetime.now().strftime("%H:%M"),
+                                          "motif":motif,"niv":niv,"n2":news2})
         st.success(f"Patient enregistre — UID : {uid}")
-    disclaimer()
 
-# ------------------------------------------------------------------------------
-# ONGLET 5 — SCORES
-# ------------------------------------------------------------------------------
-with t_scores:
-    sec("qSOFA — Detection sepsis")
-    qs,qpos,qw=calculer_qsofa(fr or 16,gcs or 15,pas or 120)
-    for w in qw: alerte(w,"warning")
-    col_qs1,col_qs2=st.columns(2)
-    with col_qs1:
-        interp_qs="Sepsis probable — evaluation urgente" if qs>=2 else "Risque sepsis faible"
-        qs_css="si-crit" if qs>=2 else "si-normal"
-        html(f'<div class="si-box"><div class="si-label">qSOFA</div><div class="si-value {qs_css}">{qs}/3</div><div class="si-label">{interp_qs}</div></div>')
-    with col_qs2:
-        if qpos:
-            for p in qpos: alerte(p,"danger" if qs>=2 else "warning")
-        else:
-            alerte("Aucun critere qSOFA positif","success")
+    TRI_BANNER_FIXED(niv,just,news2)
+    DISC()
 
-    sec("FAST — Detection AVC")
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 5 — SCORES CLINIQUES
+# ──────────────────────────────────────────────────────────────────────────────
+with t_sco:
+    CARD("qSOFA — Detection sepsis rapide","")
+    qs,qp,qw=calculer_qsofa(fr or 16,gcs or 15,pas or 120)
+    for w in qw: AL(w,"warning")
+    c1,c2=st.columns(2)
+    with c1:
+        qcss="si-c" if qs>=2 else "si-ok"
+        H(f'<div class="si-box"><div class="si-l">qSOFA</div><div class="si-v {qcss}">{qs}/3</div>'
+          f'<div class="si-l">{"Sepsis probable" if qs>=2 else "Risque faible"}</div></div>')
+    with c2:
+        for p in qp: AL(p,"danger" if qs>=2 else "warning")
+        if not qp: AL("Aucun critere positif","success")
+    CARD_END()
+
+    CARD("FAST — Detection AVC","")
     f1,f2,f3,f4=st.columns(4)
-    ff=f1.checkbox("Face",key="fast_f"); fa=f2.checkbox("Bras",key="fast_a")
-    fs=f3.checkbox("Langage",key="fast_s"); ft=f4.checkbox("Debut brutal",key="fast_t")
+    ff=f1.checkbox("Face",key="sf"); fa=f2.checkbox("Bras",key="sa")
+    fs=f3.checkbox("Langage",key="ss"); ft=f4.checkbox("Debut brutal",key="st2")
     fsc,fi,fal=evaluer_fast(ff,fa,fs,ft)
-    alerte(fi,"danger" if fal else ("warning" if fsc>=1 else "success"))
+    AL(fi,"danger" if fal else ("warning" if fsc>=1 else "success"))
+    CARD_END()
 
-    sec("TIMI — Risque SCA sans sus-decalage")
+    CARD("TIMI — Risque SCA sans sus-decalage","")
     ti1,ti2=st.columns(2)
-    ta65=ti1.checkbox("Age >=65 ans",key="ti_age",value=age>=65)
-    tfrcv=ti1.checkbox(">=3 FRCV",key="ti_frcv")
-    tsten=ti1.checkbox("Stenose coronaire >=50%",key="ti_sten")
-    taspi=ti2.checkbox("Aspirine dans les 7j",key="ti_aspi")
-    ttrop=ti2.checkbox("Troponine positive",key="ti_trop")
-    tdst=ti2.checkbox("Deviation ST",key="ti_dst")
-    tcris=ti2.checkbox(">=2 crises en 24h",key="ti_cris")
-    tsc,_=calculer_timi(age,int(tfrcv)*3,tsten,taspi,ttrop,tdst,int(tcris)*2)
-    ti_interp="Risque eleve" if tsc>=5 else ("Risque intermediaire" if tsc>=3 else "Risque faible")
-    ti_cls="si-crit" if tsc>=5 else ("si-warn" if tsc>=3 else "si-normal")
-    html(f'<div class="si-box"><div class="si-label">Score TIMI</div><div class="si-value {ti_cls}">{tsc}/7</div><div class="si-label">{ti_interp}</div></div>')
+    ta=ti1.checkbox("Age >=65 ans",key="ti_a",value=age>=65)
+    tf=ti1.checkbox(">=3 FRCV",key="ti_f"); tstT=ti1.checkbox("Stenose >=50%",key="ti_s")
+    taspi=ti2.checkbox("Aspirine 7j",key="ti_asp"); ttr=ti2.checkbox("Troponine+",key="ti_tr")
+    tdst=ti2.checkbox("Deviation ST",key="ti_d"); tcris=ti2.checkbox(">=2 crises/24h",key="ti_c")
+    tsc,_=calculer_timi(age,int(tf)*3,tstT,taspi,ttr,tdst,int(tcris)*2)
+    ti_lbl="Risque élevé" if tsc>=5 else ("Intermédiaire" if tsc>=3 else "Faible")
+    ti_css="si-c" if tsc>=5 else ("si-w" if tsc>=3 else "si-ok")
+    H(f'<div class="si-box"><div class="si-l">Score TIMI</div><div class="si-v {ti_css}">{tsc}/7</div>'
+      f'<div class="si-l">{ti_lbl}</div></div>')
+    CARD_END()
 
-    sec("Algoplus — Douleur patient age non communicant")
+    CARD("Algoplus — Douleur patient age non communicant","")
     al1,al2,al3,al4,al5=st.columns(5)
-    alg_f=al1.checkbox("Visage",key="alg_f"); alg_r=al2.checkbox("Regard",key="alg_r")
-    alg_p=al3.checkbox("Plaintes",key="alg_p"); alg_ac=al4.checkbox("Corps",key="alg_ac")
-    alg_co=al5.checkbox("Comportement",key="alg_co")
-    asc,ai,acss,_=calculer_algoplus(alg_f,alg_r,alg_p,alg_ac,alg_co)
-    alerte(f"Algoplus {asc}/5 — {ai}",acss)
+    av=al1.checkbox("Visage",key="ag_v"); ar=al2.checkbox("Regard",key="ag_r")
+    ap=al3.checkbox("Plaintes",key="ag_p"); aac=al4.checkbox("Corps",key="ag_ac")
+    aco=al5.checkbox("Comportement",key="ag_co")
+    asc,ai,acss,_=calculer_algoplus(av,ar,ap,aac,aco)
+    AL(f"Algoplus {asc}/5 — {ai}",acss)
+    CARD_END()
 
-    sec("Clinical Frailty Scale")
-    cfs_sc=st.slider("Score CFS (1-9)",1,9,3,key="cfs_sc")
-    st.caption(CFS_NIVEAUX.get(cfs_sc,""))
-    cfs_l,cfs_c,cfs_r=evaluer_cfs(cfs_sc)
-    alerte(f"CFS {cfs_sc} — {cfs_l}",cfs_c)
-    if cfs_r: alerte("CFS >=5 — Envisager remontee du niveau de triage","warning")
+    CARD("Clinical Frailty Scale","")
+    cfs_v=st.slider("Score CFS (1-9)",1,9,3,key="cfs")
+    st.caption(CFS_LBL.get(cfs_v,""))
+    cfl,cfc,cfr=evaluer_cfs(cfs_v)
+    AL(f"CFS {cfs_v} — {cfl}",cfc)
+    if cfr: AL("CFS >=5 — Envisager remontee du niveau de triage","warning")
+    CARD_END()
 
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 6 — PHARMACIE
-# ------------------------------------------------------------------------------
-with t_pharma:
-    sec("Antalgie basee sur l'EVA")
-    eva_ph=st.slider("EVA actuelle",0,10,details.get("eva",0),key="ph_eva")
-    gl_ph=details.get("glycemie_mgdl")
-    proto=protocole_antalgique_eva(eva_ph,poids_kg,age,atcd,gl_ph)
-    for al in proto["alertes"]: alerte(al,"danger")
-    for rec in proto["recs"]:
-        pharma_card(
-            nom=rec["med"], dose=rec["dose"],
-            details_lines=[rec.get("detail",""), rec.get("note","")],
-            ref=rec["ref"], palier=rec["palier"],
-            alertes=rec.get("alertes",[]),
-        )
-
-    sec("Adrenaline IM — Choc anaphylactique")
-    a_res,a_err=dose_adrenaline_anaphylaxie(poids_kg)
-    if a_err: alerte(a_err,"warning")
-    else:
-        pharma_card("Adrenaline IM (Sterop 1mg/ml)",
-            f"{a_res['dose_mg']}mg IM",
-            [a_res["voie"],a_res["note"],a_res["repeter"],a_res["moniteur"]],
-            a_res["ref"],palier="U")
-
-    sec("Naloxone IV — Antidote opioides")
-    dep_op=st.checkbox("Patient dependant aux opioides (titration douce)",key="ph_dep")
-    nal_res,nal_err=dose_naloxone(poids_kg,age,dependance=dep_op)
-    if nal_err: alerte(nal_err,"warning")
-    else:
-        pharma_card("Naloxone IV (Narcan)",
-            f"{nal_res['dose_bolus']}mg / bolus",
-            [nal_res["admin"],nal_res["note"],nal_res["surveillance"]],
-            nal_res["ref"],palier="A",alertes=nal_res.get("alertes",[]))
-
-    sec("Glucose 30% — Correction hypoglycemie")
-    # Securite dynamique : desactive si glycemie non mesuree
+# ──────────────────────────────────────────────────────────────────────────────
+with t_pha:
+    gl_ph=details.get("glycemie_mgdl") or gl_global
+    # Safety gate: display master warning if glycemia missing
     if gl_ph is None:
-        pharma_locked("Mesurer la glycemie capillaire pour activer le protocole glucose / resucrage")
-    else:
-        g_res,g_err=dose_glucose_hypoglycemie(poids_kg,"IV",glycemie_mgdl=gl_ph)
-        if g_err: alerte(g_err,"warning")
-        else:
-            pharma_card("Glucose 30% IV (Glucosie)",
-                f"{g_res['dose_g']}g",
-                [g_res["volume"],g_res["controle"]],
-                g_res["ref"],palier="U")
+        H('''<div class="al warning" style="margin-bottom:14px;font-size:.88rem;font-weight:600;">
+          <span class="al-ico">⚠️</span>
+          <span><strong>Donnée manquante : Glycémie capillaire non saisie</strong><br>
+          Certains protocoles sont désactivés. Saisir la glycémie dans l'onglet Tri Rapide ou Anamnèse.</span>
+          </div>''')
 
-    sec("Ceftriaxone IV — Urgence infectieuse")
-    cef_res,cef_err=dose_ceftriaxone_iv(poids_kg,age)
-    if cef_err: alerte(cef_err,"warning")
-    else:
-        pharma_card("Ceftriaxone IV (Purpura fulminans / Meningite)",
-            f"{cef_res['dose_g']}g IV",
-            [cef_res["admin"],cef_res["note"]],
-            cef_res["ref"],palier="U")
+    CARD("Antalgie basée sur l'ÉVA — Échelle OMS adaptée","")
+    ev_ph=st.slider("ÉVA actuelle",0,10,details.get("eva",0),key="ph_eva")
+    prt=protocole_eva(ev_ph,poids,age,atcd,gl_ph)
+    for a in prt["als"]: AL(a,"danger")
+    for rec in prt["recs"]:
+        RX(rec["nom"],rec["dose"],[rec["d"],rec.get("note","")],rec["ref"],rec["p"],rec.get("al",[]))
+    CARD_END()
 
-    sec("MEOPA — Analgesie non invasive (Kalinox)")
-    _ci_meopa=[ci for ci in ["Deficit en vitamine B12","Pneumothorax","Traumatisme cranien grave"]
-               if ci in atcd]
-    if _ci_meopa:
-        alerte(f"MEOPA contre-indique : {', '.join(_ci_meopa)}","danger")
-    else:
-        html(
-            f'<div class="pharma-card palier-2">'
-            f'<div class="pharma-name">MEOPA — Melange O2/N2O 50/50 (Kalinox)</div>'
-            f'<div class="pharma-dose">Inhalation spontanee</div>'
-            f'<div class="pharma-detail">'
-            f'Administration : masque facial avec valve anti-retour<br>'
-            f'Duree maximum : 15 min par session<br>'
-            f'AMM : adulte et enfant >= 1 an<br>'
-            f'Surveillance : SpO2, FC, etat de conscience — arret si desaturation<br>'
-            f'Ventilation de la salle obligatoire apres usage<br>'
-            f'CI absolues : pneumothorax, occlusion intestinale, embolie gazeuse, deficit B12'
-            f'</div>'
-            f'<div class="pharma-ref">BCFI — MEOPA (Kalinox) — RCP Belgique</div>'
-            f'</div>'
-        )
-    disclaimer()
+    CARD("Adrénaline IM — Anaphylaxie","")
+    ar,ae=adrenaline(poids)
+    if ae: AL(ae,"warning")
+    else: RX("Adrenaline IM (Sterop 1mg/ml)",f"{ar['dose_mg']}mg IM",
+              [ar["voie"],ar["note"],ar["rep"]],ar["ref"],"U")
+    CARD_END()
 
-# ------------------------------------------------------------------------------
+    CARD("Naloxone IV — Antidote opioïdes","")
+    dep=st.checkbox("Patient dépendant aux opioïdes (titration douce)",key="ph_dep")
+    nr,ne=naloxone(poids,age,dep)
+    if ne: AL(ne,"warning")
+    else:
+        for a in nr.get("alertes",[]): AL(a,"danger")
+        RX("Naloxone IV (Narcan)",f"{nr['dose']}mg / bolus",
+           [nr["admin"],nr["note"],nr["surv"]],nr["ref"],"A")
+    CARD_END()
+
+    CARD("Glucose 30 % — Hypoglycémie","")
+    if gl_ph is None:
+        RX_LOCK("⚠️ Donnée manquante : Glycémie capillaire non mesurée — Protocoles désactivés")
+    else:
+        gr,ge=glucose(poids,gl_ph)
+        if ge: AL(ge,"warning")
+        else: RX("Glucose 30% IV (Glucosie)",f"{gr['dose_g']}g",[gr["vol"],gr["ctrl"]],gr["ref"],"U")
+    CARD_END()
+
+    CARD("Ceftriaxone IV — Urgence infectieuse","")
+    cr,ce=ceftriaxone(poids,age)
+    if ce: AL(ce,"warning")
+    else: RX("Ceftriaxone IV (Purpura / Meningite)",f"{cr['dose_g']}g IV",
+              [cr["admin"],cr["note"]],cr["ref"],"U")
+    CARD_END()
+
+    CARD("MÉOPA — Analgésie non invasive","")
+    ci_m=[c for c in ["Deficit vitamine B12","Drepanocytose"] if c in atcd]
+    if ci_m: AL(f"MEOPA contre-indique : {', '.join(ci_m)}","danger")
+    else:
+        RX("MEOPA / Kalinox (O2/N2O 50/50)","Inhalation spontanee",
+           ["Masque facial avec valve anti-retour","Duree max : 15min / session",
+            "AMM : adulte et enfant >=1 an","CI : pneumothorax, occlusion, embolie gazeuse"],
+           "BCFI — MEOPA (Kalinox) — RCP Belgique","2")
+    CARD_END()
+    DISC()
+
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 7 — REEVALUATION
-# ------------------------------------------------------------------------------
-with t_reeval:
-    sec("Nouvelle reevaluation")
+# ──────────────────────────────────────────────────────────────────────────────
+with t_rev:
+    if st.session_state.t_arr and st.session_state.t_cont:
+        ds=(st.session_state.t_cont-st.session_state.t_arr).total_seconds()
+        cm=10 if niv in("M","1","2") else 30
+        AL(f"Delai IAO : {int(ds/60)} min — cible {cm} min","danger" if ds/60>=cm else "success")
 
-    if st.session_state.heure_arrivee and st.session_state.heure_premier_contact:
-        ds=(st.session_state.heure_premier_contact-st.session_state.heure_arrivee).total_seconds()
-        cm=10 if niveau in("M","1","2") else 30
-        alerte(f"Delai IAO : {int(ds/60)} min — cible {cm} min",
-               "danger" if ds/60>=cm else "success")
+    CARD("Nouvelle réévaluation","")
+    r1,r2,r3=st.columns(3)
+    rt=r1.number_input("Température (°C)",30.0,45.0,37.0,.1,key="re_t")
+    rfc=r1.number_input("FC",20,220,80,key="re_fc")
+    rp=r2.number_input("PAS",40,260,120,key="re_pas")
+    rs=r2.number_input("SpO2",50,100,98,key="re_sp")
+    rfr=r3.number_input("FR",5,60,16,key="re_fr")
+    rg=r3.number_input("GCS (3–15)",3,15,15,key="re_gcs")
+    rn2,_=calculer_news2(rfr,rs,o2,rt,rp,rfc,rg,"BPCO" in atcd)
+    rniv,rjust,_=french_triage(motif or "Fievre",details,rfc,rp,rs,rfr,rg,rt,age,rn2)
+    GAUGE(rn2,"BPCO" in atcd)
+    N2_BANNER(rn2)
+    st.info(f"Triage recalculé : **{LABELS.get(rniv,rniv)}** — {rjust}")
+    if st.button("Enregistrer la réévaluation",use_container_width=True):
+        st.session_state.reevs.append({"h":datetime.now().strftime("%H:%M"),
+            "fc":rfc,"pas":rp,"spo2":rs,"fr":rfr,"gcs":rg,"temp":rt,"niv":rniv,"n2":rn2})
+        st.session_state.t_reev=datetime.now()
+        st.success(f"Reevaluation {datetime.now().strftime('%H:%M')} — Tri {rniv}")
+    CARD_END()
 
-    rr1,rr2,rr3=st.columns(3)
-    re_temp=rr1.number_input("T (degres C)",30.0,45.0,37.0,0.1,key="re_temp")
-    re_fc  =rr1.number_input("FC (bpm)",20,220,80,key="re_fc")
-    re_pas =rr2.number_input("PAS (mmHg)",40,260,120,key="re_pas")
-    re_spo2=rr2.number_input("SpO2 (%)",50,100,98,key="re_spo2")
-    re_fr  =rr3.number_input("FR (/min)",5,60,16,key="re_fr")
-    re_gcs =rr3.number_input("GCS (3-15)",3,15,15,key="re_gcs")
+    if st.session_state.reevs:
+        CARD("Tendance NEWS2","")
+        n2v=[x.get("n2",0) for x in st.session_state.reevs]
+        mx=max(n2v) if n2v else 1
+        for i,snap in enumerate(st.session_state.reevs):
+            n2_=snap.get("n2",0); pct=round(n2_/max(mx,1)*100)
+            col="#EF4444" if n2_>=7 else ("#F59E0B" if n2_>=5 else "#22C55E")
+            H(f'<div class="n2t">'
+              f'<div class="n2t-lbl">{snap.get("h","?")} H+{i}</div>'
+              f'<div class="n2t-trk"><div class="n2t-fill" style="width:{max(pct,4)}%;background:{col};"></div></div>'
+              f'<div class="n2t-val" style="color:{col};">{n2_}</div></div>')
+        CARD_END()
 
-    re_n2,_=calculer_news2(re_fr,re_spo2,o2_supp,re_temp,re_pas,re_fc,re_gcs,"BPCO" in atcd)
-    re_niv,re_just,_=french_triage(motif or "Fievre",details,re_fc,re_pas,re_spo2,re_fr,re_gcs,re_temp,age,re_n2)
+        CARD("Detail","")
+        for i,snap in enumerate(st.session_state.reevs):
+            prev=st.session_state.reevs[i-1] if i>0 else snap
+            no=ORD.get(snap.get("niv","5"),5); np_=ORD.get(prev.get("niv","5"),5)
+            if no<np_: css_,tend="rr-up","AGGRAVATION"
+            elif no>np_: css_,tend="rr-down","AMELIORATION"
+            else: css_,tend="rr-stable","STABLE"
+            H(f'<div class="rr {css_}"><strong>{snap.get("h","?")} H+{i}</strong>'
+              f' | Tri {snap.get("niv","?")} | NEWS2 {snap.get("n2","?")}'
+              f' | FC {snap.get("fc","?")} | PAS {snap.get("pas","?")}'
+              f' | SpO2 {snap.get("spo2","?")}% | <strong>{tend}</strong></div>')
+        if len(st.session_state.reevs)>=2:
+            fi=st.session_state.reevs[0]; la=st.session_state.reevs[-1]
+            st.caption(f"Bilan : NEWS2 {fi.get('n2','?')} → {la.get('n2','?')} | Tri {fi['niv']} → {la['niv']}")
+        CARD_END()
 
-    gauge_news2(re_n2,"BPCO" in atcd)
-    banniere_news2_critique(re_n2)
-    st.info(f"Triage recalcule : **{LABELS_TRI[re_niv]}** — {re_just}")
-
-    if st.button("Enregistrer cette reevaluation",use_container_width=True):
-        st.session_state.histo_reeval.append({
-            "heure":datetime.now().strftime("%H:%M"),
-            "fc":re_fc,"pas":re_pas,"spo2":re_spo2,
-            "fr":re_fr,"gcs":re_gcs,"temp":re_temp,
-            "niveau":re_niv,"news2":re_n2,
-        })
-        st.session_state.derniere_reeval=datetime.now()
-        st.success(f"Reevaluation a {datetime.now().strftime('%H:%M')} — Tri {re_niv}")
-
-    sec("Tendance NEWS2")
-    if not st.session_state.histo_reeval:
-        st.info("Aucune reevaluation enregistree.")
-    else:
-        n2vals=[s.get("news2",0) for s in st.session_state.histo_reeval]
-        maxn2=max(n2vals) if n2vals else 1
-        for i,(snap) in enumerate(st.session_state.histo_reeval):
-            n2=snap.get("news2",0); pct=round(n2/max(maxn2,1)*100)
-            col="#EF4444" if n2>=7 else ("#F59E0B" if n2>=5 else "#22C55E")
-            html(f'<div class="n2-trend-row"><div class="n2-trend-label">{snap.get("heure","?")} (H+{i})</div>'
-                 f'<div class="n2-trend-track"><div class="n2-trend-fill" style="width:{max(pct,4)}%;background:{col};"></div></div>'
-                 f'<div class="n2-trend-val" style="color:{col};">{n2}</div></div>')
-
-        sec("Detail reevaluations")
-        for i,snap in enumerate(st.session_state.histo_reeval):
-            prev=st.session_state.histo_reeval[i-1] if i>0 else snap
-            no=ORD_NIV.get(snap.get("niveau","5"),5); np_=ORD_NIV.get(prev.get("niveau","5"),5)
-            if no<np_: rcss,rtend="reeval-up","AGGRAVATION"
-            elif no>np_: rcss,rtend="reeval-down","AMELIORATION"
-            else: rcss,rtend="reeval-stable","STABLE"
-            html(f'<div class="reeval-line {rcss}">'
-                 f'<strong>{snap.get("heure","?")} (H+{i})</strong>'
-                 f' | Tri {snap.get("niveau","?")} | NEWS2 {snap.get("news2","?")} | '
-                 f'FC {snap.get("fc","?")} | PAS {snap.get("pas","?")} | '
-                 f'SpO2 {snap.get("spo2","?")}% | <strong>{rtend}</strong></div>')
-
-        if len(st.session_state.histo_reeval)>=2:
-            fi=st.session_state.histo_reeval[0]; la=st.session_state.histo_reeval[-1]
-            st.markdown(f"**Bilan :** {len(st.session_state.histo_reeval)} reevaluations — "
-                        f"NEWS2 : {fi.get('news2','?')} → {la.get('news2','?')} — "
-                        f"Tri : {fi['niveau']} → {la['niveau']}")
-
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 8 — HISTORIQUE
-# ------------------------------------------------------------------------------
-with t_histo:
-    if not st.session_state.historique:
+# ──────────────────────────────────────────────────────────────────────────────
+with t_his:
+    if not st.session_state.histo:
         st.info("Aucun patient enregistre dans cette session.")
     else:
-        # Metriques de session
-        niveaux_session=[p.get("niveau","5") for p in st.session_state.historique]
+        nv_ses=[p.get("niv","5") for p in st.session_state.histo]
         c1,c2,c3,c4=st.columns(4)
-        c1.metric("Patients tries",len(st.session_state.historique))
-        c2.metric("Tri 1/2 critiques",sum(1 for n in niveaux_session if n in("M","1","2")))
-        c3.metric("NEWS2 moyen",round(sum(p.get("news2",0) for p in st.session_state.historique)/max(len(st.session_state.historique),1),1))
-        c4.metric("Tri 5 reorientes",sum(1 for n in niveaux_session if n=="5"))
+        c1.metric("Patients",len(st.session_state.histo))
+        c2.metric("Tri 1/2 critiques",sum(1 for n in nv_ses if n in("M","1","2")))
+        c3.metric("NEWS2 moyen",round(sum(p.get("n2",0) for p in st.session_state.histo)/max(len(st.session_state.histo),1),1))
+        c4.metric("Tri 5 réorientés",sum(1 for n in nv_ses if n=="5"))
 
-        # Histogramme rapide de repartition
-        sec("Repartition par niveau de triage — session en cours")
-        dist={n:niveaux_session.count(n) for n in ["M","1","2","3A","3B","4","5"]}
-        total_h=len(niveaux_session) or 1
-        cols_dist=st.columns(7)
-        for i,(niv,count) in enumerate(dist.items()):
-            pct=round(count/total_h*100)
-            cols_dist[i].metric(f"Tri {niv}",count,delta=f"{pct}%",delta_color="off")
+        CARD("Répartition par niveau","")
+        dist={n:nv_ses.count(n) for n in["M","1","2","3A","3B","4","5"]}
+        tot=len(nv_ses) or 1
+        cols=st.columns(7)
+        for i,(n,c) in enumerate(dist.items()): cols[i].metric(f"Tri {n}",c,delta=f"{round(c/tot*100)}%",delta_color="off")
+        CARD_END()
 
-        # Liste patients
-        sec("Liste des patients")
-        for p in st.session_state.historique:
-            hb=HB_CSS.get(p.get("niveau","5"),"hb-5")
-            html(f'<div class="hist-line">'
-                 f'<span class="hist-badge {hb}">{LABELS_TRI.get(p.get("niveau","5"),"?")}</span>'
-                 f'<strong>{p.get("heure","?")}</strong>'
-                 f'<span style="color:var(--text-muted);font-size:.72rem;">UID : {p.get("uid","?")}</span>'
-                 f'<span>{p.get("motif","?")}</span>'
-                 f'<span style="color:var(--text-muted);">NEWS2 {p.get("news2","?")}</span>'
-                 f'</div>')
+        CARD("Liste des patients","")
+        for p in st.session_state.histo:
+            hb=HBCSS.get(p.get("niv","5"),"hb-5")
+            H(f'<div class="hl">'
+              f'<span class="hbadge {hb}">{LABELS.get(p.get("niv","5"),"?")}</span>'
+              f'<strong>{p.get("h","?")}</strong>'
+              f'<span style="color:var(--TM);font-size:.68rem;">UID:{p.get("uid","?")}</span>'
+              f'<span style="flex:1;">{p.get("motif","?")}</span>'
+              f'<span style="color:var(--TM);">N2:{p.get("n2","?")}</span></div>')
+        CARD_END()
 
-        # Export CSV du registre complet
-        sec("Export des donnees — Registre anonyme")
-        tous_reg=_charger(REG_FILE)
-        if tous_reg:
-            import io, csv as csv_mod
-            out=io.StringIO()
-            w_csv=csv_mod.writer(out)
-            w_csv.writerow(["uid","heure","motif","categorie","niveau","news2","fc","pas","spo2","fr","temp","gcs","operateur"])
-            for r in tous_reg:
-                w_csv.writerow([
-                    r.get("uid",""),r.get("heure",""),r.get("motif",""),r.get("categorie",""),
-                    r.get("niveau",""),r.get("news2",""),r.get("fc",""),r.get("pas",""),
-                    r.get("spo2",""),r.get("fr",""),r.get("temp",""),r.get("gcs",""),
-                    r.get("code_operateur",""),
-                ])
-            csv_data=out.getvalue()
-            col_exp1,col_exp2=st.columns(2)
-            col_exp1.download_button(
-                label="Telecharger registre CSV (toutes sessions)",
-                data=csv_data,
-                file_name=f"akir_registre_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",use_container_width=True,
-            )
-            col_exp2.metric("Patients dans le registre",len(tous_reg))
-            alerte(
-                f"RGPD : Le fichier CSV ne contient aucun nom ni prenom. "
-                f"Identifiants UUID anonymes uniquement. {len(tous_reg)} enregistrements.",
-                "info"
-            )
-        else:
-            st.info("Aucun enregistrement dans le registre persistant.")
+        reg=_load(RF)
+        if reg:
+            CARD("Export RGPD — Registre anonyme","")
+            out=io.StringIO(); w=csv_mod.writer(out)
+            w.writerow(["uid","heure","motif","categorie","niveau","news2","fc","pas","spo2","fr","temp","gcs","operateur"])
+            for r in reg:
+                w.writerow([r.get(k,"") for k in["uid","heure","motif","cat","niv","n2","fc","pas","spo2","fr","temp","gcs","op"]])
+            st.download_button("Télécharger le registre CSV",data=out.getvalue(),
+                file_name=f"akir_reg_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",use_container_width=True)
+            AL(f"RGPD : CSV anonyme — UUID uniquement — {len(reg)} enregistrements","info")
+            CARD_END()
 
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # ONGLET 9 — TRANSMISSION SBAR
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 with t_sbar:
-    sec("Rapport de transmission SBAR — Format DPI-Ready")
-    sbar_op=st.text_input("Code operateur pour le rapport",
-        value=st.session_state.code_operateur or "IAO",key="sbar_op")
-
-    if st.button("Generer le rapport SBAR",use_container_width=True,type="primary"):
+    CARD("Rapport de transmission — Format DPI-Ready","")
+    sbar_op=st.text_input("Code opérateur",value=st.session_state.op or "IAO",key="sb_op")
+    if st.button("Générer le rapport SBAR",type="primary",use_container_width=True):
         if not motif:
-            alerte("Selectionner un motif de recours avant de generer le rapport","warning")
+            AL("Selectionner un motif en Anamnese avant de generer le rapport","warning")
         else:
-            sbar=generer_sbar(
-                age=age,motif=motif,cat=cat,atcd=atcd,allergies=allergies,
-                o2_supp=o2_supp,temp=temp or 37.0,fc=fc or 80,pas=pas or 120,
-                spo2=spo2 or 98,fr=fr or 16,gcs=gcs or 15,
-                eva=details.get("eva",0),news2=news2 or 0,
-                niveau=niveau or "3B",justif=justif or "Non calcule",
-                critere=critere or "",code_operateur=sbar_op,
-                glycemie_mgdl=details.get("glycemie_mgdl"),
-            )
-            # Rendu visuel rapport SBAR
-            html(
-                f'<div class="sbar-report">'
-                # Header
-                f'<div class="sbar-header">'
-                f'<div class="sbar-header-title">RAPPORT DE TRIAGE IAO — AKIR-IAO v18.0 Hospital Pro</div>'
-                f'<div class="sbar-header-sub">Operateur : {sbar["op"]} | {sbar["heure"]} | FRENCH Triage SFMU V1.1 — Hainaut, Belgique</div>'
-                f'</div>'
-                # S
-                f'<div class="sbar-section">'
-                f'<div class="sbar-section-row"><div class="sbar-section-letter">S</div><div class="sbar-section-title">Situation</div></div>'
-                f'<div class="sbar-content">'
-                f'Patient de {int(sbar["age"])} ans | Motif : <strong>{sbar["motif"]}</strong> | Categorie : {sbar["cat"]}<br>'
-                f'Niveau de triage attribue : <strong>{sbar["niveau"]}</strong><br>'
-                f'Secteur : {sbar["secteur"]} | Delai maximum : {sbar["delai"]} min<br>'
-                f'Critere de triage : {sbar["critere"]}'
-                f'</div>'
-                f'<div class="sbar-vital-grid">'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">FC</div><div class="sbar-vital-val">{sbar["fc"]}</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">PAS</div><div class="sbar-vital-val">{sbar["pas"]}</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">SpO2</div><div class="sbar-vital-val">{sbar["spo2"]}%</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">FR</div><div class="sbar-vital-val">{sbar["fr"]}/min</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">T</div><div class="sbar-vital-val">{sbar["temp"]}C</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">GCS</div><div class="sbar-vital-val">{sbar["gcs"]}/15</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">EVA</div><div class="sbar-vital-val">{sbar["eva"]}/10</div></div>'
-                f'<div class="sbar-vital-item"><div class="sbar-vital-key">NEWS2</div><div class="sbar-vital-val">{sbar["news2"]}</div></div>'
-                f'</div>'
-                f'</div>'
-                # B
-                f'<div class="sbar-section">'
-                f'<div class="sbar-section-row"><div class="sbar-section-letter">B</div><div class="sbar-section-title">Background</div></div>'
-                f'<div class="sbar-content">'
-                f'Antecedents : {sbar["atcd"]}<br>'
-                f'Allergies : {sbar["allergies"]}<br>'
-                f'O2 : {sbar["o2"]} | Glycemie : {sbar["glycemie"]}'
-                f'</div></div>'
-                # A
-                f'<div class="sbar-section">'
-                f'<div class="sbar-section-row"><div class="sbar-section-letter">A</div><div class="sbar-section-title">Assessment</div></div>'
-                f'<div class="sbar-content">{sbar["justif"]}</div>'
-                f'</div>'
-                # R
-                f'<div class="sbar-section">'
-                f'<div class="sbar-section-row"><div class="sbar-section-letter">R</div><div class="sbar-section-title">Recommendation</div></div>'
-                f'<div class="sbar-content">'
-                f'Orientation : <strong>{sbar["secteur"]}</strong><br>'
-                f'Delai maximum : {sbar["delai"]} minutes<br>'
-                f'Remarques IAO : [A completer par l\'operateur]'
-                f'</div></div>'
-                # Footer
-                f'<div class="sbar-footer">'
-                f'AVERTISSEMENT MEDICO-LEGAL : Ce document est un support d\'aide a la decision clinique. '
-                f'Il ne se substitue pas au jugement clinique du medecin responsable. '
-                f'AR 18/06/1990 modifie — Responsabilite infirmiere — Hainaut, Wallonie, Belgique.'
-                f'</div></div>'
-            )
-            # Export texte brut
-            txt=(f"RAPPORT SBAR — AKIR-IAO v18.0 — {sbar['heure']}\n"
-                 f"Operateur : {sbar['op']}\n\n"
-                 f"[S] SITUATION\nPatient {int(sbar['age'])} ans | {sbar['motif']} | {sbar['categorie'] if 'categorie' in sbar else cat}\n"
-                 f"Triage : {sbar['niveau']} | {sbar['secteur']} | Delai : {sbar['delai']} min\n\n"
-                 f"[B] BACKGROUND\nATCD : {sbar['atcd']}\nAllergies : {sbar['allergies']}\n\n"
-                 f"[A] ASSESSMENT\nFC {sbar['fc']} | PAS {sbar['pas']} | SpO2 {sbar['spo2']}% | FR {sbar['fr']}/min | T {sbar['temp']}C | GCS {sbar['gcs']}/15\n"
-                 f"EVA {sbar['eva']}/10 | NEWS2 {sbar['news2']} | Glycemie {sbar['glycemie']} | {sbar['o2']}\n"
-                 f"Justification : {sbar['justif']}\n\n"
-                 f"[R] RECOMMENDATION\nOrientation : {sbar['secteur']}\nDelai max : {sbar['delai']} min\n"
-                 f"Remarques : [A completer]\n\n"
-                 f"AKIR-IAO v18.0 — Ismail Ibn-Daifa — FRENCH SFMU V1.1 — Hainaut, Wallonie, Belgique")
-            st.download_button("Telecharger rapport SBAR (.txt)",data=txt,
+            s=build_sbar(age,motif,cat,atcd,alg,o2,temp or 37.0,fc or 80,pas or 120,
+                         spo2 or 98,fr or 16,gcs or 15,eva,news2 or 0,
+                         niv or "3B",just or "Non calcule",crit or "",sbar_op,
+                         gl_global or details.get("glycemie_mgdl"))
+            SBAR_RENDER(s)
+            txt=(f"RAPPORT SBAR — AKIR-IAO v18.0 Pro Edition\n"
+                 f"Opérateur : {s['op']} | {s['heure']}\n\n"
+                 f"[S] SITUATION\nPatient {s['age']} ans | {s['motif']}\n"
+                 f"Niveau : {s['niv']} | Secteur : {s['sec']} | Delai : {s['delai']} min\n"
+                 f"Critere : {s['crit']}\n\n"
+                 f"[B] BACKGROUND\nATCD : {s['atcd']}\nAllergies : {s['alg']}\n"
+                 f"O2 : {s['o2']} | Glycemie : {s['gl']}\n\n"
+                 f"[A] ASSESSMENT\nFC {s['fc']} | PAS {s['pas']} | SpO2 {s['spo2']}% | "
+                 f"FR {s['fr']}/min | T {s['temp']}C | GCS {s['gcs']}/15 | EVA {s['eva']}/10 | NEWS2 {s['n2']}\n"
+                 f"Justification : {s['just']}\n\n"
+                 f"[R] RECOMMENDATION\nOrientation : {s['sec']} | Delai max : {s['delai']} min\n"
+                 f"Remarques IAO : [À compléter par l'opérateur]\n\n"
+                 f"AKIR-IAO v18.0 Pro — Ismail Ibn-Daifa — FRENCH SFMU V1.1 — Hainaut, Belgique")
+            st.download_button("Télécharger le rapport SBAR (.txt)",data=txt,
                 file_name=f"sbar_{sbar_op}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                 mime="text/plain",use_container_width=True)
-    disclaimer()
-    
+    CARD_END()
+    DISC()
