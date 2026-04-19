@@ -1643,11 +1643,26 @@ with t_triage:
     news2,n2w=calculer_news2(fr,spo2,o2_supp,temp,pas,fc,gcs,bpco_t)
     for w in n2w: alerte(w,"warning")
 
+    # Glycemie dans le triage (si pas encore saisie en anamnese)
+    if not details.get("glycemie_mgdl"):
+        gl_t_widget=widget_glycemie("t_glyc","Glycemie capillaire (mg/dl) — si non saisie en Anamnese")
+        if gl_t_widget:
+            details["glycemie_mgdl"]=gl_t_widget
     gl_t=details.get("glycemie_mgdl")
+
     niveau,justif,critere=french_triage(motif,details,fc,pas,spo2,fr,gcs,temp,age,news2,gl_t)
 
     banniere_news2_critique(news2)
     banniere_purpura(details)
+
+    # Shock Index affiché dans le triage
+    si_t=calculer_shock_index(fc,pas)
+    si_t_css="si-crit" if si_t>=1.0 else ("si-warn" if si_t>=0.8 else "si-normal")
+    html(f'<div class="si-box" style="margin-bottom:12px;">'
+         f'<div class="si-label">Shock Index (FC/PAS)</div>'
+         f'<div class="si-value {si_t_css}">{si_t}</div>'
+         f'<div class="si-label">{"CHOC PROBABLE" if si_t>=1.0 else ("Surveillance" if si_t>=0.8 else "Normal")}</div>'
+         f'</div>')
 
     if st.session_state.derniere_reeval:
         mins=(datetime.now()-st.session_state.derniere_reeval).total_seconds()/60
@@ -1792,6 +1807,28 @@ with t_pharma:
             f"{cef_res['dose_g']}g IV",
             [cef_res["admin"],cef_res["note"]],
             cef_res["ref"],palier="U")
+
+    sec("MEOPA — Analgesie non invasive (Kalinox)")
+    _ci_meopa=[ci for ci in ["Deficit en vitamine B12","Pneumothorax","Traumatisme cranien grave"]
+               if ci in atcd]
+    if _ci_meopa:
+        alerte(f"MEOPA contre-indique : {', '.join(_ci_meopa)}","danger")
+    else:
+        html(
+            f'<div class="pharma-card palier-2">'
+            f'<div class="pharma-name">MEOPA — Melange O2/N2O 50/50 (Kalinox)</div>'
+            f'<div class="pharma-dose">Inhalation spontanee</div>'
+            f'<div class="pharma-detail">'
+            f'Administration : masque facial avec valve anti-retour<br>'
+            f'Duree maximum : 15 min par session<br>'
+            f'AMM : adulte et enfant >= 1 an<br>'
+            f'Surveillance : SpO2, FC, etat de conscience — arret si desaturation<br>'
+            f'Ventilation de la salle obligatoire apres usage<br>'
+            f'CI absolues : pneumothorax, occlusion intestinale, embolie gazeuse, deficit B12'
+            f'</div>'
+            f'<div class="pharma-ref">BCFI — MEOPA (Kalinox) — RCP Belgique</div>'
+            f'</div>'
+        )
     disclaimer()
 
 # ------------------------------------------------------------------------------
@@ -1870,7 +1907,25 @@ with t_histo:
     if not st.session_state.historique:
         st.info("Aucun patient enregistre dans cette session.")
     else:
-        st.metric("Patients tries cette session",len(st.session_state.historique))
+        # Metriques de session
+        niveaux_session=[p.get("niveau","5") for p in st.session_state.historique]
+        c1,c2,c3,c4=st.columns(4)
+        c1.metric("Patients tries",len(st.session_state.historique))
+        c2.metric("Tri 1/2 critiques",sum(1 for n in niveaux_session if n in("M","1","2")))
+        c3.metric("NEWS2 moyen",round(sum(p.get("news2",0) for p in st.session_state.historique)/max(len(st.session_state.historique),1),1))
+        c4.metric("Tri 5 reorientes",sum(1 for n in niveaux_session if n=="5"))
+
+        # Histogramme rapide de repartition
+        sec("Repartition par niveau de triage — session en cours")
+        dist={n:niveaux_session.count(n) for n in ["M","1","2","3A","3B","4","5"]}
+        total_h=len(niveaux_session) or 1
+        cols_dist=st.columns(7)
+        for i,(niv,count) in enumerate(dist.items()):
+            pct=round(count/total_h*100)
+            cols_dist[i].metric(f"Tri {niv}",count,delta=f"{pct}%",delta_color="off")
+
+        # Liste patients
+        sec("Liste des patients")
         for p in st.session_state.historique:
             hb=HB_CSS.get(p.get("niveau","5"),"hb-5")
             html(f'<div class="hist-line">'
@@ -1880,6 +1935,38 @@ with t_histo:
                  f'<span>{p.get("motif","?")}</span>'
                  f'<span style="color:var(--text-muted);">NEWS2 {p.get("news2","?")}</span>'
                  f'</div>')
+
+        # Export CSV du registre complet
+        sec("Export des donnees — Registre anonyme")
+        tous_reg=_charger(REG_FILE)
+        if tous_reg:
+            import io, csv as csv_mod
+            out=io.StringIO()
+            w_csv=csv_mod.writer(out)
+            w_csv.writerow(["uid","heure","motif","categorie","niveau","news2","fc","pas","spo2","fr","temp","gcs","operateur"])
+            for r in tous_reg:
+                w_csv.writerow([
+                    r.get("uid",""),r.get("heure",""),r.get("motif",""),r.get("categorie",""),
+                    r.get("niveau",""),r.get("news2",""),r.get("fc",""),r.get("pas",""),
+                    r.get("spo2",""),r.get("fr",""),r.get("temp",""),r.get("gcs",""),
+                    r.get("code_operateur",""),
+                ])
+            csv_data=out.getvalue()
+            col_exp1,col_exp2=st.columns(2)
+            col_exp1.download_button(
+                label="Telecharger registre CSV (toutes sessions)",
+                data=csv_data,
+                file_name=f"akir_registre_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",use_container_width=True,
+            )
+            col_exp2.metric("Patients dans le registre",len(tous_reg))
+            alerte(
+                f"RGPD : Le fichier CSV ne contient aucun nom ni prenom. "
+                f"Identifiants UUID anonymes uniquement. {len(tous_reg)} enregistrements.",
+                "info"
+            )
+        else:
+            st.info("Aucun enregistrement dans le registre persistant.")
 
 # ------------------------------------------------------------------------------
 # ONGLET 9 — TRANSMISSION SBAR
