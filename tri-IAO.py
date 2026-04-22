@@ -1,234 +1,112 @@
-%%writefile app.py
-import streamlit as st
-import uuid
-import json
-from datetime import datetime
-
-# --- CONFIGURATION UI ---
-st.set_page_config(page_title="AKIR-IAO v18.0 Pro", layout="wide")
-
-# --- CSS HOSPITAL PRO ---
-st.markdown("""
-<style>
-:root {
-    --primary: #004A99;
-    --bg: #F0F2F6;
-    --card: #FFFFFF;
-}
-.main { background-color: var(--bg); }
-.stApp { background-color: var(--bg); }
-.medical-card {
-    background: var(--card);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-    border-left: 5px solid var(--primary);
-}
-.triage-banner {
-    padding: 15px;
-    color: white;
-    font-weight: bold;
-    border-radius: 5px;
-    text-align: center;
-    margin: 10px 0;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# --- LOGIQUE CLINIQUE ---
-def calculer_news2(fr, spo2, temp, pas, fc, gcs):
-    score = 0
-    if fr >= 25 or fr <= 8: score += 3
-    if spo2 <= 91: score += 3
-    if temp >= 39.1 or temp <= 35.0: score += 3
-    if pas <= 90 or pas >= 220: score += 3
-    if fc >= 131 or fc <= 40: score += 3
-    if gcs < 15: score += 3
-    return score
-
-# --- SIDEBAR & ETAT ---
-if 'uid' not in st.session_state: st.session_state.uid = str(uuid.uuid4())[:8].upper()
-
-with st.sidebar:
-    st.title("🏥 Paramètres Patient")
-    age = st.number_input("Âge (ans)", 0, 120, 45)
-    poids = st.number_input("Poids (kg)", 1, 200, 70)
-    atcd = st.multiselect("Antécédents", ["HTA", "Diabète", "Asthme", "BPCO", "Insuffisance Cardiaque", "AVC", "Anticoagulants"])
-    facteurs = st.multiselect("Facteurs Favorisants", ["Fièvre", "Traumatisme", "Chimiothérapie", "Grossesse", "Immunodépression"])
-
-# --- INTERFACE PRINCIPALE ---
-st.title("AKIR-IAO v18.0 — Hospital Pro Edition")
-
-tabs = st.tabs(["📊 Tri Rapide", "🩺 Vitaux & Scores", "💊 Pharmacie", "📋 Rapport SBAR"])
-
-# ONGLET 1: TRI RAPIDE
-with tabs[0]:
-    st.markdown('<div class="medical-card"><h3>Anamnèse et Identification</h3></div>', unsafe_allow_html=True)
-    motif = st.text_input("Motif de recours principal", placeholder="ex: Douleur thoracique")
-    details = st.text_area("Détails de la plainte")
-    
-    col1, col2 = st.columns(2)
-    with col1: st.info(f"**Patient :** {age} ans | {poids} kg")
-    with col2: st.info(f"**ID Session :** {st.session_state.uid}")
-
-# ONGLET 2: VITAUX
-with tabs[1]:
-    st.subheader("Constantes Vitales")
-    c1, c2, c3 = st.columns(3)
-    fr = c1.number_input("FR (/min)", 5, 50, 16)
-    spo2 = c2.number_input("SpO2 (%)", 70, 100, 98)
-    temp = c3.number_input("Température (°C)", 34.0, 42.0, 37.0)
-    
-    c4, c5, c6 = st.columns(3)
-    pas = c4.number_input("PAS (mmHg)", 50, 250, 120)
-    fc = c5.number_input("FC (bpm)", 30, 200, 80)
-    gcs = c6.slider("GCS", 3, 15, 15)
-    
-    score_n2 = calculer_news2(fr, spo2, temp, pas, fc, gcs)
-    st.metric("Score NEWS2", score_n2, delta="Critique" if score_n2 >= 5 else "Stable", delta_color="inverse")
-    
-    if age < 18:
-        sipa = round(fc / pas, 2)
-        st.warning(f"SIPA (Pédiatrie) : {sipa}")
-
-# ONGLET 3: PHARMACIE
-with tabs[2]:
-    st.markdown(f"### Calculs pour {poids} kg")
-    
-    # Paracétamol
-    if poids < 50:
-        dose_para = poids * 15
-        para_str = f"{dose_para} mg (15mg/kg)"
-    else:
-        para_str = "1 g (Dose fixe >= 50kg)"
-    
-    # G30%
-    dose_g30 = round(poids * 0.2, 1)
-    
-    st.success(f"✅ **Paracétamol IV :** {para_str}")
-    st.success(f"✅ **Glucose 30% (Resucrage) :** {dose_g30} g (soit {round(dose_g30/0.3, 1)} ml)")
-    
-    st.caption("Note : Toujours valider la prescription avec le médecin responsable.")
-
-# ONGLET 4: SBAR
-with tabs[3]:
-    report = f"""
-    [S] SITUATION: Patient {age} ans, {st.session_state.uid}. Motif: {motif}.
-    [B] BACKGROUND: Poids {poids}kg. ATCD: {', '.join(atcd) if atcd else 'Néant'}. Facteurs: {', '.join(facteurs) if facteurs else 'Néant'}.
-    [A] ASSESSMENT: NEWS2: {score_n2}. Vitaux: FR {fr}, SpO2 {spo2}, Temp {temp}, PAS {pas}, FC {fc}, GCS {gcs}.
-    [R] RECOMMENDATION: Triage prioritaire requis selon score NEWS2.
-    """
-    st.text_area("Rapport SBAR (Prêt à copier)", report, height=250)
-""
+"""
 ================================================================================
-  AKIR-IAO v18.0 â€” Hospital Pro Edition
+  AKIR-IAO v18.0 — Hospital Pro Edition
 ================================================================================
 
-  Application d'aide Ã  la dÃ©cision pour l'Infirmier(Ã¨re) d'Accueil et
-  d'Orientation (IAO) aux urgences adulte et pÃ©diatrique.
+  Application d'aide à la décision pour l'Infirmier(ère) d'Accueil et
+  d'Orientation (IAO) aux urgences adulte et pédiatrique.
 
-  DÃ©veloppeur        : Ismail Ibn-Daifa
-  Promoteur          : [Ã€ complÃ©ter par l'Ã©tudiant]
-  Cadre acadÃ©mique   : MÃ©moire de Master en Sciences InfirmiÃ¨res
-  Localisation       : Urgences â€” Hainaut, Wallonie, Belgique
-  Version            : 18.0 â€” Hospital Pro Edition
-  Date de rÃ©vision   : 2025
+  Développeur        : Ismail Ibn-Daifa
+  Promoteur          : [À compléter par l'étudiant]
+  Cadre académique   : Mémoire de Master en Sciences Infirmières
+  Localisation       : Urgences — Hainaut, Wallonie, Belgique
+  Version            : 18.0 — Hospital Pro Edition
+  Date de révision   : 2025
 
 --------------------------------------------------------------------------------
-  RÃ‰FÃ‰RENCES CLINIQUES
+  RÉFÉRENCES CLINIQUES
 --------------------------------------------------------------------------------
 
   Triage
-    â€¢ Taboulet P. et al. FRENCH Triage : Ã‰valuation comparative avec l'ESI.
-      SociÃ©tÃ© FranÃ§aise de MÃ©decine d'Urgence (SFMU), V1.1, Juin 2018.
+    • Taboulet P. et al. FRENCH Triage : Évaluation comparative avec l'ESI.
+      Société Française de Médecine d'Urgence (SFMU), V1.1, Juin 2018.
 
   NEWS2 (National Early Warning Score 2)
-    â€¢ Royal College of Physicians. National Early Warning Score 2 (NEWS2):
+    • Royal College of Physicians. National Early Warning Score 2 (NEWS2):
       Standardising the assessment of acute-illness severity in the NHS.
       Updated report of a working party. London: RCP, 2017.
 
   qSOFA
-    â€¢ Singer M, Deutschman CS, Seymour CW, et al. The Third International
+    • Singer M, Deutschman CS, Seymour CW, et al. The Third International
       Consensus Definitions for Sepsis and Septic Shock (Sepsis-3).
       JAMA. 2016;315(8):801-810.
 
   GCS (Glasgow Coma Scale)
-    â€¢ Teasdale G, Jennett B. Assessment of coma and impaired consciousness.
+    • Teasdale G, Jennett B. Assessment of coma and impaired consciousness.
       A practical scale. Lancet. 1974;304(7872):81-84.
 
   TIMI Risk Score
-    â€¢ Antman EM, Cohen M, Bernink PJLM, et al. The TIMI risk score for
+    • Antman EM, Cohen M, Bernink PJLM, et al. The TIMI risk score for
       unstable angina/non-ST elevation MI. JAMA. 2000;284(7):835-842.
 
   Algoplus
-    â€¢ Rat P, Jouve E, Pickering G, et al. Validation of an acute pain-behavior
+    • Rat P, Jouve E, Pickering G, et al. Validation of an acute pain-behavior
       scale for older persons with inability to communicate verbally:
       Algoplus. Eur J Pain. 2011;15(2):198.e1-198.e10.
 
   Clinical Frailty Scale (CFS)
-    â€¢ Rockwood K, Song X, MacKnight C, et al. A global clinical measure of
+    • Rockwood K, Song X, MacKnight C, et al. A global clinical measure of
       fitness and frailty in elderly people. CMAJ. 2005;173(5):489-495.
 
   SIPA (Shock Index Pediatric Age-adjusted)
-    â€¢ Acker SN, Ross JT, Partrick DA, et al. Pediatric specific shock index
+    • Acker SN, Ross JT, Partrick DA, et al. Pediatric specific shock index
       accurately identifies severely injured children. J Pediatr Surg.
       2015;50(2):331-334.
 
   Purpura fulminans
-    â€¢ SociÃ©tÃ© de Pathologie Infectieuse de Langue FranÃ§aise (SPILF) et
-      SociÃ©tÃ© FranÃ§aise de PÃ©diatrie (SFP). Recommandations sur la prise en
+    • Société de Pathologie Infectieuse de Langue Française (SPILF) et
+      Société Française de Pédiatrie (SFP). Recommandations sur la prise en
       charge du purpura fulminans aux urgences. 2017.
 
   FAST / BE-FAST (AVC)
-    â€¢ Aroor S, Singh R, Goldstein LB. BE-FAST (Balance, Eyes, Face, Arm,
+    • Aroor S, Singh R, Goldstein LB. BE-FAST (Balance, Eyes, Face, Arm,
       Speech, Time): Reducing the proportion of strokes missed using the
       FAST mnemonic. Stroke. 2017;48(2):479-481.
 
 --------------------------------------------------------------------------------
-  RÃ‰FÃ‰RENCES PHARMACOLOGIQUES
+  RÉFÉRENCES PHARMACOLOGIQUES
 --------------------------------------------------------------------------------
 
-  â€¢ BCFI â€” RÃ©pertoire CommentÃ© des MÃ©dicaments. Centre Belge d'Information
-    PharmacothÃ©rapeutique. Ã‰dition courante. https://www.bcfi.be
-  â€¢ AFMPS â€” Agence FÃ©dÃ©rale des MÃ©dicaments et des Produits de SantÃ©.
-    RÃ©sumÃ©s des CaractÃ©ristiques du Produit (RCP) â€” Belgique.
-  â€¢ SFAR â€” SociÃ©tÃ© FranÃ§aise d'AnesthÃ©sie et de RÃ©animation. Protocoles de
+  • BCFI — Répertoire Commenté des Médicaments. Centre Belge d'Information
+    Pharmacothérapeutique. Édition courante. https://www.bcfi.be
+  • AFMPS — Agence Fédérale des Médicaments et des Produits de Santé.
+    Résumés des Caractéristiques du Produit (RCP) — Belgique.
+  • SFAR — Société Française d'Anesthésie et de Réanimation. Protocoles de
     titration morphinique aux urgences. 2010.
-  â€¢ Lignes directrices europÃ©ennes pour la prise en charge de
+  • Lignes directrices européennes pour la prise en charge de
     l'anaphylaxie. EAACI, 2023.
 
 --------------------------------------------------------------------------------
-  CADRE LÃ‰GAL BELGE
+  CADRE LÉGAL BELGE
 --------------------------------------------------------------------------------
 
-  â€¢ ArrÃªtÃ© Royal du 18 juin 1990 modifiÃ© â€” Liste des prestations techniques
-    de soins infirmiers et des actes pouvant Ãªtre confiÃ©s aux infirmiers.
-  â€¢ RÃ¨glement GÃ©nÃ©ral sur la Protection des DonnÃ©es (RGPD) â€” UE 2016/679.
-  â€¢ Loi du 22 aoÃ»t 2002 relative aux droits du patient â€” Belgique.
-  â€¢ Loi du 30 juillet 2018 relative Ã  la protection des personnes physiques
-    Ã  l'Ã©gard des traitements de donnÃ©es Ã  caractÃ¨re personnel â€” Belgique.
+  • Arrêté Royal du 18 juin 1990 modifié — Liste des prestations techniques
+    de soins infirmiers et des actes pouvant être confiés aux infirmiers.
+  • Règlement Général sur la Protection des Données (RGPD) — UE 2016/679.
+  • Loi du 22 août 2002 relative aux droits du patient — Belgique.
+  • Loi du 30 juillet 2018 relative à la protection des personnes physiques
+    à l'égard des traitements de données à caractère personnel — Belgique.
 
 --------------------------------------------------------------------------------
-  CONFORMITÃ‰ RGPD
+  CONFORMITÉ RGPD
 --------------------------------------------------------------------------------
 
-  â€¢ Identification patient  : UUID anonyme (8 caractÃ¨res hexadÃ©cimaux)
-  â€¢ Identification opÃ©rateur: Code anonyme libre (recommandation : IAOxx)
-  â€¢ Aucun identifiant nominal (nom, prÃ©nom, NISS, adresse) n'est collectÃ©
-  â€¢ Stockage                : Fichier JSON local â€” aucune transmission tiers
-  â€¢ RÃ©tention               : 500 derniÃ¨res entrÃ©es (rotation automatique)
-  â€¢ Export                  : CSV anonyme pour analyse de recherche
+  • Identification patient  : UUID anonyme (8 caractères hexadécimaux)
+  • Identification opérateur: Code anonyme libre (recommandation : IAOxx)
+  • Aucun identifiant nominal (nom, prénom, NISS, adresse) n'est collecté
+  • Stockage                : Fichier JSON local — aucune transmission tiers
+  • Rétention               : 500 dernières entrées (rotation automatique)
+  • Export                  : CSV anonyme pour analyse de recherche
 
 --------------------------------------------------------------------------------
-  AVERTISSEMENT MÃ‰DICO-LÃ‰GAL
+  AVERTISSEMENT MÉDICO-LÉGAL
 --------------------------------------------------------------------------------
 
-  Cet outil est un support d'aide Ã  la dÃ©cision clinique destinÃ© aux
-  professionnels infirmiers formÃ©s au triage. Il ne se substitue en aucun
-  cas au jugement clinique du mÃ©decin responsable. Toute dÃ©cision
-  thÃ©rapeutique demeure sous la responsabilitÃ© exclusive du professionnel
-  de santÃ©. Les doses affichÃ©es doivent Ãªtre validÃ©es par un mÃ©decin
+  Cet outil est un support d'aide à la décision clinique destiné aux
+  professionnels infirmiers formés au triage. Il ne se substitue en aucun
+  cas au jugement clinique du médecin responsable. Toute décision
+  thérapeutique demeure sous la responsabilité exclusive du professionnel
+  de santé. Les doses affichées doivent être validées par un médecin
   prescripteur avant administration.
 
 ================================================================================
@@ -241,20 +119,20 @@ import streamlit as st
 import uuid, json, os, io, csv as csv_mod
 
 st.set_page_config(
-    page_title="AKIR-IAO â€” Pro",
+    page_title="AKIR-IAO — Pro",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# CSS â€” MOBILE-FIRST HOSPITAL GRADE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# CSS — MOBILE-FIRST HOSPITAL GRADE
+# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-/* â”€â”€â”€ VARIABLES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── VARIABLES ─────────────────────────────────────── */
 :root {
   --P:     #004A99;   /* Primary blue          */
   --PL:    #1A69B8;   /* Primary light         */
@@ -266,7 +144,7 @@ st.markdown("""
   --T:     #1A202C;   /* Text                  */
   --TM:    #64748B;   /* Text muted            */
   --TW:    #FFFFFF;   /* Text white            */
-  /* Urgences haute visibilitÃ© */
+  /* Urgences haute visibilité */
   --TM-bg: #1A0A2E;  --TM-ac: #E879F9;  /* Tri M   */
   --T1-bg: #7F1D1D;  --T1-ac: #FCA5A5;  /* Tri 1   */
   --T2-bg: #78350F;  --T2-ac: #FDE68A;  /* Tri 2   */
@@ -279,7 +157,7 @@ st.markdown("""
   --WRN: #FFFBEB; --WRN-b: #F59E0B; --WRN-t: #92400E;
   --SUC: #F0FDF4; --SUC-b: #22C55E; --SUC-t: #166534;
   --INF: #EFF6FF; --INF-b: #3B82F6; --INF-t: #1D4ED8;
-  /* Ombres & gÃ©omÃ©trie */
+  /* Ombres & géométrie */
   --s1: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
   --s2: 0 4px 12px rgba(0,74,153,.12);
   --s3: 0 8px 24px rgba(0,74,153,.18);
@@ -287,7 +165,7 @@ st.markdown("""
   --r2: 8px;
 }
 
-/* â”€â”€â”€ RESET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── RESET ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 #MainMenu, footer, header, [data-testid="stToolbar"] { display:none!important; }
 .block-container { padding: .75rem 1rem 4rem!important; max-width: 860px; margin: 0 auto; }
@@ -300,7 +178,7 @@ html, body, [class*="st-"] {
 ::-webkit-scrollbar { width:5px; }
 ::-webkit-scrollbar-thumb { background:var(--B); border-radius:3px; }
 
-/* â”€â”€â”€ APP HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── APP HEADER ────────────────────────────────────── */
 .app-hdr {
   background: linear-gradient(130deg, var(--PD) 0%, var(--P) 55%, var(--PL) 100%);
   border-radius: var(--r);
@@ -323,7 +201,7 @@ html, body, [class*="st-"] {
   border-radius:20px; letter-spacing:.04em;
 }
 
-/* â”€â”€â”€ TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── TABS ──────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
   gap: 3px; background: #ECEFF4; padding: 4px;
   border-radius: 10px; border: 1px solid var(--B);
@@ -340,7 +218,7 @@ html, body, [class*="st-"] {
 }
 .stTabs [data-baseweb="tab-panel"] { padding-top: 14px; }
 
-/* â”€â”€â”€ CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── CARDS ─────────────────────────────────────────── */
 .card {
   background: var(--CARD); border: 1px solid var(--B);
   border-radius: var(--r); padding: 16px 18px;
@@ -361,7 +239,7 @@ html, body, [class*="st-"] {
   justify-content:center; font-size:1rem; flex-shrink:0;
 }
 
-/* â”€â”€â”€ SECTION LABEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── SECTION LABEL ─────────────────────────────────── */
 .sec {
   font-size:.6rem; font-weight:700; letter-spacing:.12em;
   text-transform:uppercase; color:var(--P);
@@ -369,7 +247,7 @@ html, body, [class*="st-"] {
   margin:16px 0 10px 0;
 }
 
-/* â”€â”€â”€ NEWS2 DASHBOARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── NEWS2 DASHBOARD ───────────────────────────────── */
 .n2-dash {
   border-radius:var(--r); padding:18px 20px; text-align:center;
   border:2px solid; margin-bottom:14px;
@@ -406,7 +284,7 @@ html, body, [class*="st-"] {
 .n2-5 .n2-bar { background:#7C3AED; }
 .n2-scale { display:flex; justify-content:space-between; font-size:.58rem; color:var(--TM); }
 
-/* â”€â”€â”€ VITAUX GRID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── VITAUX GRID ───────────────────────────────────── */
 .vit-wrap { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0; }
 .vit {
   background:var(--CARD); border:1.5px solid var(--B); border-radius:var(--r2);
@@ -422,7 +300,7 @@ html, body, [class*="st-"] {
 .vit.crit .vit-v { color:#B91C1C; }
 @keyframes vit-pulse { 0%,100%{ border-color:#EF4444; } 50%{ border-color:#FCA5A5; } }
 
-/* â”€â”€â”€ ALERTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── ALERTES ───────────────────────────────────────── */
 .al {
   border-radius:var(--r2); padding:11px 14px; margin:7px 0;
   font-size:.82rem; font-weight:500; line-height:1.5;
@@ -435,7 +313,7 @@ html, body, [class*="st-"] {
 .al.info    { background:var(--INF); border-color:var(--INF-b); color:var(--INF-t); }
 .al-ico     { font-size:.9rem; flex-shrink:0; margin-top:1px; }
 
-/* â”€â”€â”€ PURPURA BANNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── PURPURA BANNER ────────────────────────────────── */
 .purp {
   background:linear-gradient(135deg,#7F1D1D,#991B1B);
   border:2px solid #EF4444; border-radius:var(--r);
@@ -449,7 +327,7 @@ html, body, [class*="st-"] {
   50%{ box-shadow:0 0 0 8px rgba(239,68,68,.25); }
 }
 
-/* â”€â”€â”€ TRIAGE BANNER (fixed bottom) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── TRIAGE BANNER (fixed bottom) ─────────────────── */
 .tri-banner-wrap {
   position:fixed; bottom:0; left:0; right:0; z-index:999;
   padding:0 0 env(safe-area-inset-bottom,0);
@@ -484,7 +362,7 @@ html, body, [class*="st-"] {
   border-radius:20px; white-space:nowrap;
 }
 
-/* â”€â”€â”€ INLINE TRIAGE CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── INLINE TRIAGE CARD ────────────────────────────── */
 .tri-card {
   border-radius:var(--r); padding:20px 22px; text-align:center;
   margin:12px 0; box-shadow:var(--s3); position:relative; overflow:hidden;
@@ -508,7 +386,7 @@ html, body, [class*="st-"] {
   border-radius:20px; border:1px solid currentColor; opacity:.8;
 }
 
-/* â”€â”€â”€ PHARMA CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── PHARMA CARDS ──────────────────────────────────── */
 .rx {
   background:var(--CARD); border:1px solid var(--B);
   border-radius:var(--r); padding:16px 18px; margin:8px 0;
@@ -536,7 +414,7 @@ html, body, [class*="st-"] {
 }
 .rx-lock-icon { font-size:1.6rem; margin-bottom:6px; }
 
-/* â”€â”€â”€ SBAR REPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── SBAR REPORT ───────────────────────────────────── */
 .sbar { background:var(--CARD); border:1px solid var(--B); border-radius:var(--r); overflow:hidden; box-shadow:var(--s2); }
 .sbar-hdr { background:linear-gradient(135deg,var(--PD),var(--P)); padding:16px 22px; }
 .sbar-hdr-title { font-size:.95rem; font-weight:800; color:#fff; }
@@ -557,13 +435,13 @@ html, body, [class*="st-"] {
 .sbar-vit-v { font-family:'JetBrains Mono',monospace; font-size:.95rem; font-weight:700; }
 .sbar-ftr { background:#F8FAFC; padding:10px 22px; font-size:.64rem; color:var(--TM); font-style:italic; border-top:1px solid var(--B); }
 
-/* â”€â”€â”€ SI BOX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── SI BOX ─────────────────────────────────────────── */
 .si-box { background:var(--CARD); border:1.5px solid var(--B); border-radius:var(--r2); padding:12px 16px; text-align:center; }
 .si-v { font-family:'JetBrains Mono',monospace; font-size:1.8rem; font-weight:700; }
 .si-ok { color:#22C55E; } .si-w { color:#F59E0B; } .si-c { color:#EF4444; }
 .si-l { font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; color:var(--TM); }
 
-/* â”€â”€â”€ HISTORY LINES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── HISTORY LINES ─────────────────────────────────── */
 .hl { display:flex; align-items:center; gap:10px; background:var(--CARD); border:1px solid var(--B); border-radius:var(--r2); padding:10px 14px; margin:4px 0; box-shadow:var(--s1); font-size:.8rem; }
 .hbadge { font-size:.62rem; font-weight:700; padding:2px 8px; border-radius:5px; white-space:nowrap; flex-shrink:0; }
 .hb-M   { background:var(--TM-bg); color:var(--TM-ac); }
@@ -574,20 +452,20 @@ html, body, [class*="st-"] {
 .hb-4   { background:var(--T4-bg); color:var(--T4-ac); }
 .hb-5   { background:var(--T5-bg); color:var(--T5-ac); }
 
-/* â”€â”€â”€ REEVAL LINES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── REEVAL LINES ──────────────────────────────────── */
 .rr { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r2); margin:4px 0; font-size:.79rem; border-left:4px solid; }
 .rr-up     { background:#FEF2F2; border-color:#EF4444; color:#B91C1C; }
 .rr-down   { background:#F0FDF4; border-color:#22C55E; color:#166534; }
 .rr-stable { background:#EFF6FF; border-color:#3B82F6; color:#1D4ED8; }
 
-/* â”€â”€â”€ N2 TREND BAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── N2 TREND BAR ──────────────────────────────────── */
 .n2t { display:flex; align-items:center; gap:8px; margin:3px 0; }
 .n2t-lbl { font-family:'JetBrains Mono',monospace; font-size:.66rem; width:52px; flex-shrink:0; color:var(--TM); }
 .n2t-trk { flex:1; background:var(--B); border-radius:4px; height:12px; overflow:hidden; }
 .n2t-fill { height:12px; border-radius:4px; }
 .n2t-val { font-family:'JetBrains Mono',monospace; font-size:.7rem; font-weight:700; width:18px; text-align:right; }
 
-/* â”€â”€â”€ DISCLAIMER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── DISCLAIMER ─────────────────────────────────────── */
 .disc {
   background:#F8FAFC; border:1px solid var(--B); border-top:3px solid var(--P);
   border-radius:var(--r2); padding:12px 16px; margin-top:24px;
@@ -595,7 +473,7 @@ html, body, [class*="st-"] {
 }
 .disc-sig { font-size:.66rem; font-weight:700; color:var(--P); border-top:1px solid var(--B); padding-top:6px; margin-top:6px; }
 
-/* â”€â”€â”€ BUTTONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── BUTTONS ────────────────────────────────────────── */
 .stButton > button {
   min-height:46px!important; font-size:.88rem!important;
   font-weight:600!important; border-radius:var(--r2)!important;
@@ -604,7 +482,7 @@ html, body, [class*="st-"] {
 .stButton > button[kind="primary"] { background:var(--P)!important; border-color:var(--P)!important; }
 .stButton > button[kind="primary"]:hover { background:var(--PD)!important; }
 
-/* â”€â”€â”€ INPUTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── INPUTS ─────────────────────────────────────────── */
 .stNumberInput input, .stTextInput input {
   border-radius:var(--r2)!important; font-family:'JetBrains Mono',monospace!important;
   font-size:.95rem!important; min-height:42px!important;
@@ -614,7 +492,7 @@ html, body, [class*="st-"] {
   font-family:'JetBrains Mono',monospace; font-size:1.5rem!important;
 }
 
-/* â”€â”€â”€ MOBILE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── MOBILE ─────────────────────────────────────────── */
 @media(max-width:640px){
   .vit-wrap { grid-template-columns:repeat(2,1fr); }
   .sbar-vit-grid { grid-template-columns:repeat(2,1fr); }
@@ -626,7 +504,7 @@ html, body, [class*="st-"] {
   .app-hdr-title { font-size:1.05rem; }
 }
 
-/* â”€â”€â”€ PWA iPhone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─── PWA iPhone ─────────────────────────────────────── */
 @media(display-mode:standalone){ .block-container{ padding-top:2rem!important; } }
 </style>
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -636,152 +514,152 @@ html, body, [class*="st-"] {
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23004A99'/%3E%3Ctext y='.9em' font-size='72' x='12' fill='white'%3E%2B%3C/text%3E%3C/svg%3E">
 """, unsafe_allow_html=True)
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # CONSTANTES CLINIQUES
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-LABELS = {"M":"TRI M â€” IMMEDIAT","1":"TRI 1 â€” URGENCE EXTREME","2":"TRI 2 â€” TRES URGENT",
-          "3A":"TRI 3A â€” URGENT","3B":"TRI 3B â€” URGENT DIFFERE",
-          "4":"TRI 4 â€” MOINS URGENT","5":"TRI 5 â€” NON URGENT"}
-SECTEURS = {"M":"Dechocage â€” Immediat","1":"Dechocage â€” Immediat",
-            "2":"Soins aigus â€” Med. <20 min","3A":"Soins aigus â€” Med. <30 min",
-            "3B":"Polyclinique â€” Med. <1 h","4":"Consultation â€” Med. <2 h",
-            "5":"Salle attente â€” Reorientation MG"}
+# ══════════════════════════════════════════════════════════════════════════════
+LABELS = {"M":"TRI M — IMMEDIAT","1":"TRI 1 — URGENCE EXTREME","2":"TRI 2 — TRES URGENT",
+          "3A":"TRI 3A — URGENT","3B":"TRI 3B — URGENT DIFFERE",
+          "4":"TRI 4 — MOINS URGENT","5":"TRI 5 — NON URGENT"}
+SECTEURS = {"M":"Dechocage — Immediat","1":"Dechocage — Immediat",
+            "2":"Soins aigus — Med. <20 min","3A":"Soins aigus — Med. <30 min",
+            "3B":"Polyclinique — Med. <1 h","4":"Consultation — Med. <2 h",
+            "5":"Salle attente — Reorientation MG"}
 DELAIS   = {"M":5,"1":5,"2":15,"3A":30,"3B":60,"4":120,"5":999}
 TCSS     = {"M":"tri-M","1":"tri-1","2":"tri-2","3A":"tri-3A","3B":"tri-3B","4":"tri-4","5":"tri-5"}
 HBCSS    = {"M":"hb-M","1":"hb-1","2":"hb-2","3A":"hb-3A","3B":"hb-3B","4":"hb-4","5":"hb-5"}
 ORD      = {"M":0,"1":1,"2":2,"3A":3,"3B":4,"4":5,"5":6}
-# â”€â”€ Seuils glycÃ©miques â€” unitÃ© mg/dl (standard belge BCFI)
+# ── Seuils glycémiques — unité mg/dl (standard belge BCFI)
 # Facteur de conversion : 1 mmol/l = 18,016 mg/dl
 GLYC = {
-    "hs":  54,   # HypoglycÃ©mie sÃ©vÃ¨re    < 3,0 mmol/l â€” Glucose 30 % IV
-    "hm":  70,   # HypoglycÃ©mie modÃ©rÃ©e  < 3,9 mmol/l â€” Surveillance
-    "Hs": 180,   # HyperglycÃ©mie          > 10,0 mmol/l
-    "Hs2":360,   # HyperglycÃ©mie sÃ©vÃ¨re   > 20,0 mmol/l
+    "hs":  54,   # Hypoglycémie sévère    < 3,0 mmol/l — Glucose 30 % IV
+    "hm":  70,   # Hypoglycémie modérée  < 3,9 mmol/l — Surveillance
+    "Hs": 180,   # Hyperglycémie          > 10,0 mmol/l
+    "Hs2":360,   # Hyperglycémie sévère   > 20,0 mmol/l
 }
 
-# â”€â”€ Seuils NEWS2 â€” RÃ©fÃ©rence : RCP London 2017
-NEWS2_TRI_M         = 9   # Engagement vital â€” Tri M
-NEWS2_RISQUE_ELEVE  = 7   # Appel mÃ©dical immÃ©diat
-NEWS2_RISQUE_MOD    = 5   # Surveillance rapprochÃ©e
+# ── Seuils NEWS2 — Référence : RCP London 2017
+NEWS2_TRI_M         = 9   # Engagement vital — Tri M
+NEWS2_RISQUE_ELEVE  = 7   # Appel médical immédiat
+NEWS2_RISQUE_MOD    = 5   # Surveillance rapprochée
 
-# â”€â”€ Seuils SIPA (Shock Index PÃ©diatrique AjustÃ© Ã  l'Ã‚ge) â€” Acker 2015
+# ── Seuils SIPA (Shock Index Pédiatrique Ajusté à l'Âge) — Acker 2015
 SIPA_0_1AN  = 2.2
 SIPA_1_4ANS = 2.0
 SIPA_4_7ANS = 1.8
 SIPA_7_12ANS= 1.7
 
-# â”€â”€ Seuils AVC â€” DÃ©lai fibrinolyse â€” ESO/AHA 2023
-AVC_DELAI_THROMBOLYSE_H = 4.5  # FenÃªtre thrombolyse IV en heures
+# ── Seuils AVC — Délai fibrinolyse — ESO/AHA 2023
+AVC_DELAI_THROMBOLYSE_H = 4.5  # Fenêtre thrombolyse IV en heures
 
-# â”€â”€ Doses de rÃ©fÃ©rence BCFI (mg/kg)
-PARA_DOSE_KG          = 15.0   # ParacÃ©tamol IV dose poids (mg/kg)
-PARA_DOSE_FIXE_G      = 1.0    # ParacÃ©tamol IV dose fixe â‰¥ 50 kg (g)
-PARA_POIDS_PIVOT_KG   = 50.0   # Pivot poids paracÃ©tamol
+# ── Doses de référence BCFI (mg/kg)
+PARA_DOSE_KG          = 15.0   # Paracétamol IV dose poids (mg/kg)
+PARA_DOSE_FIXE_G      = 1.0    # Paracétamol IV dose fixe ≥ 50 kg (g)
+PARA_POIDS_PIVOT_KG   = 50.0   # Pivot poids paracétamol
 GLUCOSE_DOSE_KG       = 0.3    # Glucose 30 % dose (g/kg)
 GLUCOSE_MAX_G         = 15.0   # Glucose 30 % dose maximale (g)
-ADRE_POIDS_ADULTE_KG  = 30.0   # Seuil adulte adrÃ©naline (kg)
-ADRE_DOSE_ADULTE_MG   = 0.5    # AdrÃ©naline adulte IM (mg)
-ADRE_DOSE_KG          = 0.01   # AdrÃ©naline enfant dose (mg/kg)
+ADRE_POIDS_ADULTE_KG  = 30.0   # Seuil adulte adrénaline (kg)
+ADRE_DOSE_ADULTE_MG   = 0.5    # Adrénaline adulte IM (mg)
+ADRE_DOSE_KG          = 0.01   # Adrénaline enfant dose (mg/kg)
 PIRI_BOLUS_MIN        = 0.03   # Piritramide bolus minimal (mg/kg)
 PIRI_BOLUS_MAX        = 0.05   # Piritramide bolus maximal (mg/kg)
 PIRI_PLAFOND_LT70     = 3.0    # Piritramide plafond / bolus < 70 kg (mg)
-PIRI_PLAFOND_GE70     = 6.0    # Piritramide plafond / bolus â‰¥ 70 kg (mg)
-NALOO_ADULTE_MG       = 0.4    # Naloxone adulte sans dÃ©pendance (mg)
-NALOO_PED_KG          = 0.01   # Naloxone pÃ©diatrique (mg/kg)
-NALOO_DEP_MG          = 0.04   # Naloxone dÃ©pendance â€” titration (mg)
+PIRI_PLAFOND_GE70     = 6.0    # Piritramide plafond / bolus ≥ 70 kg (mg)
+NALOO_ADULTE_MG       = 0.4    # Naloxone adulte sans dépendance (mg)
+NALOO_PED_KG          = 0.01   # Naloxone pédiatrique (mg/kg)
+NALOO_DEP_MG          = 0.04   # Naloxone dépendance — titration (mg)
 MORPH_MIN_KG          = 0.05   # Morphine bolus minimal (mg/kg)
 MORPH_MAX_KG          = 0.10   # Morphine bolus maximal (mg/kg)
 MORPH_PLAFOND_STD     = 5.0    # Morphine plafond bolus adulte standard < 100 kg (mg)
-MORPH_PLAFOND_GE100   = 7.5    # Morphine plafond bolus adulte â‰¥ 100 kg (mg)
+MORPH_PLAFOND_GE100   = 7.5    # Morphine plafond bolus adulte ≥ 100 kg (mg)
 MORPH_PALIER_MG       = 2.0    # Morphine palier de titration (mg / 5-10 min)
 CEFRTRX_ADULTE_G      = 2.0    # Ceftriaxone adulte (g)
-CEFRTRX_PED_KG        = 0.1    # Ceftriaxone pÃ©diatrique (g/kg)
+CEFRTRX_PED_KG        = 0.1    # Ceftriaxone pédiatrique (g/kg)
 
-# â”€â”€ Litican (MÃ©clofÃ©noxate + TiÃ©monium mÃ©thylsulfate) IM â€” Protocole local
-# RÃ©fÃ©rence : BCFI â€” TiÃ©monium mÃ©thylsulfate / MÃ©clofÃ©noxate (Litican) â€” RCP Belgique
-# Usage local : Urgences du Hainaut â€” Wallonie
-LITICAN_DOSE_ADULTE_MG  = 40.0   # Dose standard adulte (mg) â€” 1 ampoule 2 ml
-LITICAN_DOSE_KG_ENF     = 1.0    # Dose pÃ©diatrique (mg/kg) â€” < 15 ans
-LITICAN_DOSE_MAX_ENF_MG = 40.0   # Dose pÃ©diatrique maximale (mg)
-LITICAN_DOSE_MAX_JOUR   = 120.0  # Dose journaliÃ¨re maximale adulte (mg â€” 3 Ã— 40 mg)
+# ── Litican (Méclofénoxate + Tiémonium méthylsulfate) IM — Protocole local
+# Référence : BCFI — Tiémonium méthylsulfate / Méclofénoxate (Litican) — RCP Belgique
+# Usage local : Urgences du Hainaut — Wallonie
+LITICAN_DOSE_ADULTE_MG  = 40.0   # Dose standard adulte (mg) — 1 ampoule 2 ml
+LITICAN_DOSE_KG_ENF     = 1.0    # Dose pédiatrique (mg/kg) — < 15 ans
+LITICAN_DOSE_MAX_ENF_MG = 40.0   # Dose pédiatrique maximale (mg)
+LITICAN_DOSE_MAX_JOUR   = 120.0  # Dose journalière maximale adulte (mg — 3 × 40 mg)
 LITICAN_POIDS_PIVOT_KG  = 15.0   # Seuil poids enfant/adulte (kg)
 
-# â”€â”€ Protocole crise Ã©pileptique pÃ©diatrique â€” BenzodiazÃ©pines
-# RÃ©fÃ©rence : PRISE EN CHARGE DE L'EME â€” SociÃ©tÃ© FranÃ§aise de Neurologie
-#             PÃ©diatrique (SFNP) / EpiCARE Network 2023
-# RÃ©fÃ©rence : BCFI â€” DiazÃ©pam / Midazolam / ClonazÃ©pam â€” RCP Belgique
-# RÃ©fÃ©rence : Appleton R, et al. Lorazepam vs. diazepam in the acute
+# ── Protocole crise épileptique pédiatrique — Benzodiazépines
+# Référence : PRISE EN CHARGE DE L'EME — Société Française de Neurologie
+#             Pédiatrique (SFNP) / EpiCARE Network 2023
+# Référence : BCFI — Diazépam / Midazolam / Clonazépam — RCP Belgique
+# Référence : Appleton R, et al. Lorazepam vs. diazepam in the acute
 #             treatment of epileptic seizures. Epilepsia 2008.
 #
-# LIGNE 1  â€” Buccal / Rectal / IM  (IAO sans VVP)
-MIDAZOLAM_BUCC_KG      = 0.3    # mg/kg â€” Midazolam buccal (Buccolam)
-MIDAZOLAM_BUCC_MAX_MG  = 10.0   # mg    â€” Dose maximale Midazolam buccal
-DIAZEPAM_RECT_KG       = 0.5    # mg/kg â€” Diazepam rectal (Stesolid)
-DIAZEPAM_RECT_MAX_MG   = 10.0   # mg    â€” Dose maximale DiazÃ©pam rectal
+# LIGNE 1  — Buccal / Rectal / IM  (IAO sans VVP)
+MIDAZOLAM_BUCC_KG      = 0.3    # mg/kg — Midazolam buccal (Buccolam)
+MIDAZOLAM_BUCC_MAX_MG  = 10.0   # mg    — Dose maximale Midazolam buccal
+DIAZEPAM_RECT_KG       = 0.5    # mg/kg — Diazepam rectal (Stesolid)
+DIAZEPAM_RECT_MAX_MG   = 10.0   # mg    — Dose maximale Diazépam rectal
 
-# LIGNE 2  â€” IV (aprÃ¨s VVP posÃ©e â€” mÃ©decin)
-DIAZEPAM_IV_KG         = 0.3    # mg/kg â€” Diazepam IV
-DIAZEPAM_IV_MAX_MG     = 10.0   # mg    â€” Dose maximale DiazÃ©pam IV
-LORAZEPAM_IV_KG        = 0.1    # mg/kg â€” LorazÃ©pam IV (Temesta)
-LORAZEPAM_IV_MAX_MG    = 4.0    # mg    â€” Dose maximale LorazÃ©pam IV
-CLONAZEPAM_IV_KG       = 0.02   # mg/kg â€” ClonazÃ©pam IV (Rivotril)
-CLONAZEPAM_IV_MAX_MG   = 1.0    # mg    â€” Dose maximale ClonazÃ©pam IV
+# LIGNE 2  — IV (après VVP posée — médecin)
+DIAZEPAM_IV_KG         = 0.3    # mg/kg — Diazepam IV
+DIAZEPAM_IV_MAX_MG     = 10.0   # mg    — Dose maximale Diazépam IV
+LORAZEPAM_IV_KG        = 0.1    # mg/kg — Lorazépam IV (Temesta)
+LORAZEPAM_IV_MAX_MG    = 4.0    # mg    — Dose maximale Lorazépam IV
+CLONAZEPAM_IV_KG       = 0.02   # mg/kg — Clonazépam IV (Rivotril)
+CLONAZEPAM_IV_MAX_MG   = 1.0    # mg    — Dose maximale Clonazépam IV
 
-# LIGNE 3  â€” DeuxiÃ¨me ligne (EME rÃ©fractaire â€” rÃ©animation)
-PHENOBARB_IV_KG        = 20.0   # mg/kg â€” PhÃ©nobarbital IV (charge)
-PHENOBARB_IV_MAX_MG    = 1000.0 # mg    â€” Dose maximale
-LEVETI_IV_KG           = 60.0   # mg/kg â€” LÃ©vÃ©tiracÃ©tam IV (Keppra)
-LEVETI_IV_MAX_MG       = 4500.0 # mg    â€” Dose maximale
+# LIGNE 3  — Deuxième ligne (EME réfractaire — réanimation)
+PHENOBARB_IV_KG        = 20.0   # mg/kg — Phénobarbital IV (charge)
+PHENOBARB_IV_MAX_MG    = 1000.0 # mg    — Dose maximale
+LEVETI_IV_KG           = 60.0   # mg/kg — Lévétiracétam IV (Keppra)
+LEVETI_IV_MAX_MG       = 4500.0 # mg    — Dose maximale
 
-# Seuil temporel â€” Ã‰tat de Mal Ã‰pileptique (EME)
-EME_SEUIL_MIN          = 5      # min   â€” Crise > 5 min = traitement actif
-EME_ETABLI_MIN         = 30     # min   â€” EME Ã©tabli si > 30 min ou 2 crises
-EME_OPERATIONNEL_MIN   = 15     # min   â€” EME opÃ©rationnel (risque sÃ©quelles)
+# Seuil temporel — État de Mal Épileptique (EME)
+EME_SEUIL_MIN          = 5      # min   — Crise > 5 min = traitement actif
+EME_ETABLI_MIN         = 30     # min   — EME établi si > 30 min ou 2 crises
+EME_OPERATIONNEL_MIN   = 15     # min   — EME opérationnel (risque séquelles)
 
-# Midazolam IM / Intranasale â€” voie de choix prÃ©-hospitaliÃ¨re et IAO
-MIDAZOLAM_IM_IN_KG     = 0.2    # mg/kg â€” Midazolam IM ou intranasale
-MIDAZOLAM_IM_IN_MAX_MG = 10.0   # mg    â€” Dose maximale
+# Midazolam IM / Intranasale — voie de choix pré-hospitalière et IAO
+MIDAZOLAM_IM_IN_KG     = 0.2    # mg/kg — Midazolam IM ou intranasale
+MIDAZOLAM_IM_IN_MAX_MG = 10.0   # mg    — Dose maximale
 
-# Valproate IV (DÃ©pakineÂ®) â€” Ligne 3 alternative (ISPE 2022)
-VALPROATE_IV_KG        = 40.0   # mg/kg â€” dose de charge IV
-VALPROATE_IV_MAX_MG    = 3000.0 # mg    â€” dose maximale
-VALPROATE_IV_DEBIT_MIN = 6.0    # min   â€” durÃ©e perfusion minimale (â‰¥ 5 min)
+# Valproate IV (Dépakine®) — Ligne 3 alternative (ISPE 2022)
+VALPROATE_IV_KG        = 40.0   # mg/kg — dose de charge IV
+VALPROATE_IV_MAX_MG    = 3000.0 # mg    — dose maximale
+VALPROATE_IV_DEBIT_MIN = 6.0    # min   — durée perfusion minimale (≥ 5 min)
 
-# PhÃ©nobarbital â€” dÃ©bit maximum de sÃ©curitÃ©
-PHENOBARB_DEBIT_MG_KG_MIN = 1.0 # mg/kg/min â€” vitesse max IV
+# Phénobarbital — débit maximum de sécurité
+PHENOBARB_DEBIT_MG_KG_MIN = 1.0 # mg/kg/min — vitesse max IV
 
-# FlumazÃ©nil â€” antidote benzodiazÃ©pines
-FLUMAZENIL_DOSE_MG     = 0.01   # mg/kg â€” pÃ©diatrique
-FLUMAZENIL_MAX_MG      = 0.2    # mg    â€” dose initiale maximale
-FLUMAZENIL_MAX_TOTAL   = 1.0    # mg    â€” dose totale maximale
+# Flumazénil — antidote benzodiazépines
+FLUMAZENIL_DOSE_MG     = 0.01   # mg/kg — pédiatrique
+FLUMAZENIL_MAX_MG      = 0.2    # mg    — dose initiale maximale
+FLUMAZENIL_MAX_TOTAL   = 1.0    # mg    — dose totale maximale
 
-# â”€â”€ Registre â€” retention & performance
-REGISTRE_CAP          = 500    # Nb max d'entrÃ©es conservÃ©es (rotation FIFO)
+# ── Registre — retention & performance
+REGISTRE_CAP          = 500    # Nb max d'entrées conservées (rotation FIFO)
 
-# â”€â”€ Seuils pÃ©diatriques â€” dÃ©shydratation et fiÃ¨vre enfant
-# RÃ©fÃ©rence : SFMU / SFP â€” Prise en charge de l'enfant aux urgences 2021
-# RÃ©fÃ©rence : OMS â€” Ã‰chelle de dÃ©shydratation enfant 2005
+# ── Seuils pédiatriques — déshydratation et fièvre enfant
+# Référence : SFMU / SFP — Prise en charge de l'enfant aux urgences 2021
+# Référence : OMS — Échelle de déshydratation enfant 2005
 
-# FiÃ¨vre pÃ©diatrique â€” seuils de gravitÃ©
-FIEVRE_TRES_HAUTE_ENFANT = 40.0    # Â°C â€” critÃ¨re de gravitÃ©
-FIEVRE_NOURR_SEUIL       = 38.0    # Â°C â€” seuil chez nourrisson < 3 mois
-FIEVRE_HAUT_RISQUE_AGE   = 0.25    # ans â€” < 3 mois = Ã  risque Ã©levÃ© (= 3/12)
+# Fièvre pédiatrique — seuils de gravité
+FIEVRE_TRES_HAUTE_ENFANT = 40.0    # °C — critère de gravité
+FIEVRE_NOURR_SEUIL       = 38.0    # °C — seuil chez nourrisson < 3 mois
+FIEVRE_HAUT_RISQUE_AGE   = 0.25    # ans — < 3 mois = à risque élevé (= 3/12)
 
-# DÃ©shydratation pÃ©diatrique â€” frÃ©quence cardiaque compensatrice par Ã¢ge
-# FC > seuil + dÃ©shydratation clinique = Tri 2 minimum
-FC_TACHY_NOURR    = 160   # bpm â€” nourrisson 0-1 mois
-FC_TACHY_BEBE     = 150   # bpm â€” bÃ©bÃ© 1-12 mois
-FC_TACHY_ENFANT   = 140   # bpm â€” enfant 1-5 ans
-FC_TACHY_GRAND    = 120   # bpm â€” enfant 5-12 ans
+# Déshydratation pédiatrique — fréquence cardiaque compensatrice par âge
+# FC > seuil + déshydratation clinique = Tri 2 minimum
+FC_TACHY_NOURR    = 160   # bpm — nourrisson 0-1 mois
+FC_TACHY_BEBE     = 150   # bpm — bébé 1-12 mois
+FC_TACHY_ENFANT   = 140   # bpm — enfant 1-5 ans
+FC_TACHY_GRAND    = 120   # bpm — enfant 5-12 ans
 
-# Seuils de dÃ©shydratation (% de perte de poids corporel)
-DESHYDRAT_LEGERE   = 3    # % â€” pas de signe clinique majeur
-DESHYDRAT_MODEREE  = 5    # % â€” signes cliniques prÃ©sents
-DESHYDRAT_SEVERE   = 10   # % â€” choc hypovolÃ©mique possible
+# Seuils de déshydratation (% de perte de poids corporel)
+DESHYDRAT_LEGERE   = 3    # % — pas de signe clinique majeur
+DESHYDRAT_MODEREE  = 5    # % — signes cliniques présents
+DESHYDRAT_SEVERE   = 10   # % — choc hypovolémique possible
 
-# Vomissements pÃ©diatriques â€” critÃ¨res de gravitÃ©
-VOMISS_BILIEUX_SIGNE_GRAVITE = True  # bile â†’ occlusion / volvulus
-VOMISS_FREQ_SEVERE           = 6     # > 6/h = dÃ©shydratation rapide
+# Vomissements pédiatriques — critères de gravité
+VOMISS_BILIEUX_SIGNE_GRAVITE = True  # bile → occlusion / volvulus
+VOMISS_FREQ_SEVERE           = 6     # > 6/h = déshydratation rapide
 ATCD     = ["HTA","Diabete type 1","Diabete type 2","Tabagisme actif","Dyslipidaemie",
             "ATCD familial coronarien","Insuffisance cardiaque","BPCO","Anticoagulants/AOD",
             "Grossesse en cours","Immunodepression","Neoplasie evolutive","Epilepsie",
@@ -833,9 +711,9 @@ MOTIFS_RAPIDES = [
     "Autre motif",
 ]
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # MOTEUR CLINIQUE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 
 def calculer_news2(fr:float, spo2:float, o2:bool, temp:float,
                    pas:float, fc:float, gcs:int,
@@ -843,51 +721,51 @@ def calculer_news2(fr:float, spo2:float, o2:bool, temp:float,
     """
     Calcul du score NEWS2 (National Early Warning Score 2).
 
-    Ce score d'alerte prÃ©coce identifie les patients Ã  risque de dÃ©gradation
-    clinique. Il intÃ¨gre 7 paramÃ¨tres physiologiques notÃ©s 0-3 points chacun,
-    avec deux Ã©chelles SpO2 distinctes selon le profil respiratoire du patient.
+    Ce score d'alerte précoce identifie les patients à risque de dégradation
+    clinique. Il intègre 7 paramètres physiologiques notés 0-3 points chacun,
+    avec deux échelles SpO2 distinctes selon le profil respiratoire du patient.
 
-    Ã‰CHELLE 1 (standard) â€” Cible SpO2 â‰¥ 96 %
-        Applicable Ã  la population gÃ©nÃ©rale sans pathologie respiratoire
+    ÉCHELLE 1 (standard) — Cible SpO2 ≥ 96 %
+        Applicable à la population générale sans pathologie respiratoire
         chronique hypercapnique.
 
-    Ã‰CHELLE 2 (BPCO) â€” Cible SpO2 88-92 %
-        Applicable aux patients BPCO connus Ã  risque d'hypercapnie.
-        Une SpO2 > 96 % sous O2 en BPCO expose Ã  la narcose au COâ‚‚ par
+    ÉCHELLE 2 (BPCO) — Cible SpO2 88-92 %
+        Applicable aux patients BPCO connus à risque d'hypercapnie.
+        Une SpO2 > 96 % sous O2 en BPCO expose à la narcose au CO₂ par
         suppression de la stimulation hypoxique du centre respiratoire.
 
-    INTERPRÃ‰TATION DU SCORE
-        0         : Risque nul â€” surveillance de routine toutes les 12 h
-        1-4       : Risque faible â€” surveillance toutes les 4-6 h
-        5-6       : Risque modÃ©rÃ© â€” surveillance toutes les heures
-                    â€” appel Ã©quipe mÃ©dicale
-        â‰¥ 7       : Risque Ã©levÃ© â€” surveillance continue â€” Ã©quipe d'urgence
-        â‰¥ 9       : Risque critique â€” engagement vital immÃ©diat
+    INTERPRÉTATION DU SCORE
+        0         : Risque nul — surveillance de routine toutes les 12 h
+        1-4       : Risque faible — surveillance toutes les 4-6 h
+        5-6       : Risque modéré — surveillance toutes les heures
+                    — appel équipe médicale
+        ≥ 7       : Risque élevé — surveillance continue — équipe d'urgence
+        ≥ 9       : Risque critique — engagement vital immédiat
 
     Parameters
     ----------
     fr : float
-        FrÃ©quence respiratoire en cycles par minute
+        Fréquence respiratoire en cycles par minute
     spo2 : float
-        Saturation pulsÃ©e en oxygÃ¨ne en pourcentage
+        Saturation pulsée en oxygène en pourcentage
     o2 : bool
-        Vrai si oxygÃ©nothÃ©rapie supplÃ©mentaire en cours
+        Vrai si oxygénothérapie supplémentaire en cours
     temp : float
-        TempÃ©rature corporelle en degrÃ©s Celsius
+        Température corporelle en degrés Celsius
     pas : float
-        Pression artÃ©rielle systolique en mmHg
+        Pression artérielle systolique en mmHg
     fc : float
-        FrÃ©quence cardiaque en battements par minute
+        Fréquence cardiaque en battements par minute
     gcs : int
         Score de Glasgow (3-15)
     bpco : bool, optional
-        Si True, active l'Ã‰chelle 2 avec cible SpO2 88-92%.
-        Par dÃ©faut False (Ã‰chelle 1 standard).
+        Si True, active l'Échelle 2 avec cible SpO2 88-92%.
+        Par défaut False (Échelle 1 standard).
 
     Returns
     -------
     tuple[int, list[str]]
-        Score NEWS2 total et liste des avertissements cliniques dÃ©tectÃ©s.
+        Score NEWS2 total et liste des avertissements cliniques détectés.
 
     References
     ----------
@@ -909,7 +787,7 @@ def calculer_news2(fr:float, spo2:float, o2:bool, temp:float,
     elif fr<=11: s+=1
     elif fr<=20: pass
     elif fr<=24: s+=2
-    else:        s+=3; w.append(f"FR {fr}/min â€” tachypnee severe")
+    else:        s+=3; w.append(f"FR {fr}/min — tachypnee severe")
     # SpO2 (echelle 1 ou 2 selon BPCO)
     if bpco:
         if   spo2<=83: s+=3; w.append(f"SpO2 {spo2}% critique (BPCO)")
@@ -917,86 +795,86 @@ def calculer_news2(fr:float, spo2:float, o2:bool, temp:float,
         elif spo2<=87: s+=1
         elif spo2<=92: pass   # BPCO target 88-92%
         elif spo2<=94: pass
-        elif spo2<=96: s+=1; w.append(f"SpO2 {spo2}% Ã©levÃ©e â€” risque hyperoxie BPCO")
-        else:          s+=3; w.append(f"SpO2 {spo2}% > 96% â€” RISQUE NARCOSE COâ‚‚ (BPCO)")
+        elif spo2<=96: s+=1; w.append(f"SpO2 {spo2}% élevée — risque hyperoxie BPCO")
+        else:          s+=3; w.append(f"SpO2 {spo2}% > 96% — RISQUE NARCOSE CO₂ (BPCO)")
     else:
-        if   spo2<=91: s+=3; w.append(f"SpO2 {spo2}% â€” hypoxemie severe")
+        if   spo2<=91: s+=3; w.append(f"SpO2 {spo2}% — hypoxemie severe")
         elif spo2<=93: s+=2
         elif spo2<=95: s+=1
     # O2 supp
     if o2: s+=2; w.append("O2 supplementaire +2 pts")
     # Temp
-    if   temp<=35.0: s+=3; w.append(f"T {temp}C â€” hypothermie")
+    if   temp<=35.0: s+=3; w.append(f"T {temp}C — hypothermie")
     elif temp<=36.0: s+=1
     elif temp<=38.0: pass
     elif temp<=39.0: s+=1
-    else:            s+=2; w.append(f"T {temp}C â€” hyperthermie")
+    else:            s+=2; w.append(f"T {temp}C — hyperthermie")
     # PAS
-    if   pas<=90:  s+=3; w.append(f"PAS {pas}mmHg â€” etat de choc")
+    if   pas<=90:  s+=3; w.append(f"PAS {pas}mmHg — etat de choc")
     elif pas<=100: s+=2
     elif pas<=110: s+=1
     elif pas<=219: pass
-    else:          s+=3; w.append(f"PAS {pas}mmHg â€” HTA extreme")
+    else:          s+=3; w.append(f"PAS {pas}mmHg — HTA extreme")
     # FC
-    if   fc<=40:  s+=3; w.append(f"FC {fc}bpm â€” bradycardie critique")
+    if   fc<=40:  s+=3; w.append(f"FC {fc}bpm — bradycardie critique")
     elif fc<=50:  s+=1
     elif fc<=90:  pass
     elif fc<=110: s+=1
     elif fc<=130: s+=2
-    else:         s+=3; w.append(f"FC {fc}bpm â€” tachycardie critique")
+    else:         s+=3; w.append(f"FC {fc}bpm — tachycardie critique")
     # GCS
     if   gcs==15: pass
     elif gcs>=13: s+=3; w.append(f"GCS {gcs}/15")
-    else:         s+=3; w.append(f"GCS {gcs}/15 â€” alteration majeure")
+    else:         s+=3; w.append(f"GCS {gcs}/15 — alteration majeure")
     return s, w
 
 def n2_meta(s: int) -> tuple[str, str, int]:
     """
-    MÃ©tadonnÃ©es d'interprÃ©tation du score NEWS2 pour affichage UI.
+    Métadonnées d'interprétation du score NEWS2 pour affichage UI.
 
     Parameters
     ----------
     s : int
-        Score NEWS2 calculÃ© (0-20).
+        Score NEWS2 calculé (0-20).
 
     Returns
     -------
     tuple[str, str, int]
-        (libellÃ© de risque, classe CSS pour couleur, pourcentage de la jauge).
+        (libellé de risque, classe CSS pour couleur, pourcentage de la jauge).
     """
     if   s==0: return "Risque nul",    "n2-0", 0
     elif s<=4: return "Risque faible", "n2-1", int(s/12*100)
     elif s<=6: return "Risque modere", "n2-2", int(s/12*100)
-    elif s<=8: return "Risque Ã©levÃ©",  "n2-3", int(s/12*100)
+    elif s<=8: return "Risque élevé",  "n2-3", int(s/12*100)
     else:      return "CRITIQUE",      "n2-5", min(int(s/12*100),100)
 
 def calculer_gcs(y:int, v:int, m:int) -> tuple[int, list[str]]:
     """
     Calcul du score de Glasgow Coma Scale (GCS).
 
-    Ã‰valuation de la profondeur du trouble de conscience par trois items :
-    Ouverture des yeux (Y, 1-4), RÃ©ponse verbale (V, 1-5), RÃ©ponse
-    motrice (M, 1-6). Score total : 3 (coma profond) Ã  15 (conscience
+    Évaluation de la profondeur du trouble de conscience par trois items :
+    Ouverture des yeux (Y, 1-4), Réponse verbale (V, 1-5), Réponse
+    motrice (M, 1-6). Score total : 3 (coma profond) à 15 (conscience
     normale).
 
-    INTERPRÃ‰TATION
-        GCS 13-15 : Traumatisme crÃ¢nien lÃ©ger
-        GCS 9-12  : Traumatisme crÃ¢nien modÃ©rÃ©
-        GCS â‰¤ 8   : Traumatisme crÃ¢nien grave â€” intubation Ã  considÃ©rer
+    INTERPRÉTATION
+        GCS 13-15 : Traumatisme crânien léger
+        GCS 9-12  : Traumatisme crânien modéré
+        GCS ≤ 8   : Traumatisme crânien grave — intubation à considérer
 
     Parameters
     ----------
     y : int
         Ouverture des yeux (1-4).
     v : int
-        RÃ©ponse verbale (1-5).
+        Réponse verbale (1-5).
     m : int
-        RÃ©ponse motrice (1-6).
+        Réponse motrice (1-6).
 
     Returns
     -------
     tuple[int, list[str]]
-        Score GCS total (3-15) et liste d'Ã©ventuelles erreurs.
+        Score GCS total (3-15) et liste d'éventuelles erreurs.
 
     References
     ----------
@@ -1011,18 +889,18 @@ def calculer_qsofa(fr:Optional[float], gcs:Optional[int],
     """
     Score qSOFA (quick Sequential Organ Failure Assessment).
 
-    Outil de dÃ©pistage rapide du sepsis en dehors des unitÃ©s de soins
-    intensifs. Un score â‰¥ 2 identifie les patients Ã  risque de mortalitÃ©
-    Ã©levÃ©e et doit faire rechercher une infection active.
+    Outil de dépistage rapide du sepsis en dehors des unités de soins
+    intensifs. Un score ≥ 2 identifie les patients à risque de mortalité
+    élevée et doit faire rechercher une infection active.
 
-    CRITÃˆRES
-        FR â‰¥ 22 cycles/min              (+1 point)
-        AltÃ©ration de la conscience     (+1 point, GCS < 15)
-        PAS â‰¤ 100 mmHg                  (+1 point)
+    CRITÈRES
+        FR ≥ 22 cycles/min              (+1 point)
+        Altération de la conscience     (+1 point, GCS < 15)
+        PAS ≤ 100 mmHg                  (+1 point)
 
-    INTERPRÃ‰TATION
-        qSOFA â‰¥ 2 : Sepsis probable â€” Ã©valuation urgente pour dÃ©faillance
-                    d'organes (SOFA complet) â€” hÃ©mocultures â€” antibiothÃ©rapie
+    INTERPRÉTATION
+        qSOFA ≥ 2 : Sepsis probable — évaluation urgente pour défaillance
+                    d'organes (SOFA complet) — hémocultures — antibiothérapie
                     selon contexte.
 
     Parameters
@@ -1034,7 +912,7 @@ def calculer_qsofa(fr:Optional[float], gcs:Optional[int],
     Returns
     -------
     tuple[int, list[str], list[str]]
-        (score qSOFA, critÃ¨res positifs, avertissements pour donnÃ©es manquantes).
+        (score qSOFA, critères positifs, avertissements pour données manquantes).
 
     References
     ----------
@@ -1055,24 +933,24 @@ def calculer_timi(age:float, nb_frcv:int, sten:bool,
                   aspi:bool, trop:bool, dst:bool,
                   cris:int) -> tuple[int, list[str]]:
     """
-    Score TIMI pour Syndrome Coronarien Aigu sans sus-dÃ©calage de ST.
+    Score TIMI pour Syndrome Coronarien Aigu sans sus-décalage de ST.
 
-    Score prÃ©dictif du risque de dÃ©cÃ¨s, nouvel infarctus ou revascularisation
-    urgente Ã  14 jours. Chaque item positif apporte 1 point (total 0-7).
+    Score prédictif du risque de décès, nouvel infarctus ou revascularisation
+    urgente à 14 jours. Chaque item positif apporte 1 point (total 0-7).
 
-    CRITÃˆRES (1 point chacun)
-        1. Ã‚ge â‰¥ 65 ans
+    CRITÈRES (1 point chacun)
+        1. Âge ≥ 65 ans
         2. Au moins 3 facteurs de risque cardiovasculaire
-        3. StÃ©nose coronaire documentÃ©e â‰¥ 50 %
+        3. Sténose coronaire documentée ≥ 50 %
         4. Prise d'aspirine dans les 7 derniers jours
-        5. Ã‰lÃ©vation des troponines
-        6. DÃ©viation du segment ST Ã  l'ECG
-        7. Au moins 2 Ã©pisodes angineux dans les 24 derniÃ¨res heures
+        5. Élévation des troponines
+        6. Déviation du segment ST à l'ECG
+        7. Au moins 2 épisodes angineux dans les 24 dernières heures
 
-    INTERPRÃ‰TATION
-        0-2 : Risque faible (4,7 % Ã©vÃ¨nements Ã  14 j)
-        3-4 : Risque intermÃ©diaire (13-19 %)
-        5-7 : Risque Ã©levÃ© (26-41 %) â€” stratÃ©gie invasive prÃ©coce
+    INTERPRÉTATION
+        0-2 : Risque faible (4,7 % évènements à 14 j)
+        3-4 : Risque intermédiaire (13-19 %)
+        5-7 : Risque élevé (26-41 %) — stratégie invasive précoce
 
     Parameters
     ----------
@@ -1080,7 +958,7 @@ def calculer_timi(age:float, nb_frcv:int, sten:bool,
     nb_frcv : int
         Nombre de facteurs de risque cardiovasculaire.
     sten, aspi, trop, dst : bool
-        CritÃ¨res binaires (stÃ©nose, aspirine, troponine, dÃ©viation ST).
+        Critères binaires (sténose, aspirine, troponine, déviation ST).
     cris : int
         Nombre de crises dans les 24 h.
 
@@ -1101,31 +979,31 @@ def calculer_timi(age:float, nb_frcv:int, sten:bool,
 
 def evaluer_fast(f:bool, a:bool, s:bool, t:bool) -> tuple[int, str, bool]:
     """
-    Ã‰valuation FAST (Face, Arm, Speech, Time) pour dÃ©pistage d'AVC.
+    Évaluation FAST (Face, Arm, Speech, Time) pour dépistage d'AVC.
 
-    Outil infirmier de dÃ©tection rapide d'un Accident Vasculaire CÃ©rÃ©bral.
-    Un critÃ¨re positif justifie une Ã©valuation mÃ©dicale urgente ; deux ou
-    plus activent la filiÃ¨re Stroke.
+    Outil infirmier de détection rapide d'un Accident Vasculaire Cérébral.
+    Un critère positif justifie une évaluation médicale urgente ; deux ou
+    plus activent la filière Stroke.
 
-    CRITÃˆRES
-        F (Face)   : AsymÃ©trie faciale (sourire dÃ©viÃ©, affaissement commissure).
-        A (Arm)    : DÃ©ficit moteur d'un membre (Ã©preuve des bras tendus).
+    CRITÈRES
+        F (Face)   : Asymétrie faciale (sourire dévié, affaissement commissure).
+        A (Arm)    : Déficit moteur d'un membre (épreuve des bras tendus).
         S (Speech) : Trouble du langage (aphasie, dysarthrie).
-        T (Time)   : DÃ©but brutal â€” noter l'heure prÃ©cise des premiers signes.
+        T (Time)   : Début brutal — noter l'heure précise des premiers signes.
 
-    FILIÃˆRE STROKE
-        Score â‰¥ 2 : Activation filiÃ¨re â€” IRM/scanner cÃ©rÃ©bral en urgence â€”
-                    Ã©valuer Ã©ligibilitÃ© thrombolyse si dÃ©lai â‰¤ 4h30.
+    FILIÈRE STROKE
+        Score ≥ 2 : Activation filière — IRM/scanner cérébral en urgence —
+                    évaluer éligibilité thrombolyse si délai ≤ 4h30.
 
     Parameters
     ----------
     f, a, s, t : bool
-        CritÃ¨res FAST.
+        Critères FAST.
 
     Returns
     -------
     tuple[int, str, bool]
-        (score 0-4, interprÃ©tation textuelle, flag filiÃ¨re Stroke).
+        (score 0-4, interprétation textuelle, flag filière Stroke).
 
     References
     ----------
@@ -1133,29 +1011,29 @@ def evaluer_fast(f:bool, a:bool, s:bool, t:bool) -> tuple[int, str, bool]:
     strokes missed using the FAST mnemonic. Stroke. 2017;48(2):479-481.
     """
     sc=int(bool(f))+int(bool(a))+int(bool(s))+int(bool(t))
-    if sc>=2: return sc,"FAST positif â€” AVC probable â€” Filiere Stroke",True
-    if sc==1: return sc,"FAST partiel â€” Evaluation urgente",False
+    if sc>=2: return sc,"FAST positif — AVC probable — Filiere Stroke",True
+    if sc==1: return sc,"FAST partiel — Evaluation urgente",False
     return sc,"FAST negatif",False
 
 def calculer_algoplus(v:bool, r:bool, p:bool,
                       ac:bool, co:bool) -> tuple[int, str, str, list[str]]:
     """
-    Score Algoplus â€” Ã©valuation comportementale de la douleur aiguÃ«.
+    Score Algoplus — évaluation comportementale de la douleur aiguë.
 
-    Ã‰chelle d'hÃ©tÃ©ro-Ã©valuation de la douleur chez la personne Ã¢gÃ©e
-    prÃ©sentant des troubles de la communication verbale (dÃ©mence, AVC,
-    confusion). Chaque item observÃ© apporte 1 point (total 0-5).
+    Échelle d'hétéro-évaluation de la douleur chez la personne âgée
+    présentant des troubles de la communication verbale (démence, AVC,
+    confusion). Chaque item observé apporte 1 point (total 0-5).
 
     CINQ ITEMS COMPORTEMENTAUX
-        1. Visage     â€” froncement de sourcils, crispation, grimaces.
-        2. Regard     â€” fixe, absent, larmoiement, yeux fermÃ©s.
-        3. Plaintes   â€” cris, gÃ©missements, verbalisation de douleur.
-        4. Corps      â€” protection, attitude antalgique, prostration.
-        5. Comportement â€” agressivitÃ©, agitation, opposition aux soins.
+        1. Visage     — froncement de sourcils, crispation, grimaces.
+        2. Regard     — fixe, absent, larmoiement, yeux fermés.
+        3. Plaintes   — cris, gémissements, verbalisation de douleur.
+        4. Corps      — protection, attitude antalgique, prostration.
+        5. Comportement — agressivité, agitation, opposition aux soins.
 
     SEUIL D'INTERVENTION
-        Score â‰¥ 2 : Douleur probable â€” traitement antalgique Ã  initier.
-        Score â‰¥ 4 : Douleur intense â€” antalgique IV urgent.
+        Score ≥ 2 : Douleur probable — traitement antalgique à initier.
+        Score ≥ 4 : Douleur intense — antalgique IV urgent.
 
     Parameters
     ----------
@@ -1165,7 +1043,7 @@ def calculer_algoplus(v:bool, r:bool, p:bool,
     Returns
     -------
     tuple[int, str, str, list[str]]
-        (score 0-5, interprÃ©tation, classe CSS, erreurs Ã©ventuelles).
+        (score 0-5, interprétation, classe CSS, erreurs éventuelles).
 
     References
     ----------
@@ -1175,33 +1053,33 @@ def calculer_algoplus(v:bool, r:bool, p:bool,
     """
     try:
         s=(int(bool(v))+int(bool(r))+int(bool(p))+int(bool(ac))+int(bool(co)))
-        if   s>=4: return s,"Douleur intense â€” traitement IV urgent","danger",[]
-        elif s>=2: return s,"Douleur probable â€” traitement Ã  initier","warning",[]
+        if   s>=4: return s,"Douleur intense — traitement IV urgent","danger",[]
+        elif s>=2: return s,"Douleur probable — traitement à initier","warning",[]
         return s,"Douleur absente ou peu probable","success",[]
     except Exception as e: return 0,"Erreur","info",[str(e)]
 
 def evaluer_cfs(sc: int) -> tuple[str, str, bool]:
     """
-    Clinical Frailty Scale (CFS) â€” Ã‰chelle de fragilitÃ© de Rockwood.
+    Clinical Frailty Scale (CFS) — Échelle de fragilité de Rockwood.
 
-    Ã‰valuation globale du niveau de fragilitÃ© du patient Ã¢gÃ©, basÃ©e sur
+    Évaluation globale du niveau de fragilité du patient âgé, basée sur
     le niveau d'autonomie fonctionnelle et cognitive dans la vie
-    quotidienne deux semaines avant l'Ã©pisode aigu actuel.
+    quotidienne deux semaines avant l'épisode aigu actuel.
 
     NIVEAUX
-        1 â€” TrÃ¨s en forme          (actif, Ã©nergique, exercice rÃ©gulier)
-        2 â€” En forme               (sans maladie active, moins d'exercice)
-        3 â€” Bien portant            (maladie bien contrÃ´lÃ©e)
-        4 â€” VulnÃ©rable              (ralenti, fatigabilitÃ©)
-        5 â€” FragilitÃ© lÃ©gÃ¨re        (dÃ©pendance pour AIVQ)
-        6 â€” FragilitÃ© modÃ©rÃ©e       (aide pour toilette, cuisine)
-        7 â€” FragilitÃ© sÃ©vÃ¨re        (dÃ©pendance totale pour soins)
-        8 â€” FragilitÃ© trÃ¨s sÃ©vÃ¨re   (phase terminale proche)
-        9 â€” Maladie terminale       (espÃ©rance de vie < 6 mois)
+        1 — Très en forme          (actif, énergique, exercice régulier)
+        2 — En forme               (sans maladie active, moins d'exercice)
+        3 — Bien portant            (maladie bien contrôlée)
+        4 — Vulnérable              (ralenti, fatigabilité)
+        5 — Fragilité légère        (dépendance pour AIVQ)
+        6 — Fragilité modérée       (aide pour toilette, cuisine)
+        7 — Fragilité sévère        (dépendance totale pour soins)
+        8 — Fragilité très sévère   (phase terminale proche)
+        9 — Maladie terminale       (espérance de vie < 6 mois)
 
     IMPACT SUR LE TRIAGE
-        CFS â‰¥ 5 : Envisager remontÃ©e du niveau de triage â€” seuils de
-                  gravitÃ© clinique plus bas chez le sujet fragile.
+        CFS ≥ 5 : Envisager remontée du niveau de triage — seuils de
+                  gravité clinique plus bas chez le sujet fragile.
 
     References
     ----------
@@ -1216,39 +1094,39 @@ def evaluer_cfs(sc: int) -> tuple[str, str, bool]:
 
 def si(fc: float, pas: float) -> float:
     """
-    Shock Index (Indice de choc) â€” ratio FC / PAS.
+    Shock Index (Indice de choc) — ratio FC / PAS.
 
-    Marqueur prÃ©coce d'hypoperfusion systÃ©mique, plus sensible que la
-    PAS isolÃ©e pour dÃ©tecter un Ã©tat de choc hÃ©morragique ou septique
-    dÃ©butant chez l'adulte.
+    Marqueur précoce d'hypoperfusion systémique, plus sensible que la
+    PAS isolée pour détecter un état de choc hémorragique ou septique
+    débutant chez l'adulte.
 
-    INTERPRÃ‰TATION (adulte)
+    INTERPRÉTATION (adulte)
         SI < 0,7  : Normal
-        SI 0,7-0,9: Surveillance rapprochÃ©e
-        SI â‰¥ 1,0  : Choc dÃ©butant probable â€” Ã©valuation mÃ©dicale urgente
-        SI â‰¥ 1,4  : Choc sÃ©vÃ¨re â€” rÃ©animation immÃ©diate
+        SI 0,7-0,9: Surveillance rapprochée
+        SI ≥ 1,0  : Choc débutant probable — évaluation médicale urgente
+        SI ≥ 1,4  : Choc sévère — réanimation immédiate
 
     Parameters
     ----------
     fc : float
-        FrÃ©quence cardiaque en bpm.
+        Fréquence cardiaque en bpm.
     pas : float
-        Pression artÃ©rielle systolique en mmHg.
+        Pression artérielle systolique en mmHg.
 
     Returns
     -------
     float
-        Shock Index arrondi Ã  2 dÃ©cimales ou 0.0 si PAS invalide.
+        Shock Index arrondi à 2 décimales ou 0.0 si PAS invalide.
     """
     return round(fc/pas,2) if pas and pas>0 else 0.0
 
 def sipa(fc: float, age: float) -> tuple[float, str, bool]:
     """
-    SIPA â€” Shock Index Pediatric Age-adjusted.
+    SIPA — Shock Index Pediatric Age-adjusted.
 
-    Version pÃ©diatrique du Shock Index ajustÃ©e par tranche d'Ã¢ge, car les
+    Version pédiatrique du Shock Index ajustée par tranche d'âge, car les
     valeurs normales de FC et PAS varient fortement chez l'enfant. Un
-    SIPA Ã©levÃ© identifie prÃ©cocement les enfants polytraumatisÃ©s Ã  risque
+    SIPA élevé identifie précocement les enfants polytraumatisés à risque
     de transfusion massive.
 
     SEUILS D'ALERTE (Acker 2015)
@@ -1257,21 +1135,21 @@ def sipa(fc: float, age: float) -> tuple[float, str, bool]:
         4 - 7 ans  : SIPA > 1,8
         7 - 12 ans : SIPA > 1,7
 
-    FORMULE UTILISÃ‰E
-        SIPA = FC / (PAS normale pour l'Ã¢ge)
-        PAS normale = 70 + (Ã¢ge Ã— 2) pour enfant 1-10 ans
+    FORMULE UTILISÉE
+        SIPA = FC / (PAS normale pour l'âge)
+        PAS normale = 70 + (âge × 2) pour enfant 1-10 ans
 
     Parameters
     ----------
     fc : float
-        FrÃ©quence cardiaque en bpm.
+        Fréquence cardiaque en bpm.
     age : float
-        Ã‚ge en annÃ©es (peut Ãªtre dÃ©cimal pour les nourrissons).
+        Âge en années (peut être décimal pour les nourrissons).
 
     Returns
     -------
     tuple[float, str, bool]
-        (valeur SIPA, interprÃ©tation textuelle, flag alerte choc pÃ©diatrique).
+        (valeur SIPA, interprétation textuelle, flag alerte choc pédiatrique).
 
     References
     ----------
@@ -1281,282 +1159,282 @@ def sipa(fc: float, age: float) -> tuple[float, str, bool]:
     """
     v=round(fc/max(1.0,float(age+1)*15+70),2)
     s=SIPA_0_1AN  if age<=1 else (SIPA_1_4ANS if age<=4 else (SIPA_4_7ANS if age<=7 else 1.7))
-    return v,f"SIPA {v} {'>' if v>s else '<='} {s} â€” {'Choc pediatrique probable' if v>s else 'Hemodynamique preservee'}",v>s
+    return v,f"SIPA {v} {'>' if v>s else '<='} {s} — {'Choc pediatrique probable' if v>s else 'Hemodynamique preservee'}",v>s
 
 def mgdl_mmol(v: float) -> float:
     """
-    Conversion de glycÃ©mie mg/dl vers mmol/l.
+    Conversion de glycémie mg/dl vers mmol/l.
 
-    UnitÃ©s belges : la glycÃ©mie est rapportÃ©e en mg/dl dans les contextes
+    Unités belges : la glycémie est rapportée en mg/dl dans les contextes
     cliniques (BCFI, labos hospitaliers). Les recommandations internationales
-    utilisent les mmol/l. Facteur de conversion : 1 mmol/l â‰ˆ 18,016 mg/dl.
+    utilisent les mmol/l. Facteur de conversion : 1 mmol/l ≈ 18,016 mg/dl.
 
-    Ã‰QUIVALENCES CLINIQUES COURANTES
-        54 mg/dl  = 3,0 mmol/l  (hypoglycÃ©mie sÃ©vÃ¨re)
-        70 mg/dl  = 3,9 mmol/l  (hypoglycÃ©mie modÃ©rÃ©e)
-        126 mg/dl = 7,0 mmol/l  (seuil diabÃ¨te Ã  jeun)
-        180 mg/dl = 10,0 mmol/l (hyperglycÃ©mie)
-        360 mg/dl = 20,0 mmol/l (hyperglycÃ©mie sÃ©vÃ¨re)
+    ÉQUIVALENCES CLINIQUES COURANTES
+        54 mg/dl  = 3,0 mmol/l  (hypoglycémie sévère)
+        70 mg/dl  = 3,9 mmol/l  (hypoglycémie modérée)
+        126 mg/dl = 7,0 mmol/l  (seuil diabète à jeun)
+        180 mg/dl = 10,0 mmol/l (hyperglycémie)
+        360 mg/dl = 20,0 mmol/l (hyperglycémie sévère)
     """
     return round(v/18.016,1)
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MOTEUR DE TRIAGE FRENCH V1.1 â€” Architecture dispatch par handlers
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MOTEUR DE TRIAGE FRENCH V1.1 — Architecture dispatch par handlers
+# ══════════════════════════════════════════════════════════════════════════════
 #
-# Chaque handler est une fonction pure qui reÃ§oit les vitaux + det et retourne
-# (niveau, justification, rÃ©fÃ©rence). Le dispatcher associe motifâ†’handler.
+# Chaque handler est une fonction pure qui reçoit les vitaux + det et retourne
+# (niveau, justification, référence). Le dispatcher associe motif→handler.
 # Ajouter un motif = ajouter un handler + l'enregistrer dans _TRIAGE_DISPATCH.
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 
-# Type alias pour la cohÃ©rence des signatures
-TriageResult = tuple[str, str, str]  # (niveau, justification, rÃ©fÃ©rence)
+# Type alias pour la cohérence des signatures
+TriageResult = tuple[str, str, str]  # (niveau, justification, référence)
 
 
-# â”€â”€ Handlers cardio-circulatoire â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers cardio-circulatoire ────────────────────────────────────────────
 
 def _triage_acr(**_) -> TriageResult:
-    """ArrÃªt Cardio-Respiratoire â€” Tri 1 immÃ©diat sans condition."""
-    return "1", "ACR confirmÃ© â€” RCP en cours", "FRENCH Tri 1"
+    """Arrêt Cardio-Respiratoire — Tri 1 immédiat sans condition."""
+    return "1", "ACR confirmé — RCP en cours", "FRENCH Tri 1"
 
 
 def _triage_hypotension(pas, fc, **_) -> TriageResult:
     """
-    Hypotension artÃ©rielle â€” gradient de gravitÃ© basÃ© sur PAS et FC.
-    PAS â‰¤ 70 : collapsus vasculaire â†’ Tri 1
-    PAS â‰¤ 90 ou (PAS â‰¤ 100 avec FC > 100) : choc dÃ©butant â†’ Tri 2
+    Hypotension artérielle — gradient de gravité basé sur PAS et FC.
+    PAS ≤ 70 : collapsus vasculaire → Tri 1
+    PAS ≤ 90 ou (PAS ≤ 100 avec FC > 100) : choc débutant → Tri 2
     """
     if pas <= 70:
-        return "1", f"PAS {pas} mmHg â‰¤ 70 â€” collapsus", "FRENCH Tri 1"
+        return "1", f"PAS {pas} mmHg ≤ 70 — collapsus", "FRENCH Tri 1"
     if pas <= 90 or (pas <= 100 and fc > 100):
-        return "2", f"PAS {pas} mmHg â€” choc dÃ©butant", "FRENCH Tri 2"
+        return "2", f"PAS {pas} mmHg — choc débutant", "FRENCH Tri 2"
     if pas <= 100:
-        return "3B", f"PAS {pas} mmHg â€” valeur limite", "FRENCH Tri 3B"
+        return "3B", f"PAS {pas} mmHg — valeur limite", "FRENCH Tri 3B"
     return "4", "PAS normale", "FRENCH Tri 4"
 
 
 def _triage_sca(fc, spo2, det, **_) -> TriageResult:
     """
-    Douleur thoracique / SCA â€” filiÃ¨re coronaire.
-    ECG anormal typique ou douleur typique â†’ Tri 1 (STEMI prÃ©sumÃ©).
-    InstabilitÃ© hÃ©modynamique ou coronaire probable â†’ Tri 2.
+    Douleur thoracique / SCA — filière coronaire.
+    ECG anormal typique ou douleur typique → Tri 1 (STEMI présumé).
+    Instabilité hémodynamique ou coronaire probable → Tri 2.
     """
     ecg  = det.get("ecg", "Normal")
     doul = det.get("douleur", "Atypique")
     if ecg == "Anormal typique SCA" or doul == "Typique (constrictive, irradiante)":
-        return "1", "SCA â€” ECG anormal ou douleur typique", "FRENCH Tri 1"
+        return "1", "SCA — ECG anormal ou douleur typique", "FRENCH Tri 1"
     if fc >= 120 or spo2 < 94:
         return "2", "Douleur thoracique instable", "FRENCH Tri 2"
     if doul == "Coronaire probable" or det.get("frcv", 0) >= 2:
-        return "2", "Douleur coronaire probable â‰¥ 2 FRCV", "FRENCH Tri 2"
+        return "2", "Douleur coronaire probable ≥ 2 FRCV", "FRENCH Tri 2"
     return "3A", "Douleur thoracique atypique stable", "FRENCH Tri 3A"
 
 
 def _triage_arythmie(fc, det, **_) -> TriageResult:
     """
     Tachycardie / Bradycardie / Palpitations.
-    FC â‰¥ 180 ou â‰¤ 30 : arythmie extrÃªme â†’ Tri 1.
-    FC â‰¥ 150 ou â‰¤ 40 : arythmie sÃ©vÃ¨re â†’ Tri 2.
+    FC ≥ 180 ou ≤ 30 : arythmie extrême → Tri 1.
+    FC ≥ 150 ou ≤ 40 : arythmie sévère → Tri 2.
     """
     if fc >= 180 or fc <= 30:
-        return "1", f"FC {fc} bpm â€” arythmie extrÃªme", "FRENCH Tri 1"
+        return "1", f"FC {fc} bpm — arythmie extrême", "FRENCH Tri 1"
     if fc >= 150 or fc <= 40:
-        return "2", f"FC {fc} bpm â€” arythmie sÃ©vÃ¨re", "FRENCH Tri 2"
+        return "2", f"FC {fc} bpm — arythmie sévère", "FRENCH Tri 2"
     if det.get("tol_mal"):
-        return "2", "Arythmie mal tolÃ©rÃ©e", "FRENCH Tri 2"
-    return "3B", f"FC {fc} bpm â€” arythmie tolÃ©rÃ©e", "FRENCH Tri 3B"
+        return "2", "Arythmie mal tolérée", "FRENCH Tri 2"
+    return "3B", f"FC {fc} bpm — arythmie tolérée", "FRENCH Tri 3B"
 
 
 def _triage_hta(pas, fc, det, **_) -> TriageResult:
-    """Hypertension artÃ©rielle â€” urgence si PAS â‰¥ 220 ou signes fonctionnels."""
+    """Hypertension artérielle — urgence si PAS ≥ 220 ou signes fonctionnels."""
     if pas >= 220:
-        return "2", f"PAS {pas} mmHg â‰¥ 220 â€” urgence hypertensive", "FRENCH Tri 2"
+        return "2", f"PAS {pas} mmHg ≥ 220 — urgence hypertensive", "FRENCH Tri 2"
     if det.get("sf") or (pas >= 180 and fc > 100):
         return "2", "HTA avec signes fonctionnels", "FRENCH Tri 2"
     if pas >= 180:
-        return "3B", "HTA sÃ©vÃ¨re sans signe fonctionnel", "FRENCH Tri 3B"
-    return "4", "HTA modÃ©rÃ©e", "FRENCH Tri 4"
+        return "3B", "HTA sévère sans signe fonctionnel", "FRENCH Tri 3B"
+    return "4", "HTA modérée", "FRENCH Tri 4"
 
 
 def _triage_anaphylaxie(spo2, pas, gcs, det, **_) -> TriageResult:
     """
-    Allergie / Anaphylaxie â€” Tri 1 si atteinte respiratoire, hÃ©modynamique
-    ou neurologique (critÃ¨res de Clark 2004 / EAACI 2023).
+    Allergie / Anaphylaxie — Tri 1 si atteinte respiratoire, hémodynamique
+    ou neurologique (critères de Clark 2004 / EAACI 2023).
     """
     if spo2 < 94 or pas < 90 or gcs < 15:
-        return "1", "Anaphylaxie sÃ©vÃ¨re â€” engagement systÃ©mique", "FRENCH Tri 1"
+        return "1", "Anaphylaxie sévère — engagement systémique", "FRENCH Tri 1"
     if det.get("dyspnee") or det.get("urticaire"):
-        return "2", "Allergie systÃ©mique", "FRENCH Tri 2"
-    return "3B", "RÃ©action allergique localisÃ©e", "FRENCH Tri 3B"
+        return "2", "Allergie systémique", "FRENCH Tri 2"
+    return "3B", "Réaction allergique localisée", "FRENCH Tri 3B"
 
 
-# â”€â”€ Handlers neurologie â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers neurologie ─────────────────────────────────────────────────────
 
 def _triage_avc(gcs, det, **_) -> TriageResult:
     """
-    AVC / DÃ©ficit neurologique.
-    DÃ©lai â‰¤ 4h30 : fenÃªtre de thrombolyse IV â€” filiÃ¨re Stroke â†’ Tri 1.
+    AVC / Déficit neurologique.
+    Délai ≤ 4h30 : fenêtre de thrombolyse IV — filière Stroke → Tri 1.
     """
     d = det.get("delai", 99)
     if d <= AVC_DELAI_THROMBOLYSE_H:
-        return "1", f"AVC {d} h â€” fenÃªtre thrombolyse â€” filiÃ¨re Stroke", "FRENCH Tri 1"
+        return "1", f"AVC {d} h — fenêtre thrombolyse — filière Stroke", "FRENCH Tri 1"
     if det.get("def_prog") or gcs < 15:
-        return "2", "DÃ©ficit progressif ou altÃ©ration GCS", "FRENCH Tri 2"
-    return "2", "DÃ©ficit neurologique â€” bilan urgent", "FRENCH Tri 2"
+        return "2", "Déficit progressif ou altération GCS", "FRENCH Tri 2"
+    return "2", "Déficit neurologique — bilan urgent", "FRENCH Tri 2"
 
 
 def _triage_tc(gcs, det, **_) -> TriageResult:
     """
-    Traumatisme CrÃ¢nien.
-    GCS â‰¤ 8 : TC grave (intubation Ã  considÃ©rer) â†’ Tri 1.
-    GCS â‰¤ 12 ou AOD/AVK : TDM urgent â†’ Tri 2.
+    Traumatisme Crânien.
+    GCS ≤ 8 : TC grave (intubation à considérer) → Tri 1.
+    GCS ≤ 12 ou AOD/AVK : TDM urgent → Tri 2.
     """
     if gcs <= 8:
-        return "1", f"TC grave â€” GCS {gcs}/15", "FRENCH Tri 1"
+        return "1", f"TC grave — GCS {gcs}/15", "FRENCH Tri 1"
     if gcs <= 12 or det.get("aod"):
-        return "2", f"TC GCS {gcs}/15 ou anticoagulant â€” TDM urgent", "FRENCH Tri 2"
+        return "2", f"TC GCS {gcs}/15 ou anticoagulant — TDM urgent", "FRENCH Tri 2"
     if det.get("pdc"):
         return "3A", "TC avec perte de conscience", "FRENCH Tri 3A"
-    return "4", "TC bÃ©nin", "FRENCH Tri 4"
+    return "4", "TC bénin", "FRENCH Tri 4"
 
 
 def _triage_coma(gcs, gl, **_) -> TriageResult:
     """
-    AltÃ©ration de conscience / Coma.
-    HypoglycÃ©mie masquÃ©e systÃ©matiquement recherchÃ©e (cause curable).
+    Altération de conscience / Coma.
+    Hypoglycémie masquée systématiquement recherchée (cause curable).
     """
     if gl and gl < GLYC["hs"]:
-        return "2", f"HypoglycÃ©mie {gl} mg/dl â€” Glucose 30 % IV", "FRENCH Tri 2"
+        return "2", f"Hypoglycémie {gl} mg/dl — Glucose 30 % IV", "FRENCH Tri 2"
     if gcs <= 8:
-        return "1", f"Coma profond â€” GCS {gcs}/15", "FRENCH Tri 1"
+        return "1", f"Coma profond — GCS {gcs}/15", "FRENCH Tri 1"
     if gcs <= 13:
-        return "2", f"AltÃ©ration de conscience â€” GCS {gcs}/15", "FRENCH Tri 2"
-    return "2", "AltÃ©ration lÃ©gÃ¨re de conscience", "FRENCH Tri 2"
+        return "2", f"Altération de conscience — GCS {gcs}/15", "FRENCH Tri 2"
+    return "2", "Altération légère de conscience", "FRENCH Tri 2"
 
 
 def _triage_convulsions(det, **_) -> TriageResult:
-    """Convulsions / Ã‰tat de Mal Ã‰pileptique (EME)."""
+    """Convulsions / État de Mal Épileptique (EME)."""
     if det.get("multi"):
-        return "2", "Crises multiples ou Ã©tat de mal Ã©pileptique", "FRENCH Tri 2"
+        return "2", "Crises multiples ou état de mal épileptique", "FRENCH Tri 2"
     if det.get("conf"):
         return "2", "Confusion post-critique persistante", "FRENCH Tri 2"
-    return "3B", "Convulsion rÃ©cupÃ©rÃ©e", "FRENCH Tri 3B"
+    return "3B", "Convulsion récupérée", "FRENCH Tri 3B"
 
 
 def _triage_cephalee(det, **_) -> TriageResult:
     """
-    CÃ©phalÃ©e.
-    CÃ©phalÃ©e foudroyante (Â« la pire de ma vie Â») â†’ HSA suspectÃ©e â†’ Tri 1.
+    Céphalée.
+    Céphalée foudroyante (« la pire de ma vie ») → HSA suspectée → Tri 1.
     """
     if det.get("brutal"):
-        return "1", "CÃ©phalÃ©e foudroyante â€” HSA suspectÃ©e", "FRENCH Tri 1"
+        return "1", "Céphalée foudroyante — HSA suspectée", "FRENCH Tri 1"
     if det.get("nuque") or det.get("fiev_ceph"):
-        return "2", "CÃ©phalÃ©e avec signes mÃ©ningÃ©s", "FRENCH Tri 2"
-    return "3B", "CÃ©phalÃ©e sans signe de gravitÃ©", "FRENCH Tri 3B"
+        return "2", "Céphalée avec signes méningés", "FRENCH Tri 2"
+    return "3B", "Céphalée sans signe de gravité", "FRENCH Tri 3B"
 
 
 def _triage_malaise(n2, gl, det, **_) -> TriageResult:
-    """Malaise rÃ©cupÃ©rÃ© â€” hypoglycÃ©mie et anomalie vitale recherchÃ©es."""
+    """Malaise récupéré — hypoglycémie et anomalie vitale recherchées."""
     if gl and gl < GLYC["hs"]:
-        return "2", f"Malaise hypoglycÃ©mique {gl} mg/dl", "FRENCH Tri 2"
+        return "2", f"Malaise hypoglycémique {gl} mg/dl", "FRENCH Tri 2"
     if n2 >= 2 or det.get("anom_vit"):
         return "2", "Malaise avec anomalie vitale", "FRENCH Tri 2"
-    return "3B", "Malaise rÃ©cupÃ©rÃ©", "FRENCH Tri 3B"
+    return "3B", "Malaise récupéré", "FRENCH Tri 3B"
 
 
-# â”€â”€ Handlers respiratoire â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers respiratoire ───────────────────────────────────────────────────
 
 def _triage_dyspnee(spo2, fr, det, **_) -> TriageResult:
     """
-    DyspnÃ©e â€” Insuffisance respiratoire ou cardiaque.
-    BPCO : cible SpO2 88-92 % (Ã‰chelle 2). Seuil de dÃ©tresse abaissÃ© Ã  < 88 %.
-    Standard : seuil de dÃ©tresse Ã  SpO2 < 91 %.
+    Dyspnée — Insuffisance respiratoire ou cardiaque.
+    BPCO : cible SpO2 88-92 % (Échelle 2). Seuil de détresse abaissé à < 88 %.
+    Standard : seuil de détresse à SpO2 < 91 %.
     """
     bp    = det.get("bpco", False)
     cible = 92 if bp else 95
     seuil_crit = 88 if bp else 91
     if spo2 < seuil_crit or fr >= 40:
-        return "1", f"DÃ©tresse respiratoire â€” SpO2 {spo2} % FR {fr}/min", "FRENCH Tri 1"
+        return "1", f"Détresse respiratoire — SpO2 {spo2} % FR {fr}/min", "FRENCH Tri 1"
     if spo2 < cible or fr >= 30 or not det.get("parole", True):
-        return "2", f"DyspnÃ©e sÃ©vÃ¨re â€” SpO2 {spo2} %", "FRENCH Tri 2"
+        return "2", f"Dyspnée sévère — SpO2 {spo2} %", "FRENCH Tri 2"
     if det.get("orth") or det.get("tirage"):
-        return "2", "OrthopnÃ©e ou tirage intercostal", "FRENCH Tri 2"
-    return "3B", f"DyspnÃ©e modÃ©rÃ©e â€” SpO2 {spo2} %", "FRENCH Tri 3B"
+        return "2", "Orthopnée ou tirage intercostal", "FRENCH Tri 2"
+    return "3B", f"Dyspnée modérée — SpO2 {spo2} %", "FRENCH Tri 3B"
 
 
-# â”€â”€ Handlers digestif â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers digestif ───────────────────────────────────────────────────────
 
 def _triage_abdomen(fc, pas, det, **_) -> TriageResult:
-    """Douleur abdominale â€” Shock Index et GEU dÃ©tectÃ©s."""
+    """Douleur abdominale — Shock Index et GEU détectés."""
     sh = si(fc, pas)
     if pas < 90 or sh >= 1.0:
         return "2", f"Abdomen avec choc (SI {sh})", "FRENCH Tri 2"
     if det.get("grossesse") or det.get("geu"):
-        return "2", "Abdomen sur grossesse â€” GEU Ã  Ã©liminer", "FRENCH Tri 2"
+        return "2", "Abdomen sur grossesse — GEU à éliminer", "FRENCH Tri 2"
     if det.get("defense"):
         return "2", "Abdomen chirurgical", "FRENCH Tri 2"
     if det.get("tol_mal"):
-        return "3A", "Douleur mal tolÃ©rÃ©e", "FRENCH Tri 3A"
-    return "3B", "Douleur tolÃ©rÃ©e", "FRENCH Tri 3B"
+        return "3A", "Douleur mal tolérée", "FRENCH Tri 3A"
+    return "3B", "Douleur tolérée", "FRENCH Tri 3B"
 
 
-# â”€â”€ Handlers infectiologie â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers infectiologie ──────────────────────────────────────────────────
 
 def _triage_fievre(fc, pas, temp, det, **_) -> TriageResult:
     """
-    FiÃ¨vre â€” Purpura, critÃ¨res de gravitÃ©, tolÃ©rance clinique.
-    FiÃ¨vre + purpura â†’ Ceftriaxone 2 g IV AVANT tout bilan â†’ Tri 1.
+    Fièvre — Purpura, critères de gravité, tolérance clinique.
+    Fièvre + purpura → Ceftriaxone 2 g IV AVANT tout bilan → Tri 1.
     """
     if det.get("purpura"):
-        return "1", "FiÃ¨vre + purpura â€” Ceftriaxone 2 g IV immÃ©diat", "FRENCH Tri 1"
+        return "1", "Fièvre + purpura — Ceftriaxone 2 g IV immédiat", "FRENCH Tri 1"
     if temp >= 40 or temp <= 35.2 or det.get("conf"):
-        return "2", f"FiÃ¨vre avec critÃ¨re de gravitÃ© (T {temp} Â°C)", "FRENCH Tri 2"
+        return "2", f"Fièvre avec critère de gravité (T {temp} °C)", "FRENCH Tri 2"
     if det.get("tol_mal") or pas < 100 or si(fc, pas) >= 1.0:
-        return "3B", "FiÃ¨vre mal tolÃ©rÃ©e", "FRENCH Tri 3B"
-    return "5", "FiÃ¨vre bien tolÃ©rÃ©e", "FRENCH Tri 5"
+        return "3B", "Fièvre mal tolérée", "FRENCH Tri 3B"
+    return "5", "Fièvre bien tolérée", "FRENCH Tri 5"
 
 
-# â”€â”€ Handlers pÃ©diatrie â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers pédiatrie ──────────────────────────────────────────────────────
 
 def _triage_fievre_nourr(**_) -> TriageResult:
     """
-    FiÃ¨vre chez le nourrisson â‰¤ 3 mois.
-    SystÃ©matiquement Tri 2 â€” risque d'infection bactÃ©rienne sÃ©vÃ¨re
-    sans signes Ã©vidents d'alarme (immunitÃ© immature).
+    Fièvre chez le nourrisson ≤ 3 mois.
+    Systématiquement Tri 2 — risque d'infection bactérienne sévère
+    sans signes évidents d'alarme (immunité immature).
     """
     return (
         "2",
-        "FiÃ¨vre nourrisson â‰¤ 3 mois â€” bilan urgent systÃ©matique",
-        "FRENCH PÃ©diatrie Tri 2",
+        "Fièvre nourrisson ≤ 3 mois — bilan urgent systématique",
+        "FRENCH Pédiatrie Tri 2",
     )
 
 
 def _triage_ped_fievre(fc, spo2, temp, age, det, **_) -> TriageResult:
     """
-    FiÃ¨vre chez l'enfant (3 mois Ã  15 ans).
+    Fièvre chez l'enfant (3 mois à 15 ans).
 
-    Algorithme stratifiÃ© par Ã¢ge, tempÃ©rature et signes de gravitÃ©.
-    IntÃ¨gre les critÃ¨res de sepsis pÃ©diatrique (qSOFA-Ped), les signes
-    d'encÃ©phalopathie fÃ©brile, la tolÃ©rance clinique et les signaux
-    d'alarme spÃ©cifiques Ã  l'enfant.
+    Algorithme stratifié par âge, température et signes de gravité.
+    Intègre les critères de sepsis pédiatrique (qSOFA-Ped), les signes
+    d'encéphalopathie fébrile, la tolérance clinique et les signaux
+    d'alarme spécifiques à l'enfant.
 
-    CRITÃˆRES DE GRAVITÃ‰ IMMÃ‰DIATS (Tri 1)
-        â€¢ Purpura non effaÃ§able associÃ© Ã  la fiÃ¨vre
-        â€¢ Convulsions fÃ©briles prolongÃ©es (> 15 min) ou focales
-        â€¢ AltÃ©ration majeure de la conscience (GCS â‰¤ 8)
-        â€¢ Nourrisson 3-6 mois avec TÂ° â‰¥ 38 Â°C : Tri 2 systÃ©matique
+    CRITÈRES DE GRAVITÉ IMMÉDIATS (Tri 1)
+        • Purpura non effaçable associé à la fièvre
+        • Convulsions fébriles prolongées (> 15 min) ou focales
+        • Altération majeure de la conscience (GCS ≤ 8)
+        • Nourrisson 3-6 mois avec T° ≥ 38 °C : Tri 2 systématique
 
-    CRITÃˆRES DE GRAVITÃ‰ SÃ‰VÃˆRES (Tri 2)
-        â€¢ TempÃ©rature â‰¥ 40 Â°C chez tout enfant
-        â€¢ Purpura avec fiÃ¨vre (fuseau fulminans)
-        â€¢ Tachycardie compensatrice marquÃ©e (FC > seuil/Ã¢ge)
-        â€¢ Signes d'encÃ©phalopathie (agitation, somnolence)
-        â€¢ Raideur de nuque ou signe de Kernig/Brudzinski
-        â€¢ FiÃ¨vre chez enfant immunodÃ©primÃ© ou ATCD cardiopathie
+    CRITÈRES DE GRAVITÉ SÉVÈRES (Tri 2)
+        • Température ≥ 40 °C chez tout enfant
+        • Purpura avec fièvre (fuseau fulminans)
+        • Tachycardie compensatrice marquée (FC > seuil/âge)
+        • Signes d'encéphalopathie (agitation, somnolence)
+        • Raideur de nuque ou signe de Kernig/Brudzinski
+        • Fièvre chez enfant immunodéprimé ou ATCD cardiopathie
 
-    PARAMÃˆTRES D'ORIENTATION (Tri 3B)
-        â€¢ FiÃ¨vre bien tolÃ©rÃ©e sans signe de gravitÃ©
-        â€¢ Enfant communicant, regard vif, boit correctement
+    PARAMÈTRES D'ORIENTATION (Tri 3B)
+        • Fièvre bien tolérée sans signe de gravité
+        • Enfant communicant, regard vif, boit correctement
 
     References
     ----------
@@ -1565,7 +1443,7 @@ def _triage_ped_fievre(fc, spo2, temp, age, det, **_) -> TriageResult:
     departments. Lancet Child Adolesc Health. 2022;6(4):255-265.
     NICE guideline NG143. Fever in under 5s. 2021.
     """
-    # Seuil FC tachycardie selon Ã¢ge
+    # Seuil FC tachycardie selon âge
     if age < 1/12:
         fc_seuil = FC_TACHY_NOURR
     elif age < 1.0:
@@ -1577,98 +1455,98 @@ def _triage_ped_fievre(fc, spo2, temp, age, det, **_) -> TriageResult:
 
     tachycardie = (fc > fc_seuil)
 
-    # Nourrisson 3-6 mois : Tri 2 systÃ©matique si fiÃ¨vre
+    # Nourrisson 3-6 mois : Tri 2 systématique si fièvre
     if age <= 0.5 and temp >= FIEVRE_NOURR_SEUIL:
         return (
             "2",
-            f"FiÃ¨vre nourrisson {int(age*12)} mois â€” risque infectieux Ã©levÃ©",
-            "SFP / SFMU â€” Tri 2 systÃ©matique < 6 mois",
+            f"Fièvre nourrisson {int(age*12)} mois — risque infectieux élevé",
+            "SFP / SFMU — Tri 2 systématique < 6 mois",
         )
 
-    # Signes de gravitÃ© immÃ©diats â†’ Tri 1
+    # Signes de gravité immédiats → Tri 1
     if det.get("purpura") and temp >= FIEVRE_NOURR_SEUIL:
         return (
             "1",
-            "FiÃ¨vre + purpura â€” MÃ©ningococcÃ©mie â€” Ceftriaxone 2 g IV IMMÃ‰DIAT",
+            "Fièvre + purpura — Méningococcémie — Ceftriaxone 2 g IV IMMÉDIAT",
             "SPILF / SFP 2017",
         )
     if det.get("convulsion_prolongee") or det.get("convulsion_focale"):
         return (
             "1",
-            "Convulsion fÃ©brile prolongÃ©e (> 15 min) ou focale â€” Tri 1",
-            "FRENCH PÃ©diatrie Tri 1",
+            "Convulsion fébrile prolongée (> 15 min) ou focale — Tri 1",
+            "FRENCH Pédiatrie Tri 1",
         )
 
-    # Signes de gravitÃ© sÃ©vÃ¨res â†’ Tri 2
+    # Signes de gravité sévères → Tri 2
     if temp >= FIEVRE_TRES_HAUTE_ENFANT:
         return (
             "2",
-            f"FiÃ¨vre {temp} Â°C â‰¥ 40 Â°C â€” hyperthermie sÃ©vÃ¨re",
-            "FRENCH PÃ©diatrie Tri 2",
+            f"Fièvre {temp} °C ≥ 40 °C — hyperthermie sévère",
+            "FRENCH Pédiatrie Tri 2",
         )
     if det.get("nuque") or det.get("kernig"):
-        return "2", "FiÃ¨vre avec signes mÃ©ningÃ©s", "FRENCH PÃ©diatrie Tri 2"
+        return "2", "Fièvre avec signes méningés", "FRENCH Pédiatrie Tri 2"
     if det.get("encephalopathie") or det.get("agitation") or det.get("somnolence"):
-        return "2", "FiÃ¨vre avec encÃ©phalopathie", "FRENCH PÃ©diatrie Tri 2"
+        return "2", "Fièvre avec encéphalopathie", "FRENCH Pédiatrie Tri 2"
     if tachycardie and det.get("tol_mal"):
         return (
             "2",
-            f"FiÃ¨vre avec tachycardie {fc} bpm et mauvaise tolÃ©rance",
-            "FRENCH PÃ©diatrie Tri 2",
+            f"Fièvre avec tachycardie {fc} bpm et mauvaise tolérance",
+            "FRENCH Pédiatrie Tri 2",
         )
     if det.get("immunodepression") or det.get("cardiopathie"):
-        return "2", "FiÃ¨vre enfant immunodÃ©primÃ© / cardiopathie", "FRENCH PÃ©diatrie Tri 2"
+        return "2", "Fièvre enfant immunodéprimé / cardiopathie", "FRENCH Pédiatrie Tri 2"
     if det.get("tol_mal") or tachycardie:
-        return "3A", "FiÃ¨vre mal tolÃ©rÃ©e â€” Ã©valuation mÃ©dicale rapide", "FRENCH Tri 3A"
+        return "3A", "Fièvre mal tolérée — évaluation médicale rapide", "FRENCH Tri 3A"
 
-    return "3B", "FiÃ¨vre bien tolÃ©rÃ©e â€” sans signe de gravitÃ©", "FRENCH Tri 3B"
+    return "3B", "Fièvre bien tolérée — sans signe de gravité", "FRENCH Tri 3B"
 
 
 def _triage_ped_gastro(fc, pas, temp, age, det, **_) -> TriageResult:
     """
-    Vomissements et/ou fiÃ¨vre chez l'enfant â€” Gastro-entÃ©rite pÃ©diatrique.
+    Vomissements et/ou fièvre chez l'enfant — Gastro-entérite pédiatrique.
 
-    Protocole fondÃ© sur la cotation de la dÃ©shydratation pÃ©diatrique
-    et la dÃ©tection de signes d'alarme non-GEA (gastro-entÃ©rite aiguÃ«).
+    Protocole fondé sur la cotation de la déshydratation pédiatrique
+    et la détection de signes d'alarme non-GEA (gastro-entérite aiguë).
 
-    SIGNES D'ALARME â€” EXCLURE UNE CAUSE CHIRURGICALE (Tri 1-2)
-        â€¢ Vomissements bilieux (vert) : occlusion / volvulus du grÃªle
-        â€¢ Douleur abdominale intense avec dÃ©fense
-        â€¢ Fontanelle bombante chez nourrisson
-        â€¢ Pleurs inconsolables (invagination intestinale aiguÃ«)
-        â€¢ Rectorragies associÃ©es (invagination ou MICI)
-        â€¢ Convulsions associÃ©es
+    SIGNES D'ALARME — EXCLURE UNE CAUSE CHIRURGICALE (Tri 1-2)
+        • Vomissements bilieux (vert) : occlusion / volvulus du grêle
+        • Douleur abdominale intense avec défense
+        • Fontanelle bombante chez nourrisson
+        • Pleurs inconsolables (invagination intestinale aiguë)
+        • Rectorragies associées (invagination ou MICI)
+        • Convulsions associées
 
-    Ã‰VALUATION DE LA DÃ‰SHYDRATATION (OMS / ESPGHAN 2014)
+    ÉVALUATION DE LA DÉSHYDRATATION (OMS / ESPGHAN 2014)
 
-        LÃ‰GÃˆRE (< 5 %)
-            Muqueuses lÃ©gÃ¨rement sÃ¨ches, soif, sans autre signe.
-            â†’ Tri 3B â€” rÃ©hydratation orale au service
+        LÉGÈRE (< 5 %)
+            Muqueuses légèrement sèches, soif, sans autre signe.
+            → Tri 3B — réhydratation orale au service
 
-        MODÃ‰RÃ‰E (5-10 %)
-            Yeux cernÃ©s, fontanelle dÃ©primÃ©e, pli cutanÃ© persistant 1-2 s,
-            tachycardie compensatrice, diurÃ¨se diminuÃ©e, pleurs sans larmes.
-            â†’ Tri 2 â€” rÃ©hydratation IV ou SNG Ã  Ã©valuer
+        MODÉRÉE (5-10 %)
+            Yeux cernés, fontanelle déprimée, pli cutané persistant 1-2 s,
+            tachycardie compensatrice, diurèse diminuée, pleurs sans larmes.
+            → Tri 2 — réhydratation IV ou SNG à évaluer
 
-        SÃ‰VÃˆRE (> 10 %) / CHOC HYPOVOLÃ‰MIQUE
-            ExtrÃ©mitÃ©s froides, marbrures, pli cutanÃ© > 2 s, oligurie/anurie,
-            hypotension, altÃ©ration de conscience.
-            â†’ Tri 1 â€” remplissage vasculaire immÃ©diat (NaCl 0,9 % ou Ringer)
+        SÉVÈRE (> 10 %) / CHOC HYPOVOLÉMIQUE
+            Extrémités froides, marbrures, pli cutané > 2 s, oligurie/anurie,
+            hypotension, altération de conscience.
+            → Tri 1 — remplissage vasculaire immédiat (NaCl 0,9 % ou Ringer)
 
-    FIÃˆVRE ASSOCIÃ‰E
-        FiÃ¨vre â‰¥ 38,5 Â°C + dÃ©shydratation modÃ©rÃ©e : Tri 2 systÃ©matique.
-        Nourrisson < 3 mois + vomissements + fiÃ¨vre : Tri 2 systÃ©matique.
+    FIÈVRE ASSOCIÉE
+        Fièvre ≥ 38,5 °C + déshydratation modérée : Tri 2 systématique.
+        Nourrisson < 3 mois + vomissements + fièvre : Tri 2 systématique.
 
     References
     ----------
     Guarino A, et al. ESPGHAN/ESPID evidence-based guidelines for the
     management of acute gastroenteritis in children in Europe.
     J Pediatr Gastroenterol Nutr. 2014;59 Suppl 1:S132-52.
-    OMS. Prise en charge de la diarrhÃ©e aiguÃ« chez l'enfant. 2005.
+    OMS. Prise en charge de la diarrhée aiguë chez l'enfant. 2005.
     Finkelstein JA, et al. Gastroenteritis in children: beyond rehydration.
     Pediatrics. 2017;140(5).
     """
-    # Seuil FC tachycardie selon Ã¢ge
+    # Seuil FC tachycardie selon âge
     if age < 1/12:
         fc_seuil = FC_TACHY_NOURR
     elif age < 1.0:
@@ -1681,274 +1559,274 @@ def _triage_ped_gastro(fc, pas, temp, age, det, **_) -> TriageResult:
     tachycardie    = (fc > fc_seuil)
     shock_index_v  = si(fc, pas)
 
-    # â”€â”€ Signes d'alarme â€” cause chirurgicale Ã  exclure (Tri 1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Signes d'alarme — cause chirurgicale à exclure (Tri 1) ───────────
     if det.get("bilieux"):
         return (
             "1",
-            "Vomissements bilieux (vert) â€” occlusion/volvulus Ã  Ã©liminer",
-            "FRENCH PÃ©diatrie Tri 1",
+            "Vomissements bilieux (vert) — occlusion/volvulus à éliminer",
+            "FRENCH Pédiatrie Tri 1",
         )
     if det.get("fontanelle_bombante"):
         return (
             "1",
-            "Fontanelle bombante â€” HTIC / mÃ©ningite Ã  Ã©liminer",
-            "FRENCH PÃ©diatrie Tri 1",
+            "Fontanelle bombante — HTIC / méningite à éliminer",
+            "FRENCH Pédiatrie Tri 1",
         )
     if det.get("pleurs_inconsolables"):
         return (
             "1",
-            "Pleurs inconsolables + vomissements â€” invagination intestinale aiguÃ«",
-            "FRENCH PÃ©diatrie Tri 1",
+            "Pleurs inconsolables + vomissements — invagination intestinale aiguë",
+            "FRENCH Pédiatrie Tri 1",
         )
     if det.get("convulsions"):
         return (
             "1",
-            "Vomissements + convulsions â€” dÃ©shydratation sÃ©vÃ¨re / encÃ©phalopathie",
-            "FRENCH PÃ©diatrie Tri 1",
+            "Vomissements + convulsions — déshydratation sévère / encéphalopathie",
+            "FRENCH Pédiatrie Tri 1",
         )
 
-    # â”€â”€ Choc hypovolÃ©mique â€” dÃ©shydratation sÃ©vÃ¨re (Tri 1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Choc hypovolémique — déshydratation sévère (Tri 1) ───────────────
     if shock_index_v >= 1.0 or pas < 90 or det.get("deshydrat_severe"):
         return (
             "1",
-            f"Choc hypovolÃ©mique â€” dÃ©shydratation sÃ©vÃ¨re (SI {shock_index_v})",
-            "FRENCH PÃ©diatrie Tri 1",
+            f"Choc hypovolémique — déshydratation sévère (SI {shock_index_v})",
+            "FRENCH Pédiatrie Tri 1",
         )
 
-    # â”€â”€ DÃ©shydratation modÃ©rÃ©e (Tri 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Déshydratation modérée (Tri 2) ────────────────────────────────────
     if det.get("deshydrat_moderee"):
         return (
             "2",
-            "DÃ©shydratation modÃ©rÃ©e â€” rÃ©hydratation IV / SNG Ã  Ã©valuer",
-            "ESPGHAN 2014 â€” Tri 2",
+            "Déshydratation modérée — réhydratation IV / SNG à évaluer",
+            "ESPGHAN 2014 — Tri 2",
         )
-    # Nourrisson < 3 mois avec vomissements + fiÃ¨vre : Tri 2 systÃ©matique
+    # Nourrisson < 3 mois avec vomissements + fièvre : Tri 2 systématique
     if age < FIEVRE_HAUT_RISQUE_AGE and temp >= FIEVRE_NOURR_SEUIL:
         return (
             "2",
-            f"Nourrisson {int(age*12)} mois â€” vomissements + fiÃ¨vre {temp} Â°C",
-            "FRENCH PÃ©diatrie Tri 2",
+            f"Nourrisson {int(age*12)} mois — vomissements + fièvre {temp} °C",
+            "FRENCH Pédiatrie Tri 2",
         )
-    # Tachycardie compensatrice + fiÃ¨vre Ã©levÃ©e
+    # Tachycardie compensatrice + fièvre élevée
     if tachycardie and temp >= 38.5:
         return (
             "2",
-            f"Tachycardie {fc} bpm + fiÃ¨vre {temp} Â°C â€” risque dÃ©shydratation",
-            "FRENCH PÃ©diatrie Tri 2",
+            f"Tachycardie {fc} bpm + fièvre {temp} °C — risque déshydratation",
+            "FRENCH Pédiatrie Tri 2",
         )
-    # Vomissements frÃ©quents (> 6/h) sans arrÃªt
+    # Vomissements fréquents (> 6/h) sans arrêt
     if det.get("vomiss_freq"):
         return (
             "2",
-            f"Vomissements trÃ¨s frÃ©quents (> {VOMISS_FREQ_SEVERE}/h) â€” tolÃ©rance nulle",
-            "FRENCH PÃ©diatrie Tri 2",
+            f"Vomissements très fréquents (> {VOMISS_FREQ_SEVERE}/h) — tolérance nulle",
+            "FRENCH Pédiatrie Tri 2",
         )
-    # Refus alimentaire total + signes de dÃ©shydratation lÃ©gÃ¨re
+    # Refus alimentaire total + signes de déshydratation légère
     if det.get("refus_alimentation") and (tachycardie or det.get("deshydrat_legere")):
         return (
             "2",
-            "Refus alimentaire total + signes de dÃ©shydratation",
-            "FRENCH PÃ©diatrie Tri 2",
+            "Refus alimentaire total + signes de déshydratation",
+            "FRENCH Pédiatrie Tri 2",
         )
 
-    # â”€â”€ DÃ©shydratation lÃ©gÃ¨re / vomissements tolÃ©rÃ©s (Tri 3A/3B) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Déshydratation légère / vomissements tolérés (Tri 3A/3B) ─────────
     if det.get("deshydrat_legere") or tachycardie:
         return (
             "3A",
-            "DÃ©shydratation lÃ©gÃ¨re â€” Ã©valuation mÃ©dicale, rÃ©hydratation orale",
-            "ESPGHAN 2014 â€” Tri 3A",
+            "Déshydratation légère — évaluation médicale, réhydratation orale",
+            "ESPGHAN 2014 — Tri 3A",
         )
 
     return (
         "3B",
-        "Gastro-entÃ©rite â€” vomissements tolÃ©rÃ©s sans signe de gravitÃ©",
+        "Gastro-entérite — vomissements tolérés sans signe de gravité",
         "FRENCH Tri 3B",
     )
 
 
 def _triage_ped_epilepsie(fc, spo2, temp, age, det, gl=None, **_) -> TriageResult:
     """
-    Crise Ã©pileptique pÃ©diatrique â€” Triage FRENCH adaptÃ© SFNP / ISPE 2023.
+    Crise épileptique pédiatrique — Triage FRENCH adapté SFNP / ISPE 2023.
 
-    DÃ‰FINITIONS TEMPORELLES (ILAE 2015 / ISPE 2022)
-        > 5 min  : Crise prolongÃ©e â†’ traitement mÃ©dicamenteux IMMÃ‰DIAT
-        > 15 min : EME opÃ©rationnel â†’ risque de lÃ©sions cÃ©rÃ©brales
-        > 30 min : EME Ã©tabli â†’ rÃ©animation pÃ©diatrique
+    DÉFINITIONS TEMPORELLES (ILAE 2015 / ISPE 2022)
+        > 5 min  : Crise prolongée → traitement médicamenteux IMMÉDIAT
+        > 15 min : EME opérationnel → risque de lésions cérébrales
+        > 30 min : EME établi → réanimation pédiatrique
 
-    CRITÃˆRES TRI 1
-        â€¢ EME Ã©tabli (> 30 min) ou EME opÃ©rationnel (> 15 min)
-        â€¢ SpO2 < 92 % â€” dÃ©tresse respiratoire
-        â€¢ Ã‚ge < 1 mois â€” convulsion nÃ©onatale
-        â€¢ Traumatisme crÃ¢nien associÃ©
-        â€¢ FiÃ¨vre + signes mÃ©ningÃ©s â€” encÃ©phalite / mÃ©ningite
-        â€¢ HypoglycÃ©mie sÃ©vÃ¨re (< 54 mg/dl) + trouble de conscience
+    CRITÈRES TRI 1
+        • EME établi (> 30 min) ou EME opérationnel (> 15 min)
+        • SpO2 < 92 % — détresse respiratoire
+        • Âge < 1 mois — convulsion néonatale
+        • Traumatisme crânien associé
+        • Fièvre + signes méningés — encéphalite / méningite
+        • Hypoglycémie sévère (< 54 mg/dl) + trouble de conscience
 
-    CRITÃˆRES TRI 2
-        â€¢ Crise EN COURS Ã  l'arrivÃ©e
-        â€¢ DurÃ©e > 5 min (seuil de traitement)
-        â€¢ PremiÃ¨re crise non fÃ©brile
-        â€¢ Crise fÃ©brile complexe (focale / rÃ©pÃ©tÃ©e)
-        â€¢ Reprise de conscience incomplÃ¨te
-        â€¢ Score AVPU < A
+    CRITÈRES TRI 2
+        • Crise EN COURS à l'arrivée
+        • Durée > 5 min (seuil de traitement)
+        • Première crise non fébrile
+        • Crise fébrile complexe (focale / répétée)
+        • Reprise de conscience incomplète
+        • Score AVPU < A
 
-    CRITÃˆRES TRI 3A / 3B
-        â€¢ Crise fÃ©brile simple rÃ©cupÃ©rÃ©e
-        â€¢ Ã‰pilepsie connue â€” crise habituelle rÃ©cupÃ©rÃ©e
+    CRITÈRES TRI 3A / 3B
+        • Crise fébrile simple récupérée
+        • Épilepsie connue — crise habituelle récupérée
 
     References
     ----------
     Trinka E, et al. Epilepsia. 2015;56(10):1515-23.
     Brophy GM, et al. Neurocrit Care. 2012;17(Suppl 1):S23-33.
-    Glauser T, et al. ISPE â€” Status Epilepticus Guidelines. Epilepsia. 2016.
-    SFNP / EpiCARE. Protocole EME pÃ©diatrique. 2023.
+    Glauser T, et al. ISPE — Status Epilepticus Guidelines. Epilepsia. 2016.
+    SFNP / EpiCARE. Protocole EME pédiatrique. 2023.
     """
     duree = det.get("duree_min", 0) or 0
 
-    # â”€â”€ Tri 1 â€” Engagement vital â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Tri 1 — Engagement vital ──────────────────────────────────────────
     if det.get("eme_etabli") or duree > EME_ETABLI_MIN:
         return ("1",
-                f"EME Ã©tabli â€” durÃ©e > {EME_ETABLI_MIN} min â€” RÃ©animation pÃ©diatrique URGENTE",
-                "ISPE 2022 â€” Tri 1")
+                f"EME établi — durée > {EME_ETABLI_MIN} min — Réanimation pédiatrique URGENTE",
+                "ISPE 2022 — Tri 1")
     if duree > EME_OPERATIONNEL_MIN:
         return ("1",
-                f"EME opÃ©rationnel â€” durÃ©e {duree} min > {EME_OPERATIONNEL_MIN} min â€” Risque lÃ©sionnel",
-                "ILAE 2015 â€” EME opÃ©rationnel â€” Tri 1")
+                f"EME opérationnel — durée {duree} min > {EME_OPERATIONNEL_MIN} min — Risque lésionnel",
+                "ILAE 2015 — EME opérationnel — Tri 1")
     if spo2 < 92:
         return ("1",
-                f"Crise + SpO2 {spo2} % â€” DÃ©tresse respiratoire â€” LibÃ©ration VAS + O2",
-                "FRENCH PÃ©diatrie Tri 1")
+                f"Crise + SpO2 {spo2} % — Détresse respiratoire — Libération VAS + O2",
+                "FRENCH Pédiatrie Tri 1")
     if age < 1/12:
         return ("1",
-                "Convulsion nÃ©onatale (< 1 mois) â€” Bilan Ã©tiologique urgent",
-                "SFNP Tri 1 â€” NÃ©onatal")
+                "Convulsion néonatale (< 1 mois) — Bilan étiologique urgent",
+                "SFNP Tri 1 — Néonatal")
     if det.get("tc_associe"):
         return ("1",
-                "Crise + traumatisme crÃ¢nien â€” Imagerie urgente â€” HÃ©matome intracÃ©rÃ©bral",
+                "Crise + traumatisme crânien — Imagerie urgente — Hématome intracérébral",
                 "FRENCH Tri 1")
     if det.get("signes_meninges") and temp >= 38.0:
         return ("1",
-                "Crise fÃ©brile + signes mÃ©ningÃ©s â€” MÃ©ningite / EncÃ©phalite",
-                "FRENCH PÃ©diatrie Tri 1")
+                "Crise fébrile + signes méningés — Méningite / Encéphalite",
+                "FRENCH Pédiatrie Tri 1")
     if gl is not None and gl < 54 and det.get("conscience_incomplete"):
         return ("1",
-                f"HypoglycÃ©mie sÃ©vÃ¨re {gl} mg/dl + conscience altÃ©rÃ©e â€” Glucose 30 % IV IMMÃ‰DIAT",
+                f"Hypoglycémie sévère {gl} mg/dl + conscience altérée — Glucose 30 % IV IMMÉDIAT",
                 "FRENCH Tri 1")
 
-    # â”€â”€ Tri 2 â€” Urgence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Tri 2 — Urgence ───────────────────────────────────────────────────
     if det.get("en_cours"):
         return ("2",
-                "Crise EN COURS â€” Midazolam buccal 0,3 mg/kg MAINTENANT",
-                "SFNP 2023 â€” Tri 2")
+                "Crise EN COURS — Midazolam buccal 0,3 mg/kg MAINTENANT",
+                "SFNP 2023 — Tri 2")
     if duree > EME_SEUIL_MIN:
         return ("2",
-                f"Crise prolongÃ©e {duree} min > {EME_SEUIL_MIN} min â€” Traitement actif requis",
-                "SFNP 2023 â€” Tri 2")
+                f"Crise prolongée {duree} min > {EME_SEUIL_MIN} min — Traitement actif requis",
+                "SFNP 2023 — Tri 2")
     if det.get("premiere_crise") and "Epilepsie" not in det.get("atcd", []):
         return ("2",
-                "1Ã¨re crise Ã©pileptique non fÃ©brile â€” Bilan Ã©tiologique urgent",
-                "FRENCH PÃ©diatrie Tri 2")
+                "1ère crise épileptique non fébrile — Bilan étiologique urgent",
+                "FRENCH Pédiatrie Tri 2")
     if det.get("focale") or det.get("repetee_24h"):
         return ("2",
-                "Crise fÃ©brile complexe (focale ou rÃ©pÃ©tÃ©e < 24 h)",
-                "SFNP 2023 â€” Tri 2")
+                "Crise fébrile complexe (focale ou répétée < 24 h)",
+                "SFNP 2023 — Tri 2")
     if det.get("conscience_incomplete") or det.get("avpu") in ("V", "P", "U"):
         return ("2",
-                "Conscience altÃ©rÃ©e aprÃ¨s crise â€” Phase post-critique prolongÃ©e",
-                "FRENCH PÃ©diatrie Tri 2")
+                "Conscience altérée après crise — Phase post-critique prolongée",
+                "FRENCH Pédiatrie Tri 2")
 
-    # â”€â”€ Tri 3A â€” Urgence modÃ©rÃ©e â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Tri 3A — Urgence modérée ──────────────────────────────────────────
     if det.get("febrile") and not det.get("focale") and det.get("recuperee"):
         return ("3A",
-                "Crise fÃ©brile simple rÃ©cupÃ©rÃ©e â€” Surveillance + avis mÃ©dical",
-                "SFNP 2023 â€” Tri 3A")
+                "Crise fébrile simple récupérée — Surveillance + avis médical",
+                "SFNP 2023 — Tri 3A")
     if "Epilepsie" in det.get("atcd", []) and det.get("recuperee") and det.get("habituelle"):
         return ("3A",
-                "Ã‰pilepsie connue â€” Crise habituelle rÃ©cupÃ©rÃ©e â€” Avis mÃ©dical",
+                "Épilepsie connue — Crise habituelle récupérée — Avis médical",
                 "FRENCH Tri 3A")
 
-    # â”€â”€ Tri 3B â€” Plan d'urgence familial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Tri 3B — Plan d'urgence familial ─────────────────────────────────
     if "Epilepsie" in det.get("atcd", []) and det.get("recuperee") and det.get("plan_urgence"):
         return ("3B",
-                "Ã‰pilepsie connue â€” Crise rÃ©cupÃ©rÃ©e â€” Plan d'urgence documentÃ©",
+                "Épilepsie connue — Crise récupérée — Plan d'urgence documenté",
                 "FRENCH Tri 3B")
 
     return ("2",
-            "Crise Ã©pileptique pÃ©diatrique â€” Ã‰valuation mÃ©dicale urgente",
-            "SFNP 2023 â€” Tri 2 par sÃ©curitÃ©")
+            "Crise épileptique pédiatrique — Évaluation médicale urgente",
+            "SFNP 2023 — Tri 2 par sécurité")
 
 
-# â”€â”€ Handlers peau â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers peau ───────────────────────────────────────────────────────────
 
 def _triage_purpura(temp, det, **_) -> TriageResult:
     """
-    PÃ©tÃ©chie / Purpura â€” Test du verre obligatoire.
-    Purpura non effaÃ§able : purpura fulminans prÃ©sumÃ© â†’ Tri 1 absolu.
+    Pétéchie / Purpura — Test du verre obligatoire.
+    Purpura non effaçable : purpura fulminans présumé → Tri 1 absolu.
     """
     if det.get("neff"):
-        return "1", "Purpura non effaÃ§able â€” CÃ©fotriaxone 2 g IV immÃ©diat",                "SPILF/SFP 2017"
+        return "1", "Purpura non effaçable — Céfotriaxone 2 g IV immédiat",                "SPILF/SFP 2017"
     if temp >= 38.0:
-        return "2", "Purpura fÃ©brile â€” suspicion fulminans", "FRENCH Tri 2"
-    return "3B", "PÃ©tÃ©chies â€” bilan hÃ©mostase Ã  prÃ©voir", "FRENCH Tri 3B"
+        return "2", "Purpura fébrile — suspicion fulminans", "FRENCH Tri 2"
+    return "3B", "Pétéchies — bilan hémostase à prévoir", "FRENCH Tri 3B"
 
 
-# â”€â”€ Handlers traumatologie â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers traumatologie ──────────────────────────────────────────────────
 
 def _triage_trauma_axial(fc, pas, spo2, det, **_) -> TriageResult:
     """
-    Traumatisme thorax/abdomen/rachis cervical ou bassin/hanche/fÃ©mur.
-    PÃ©nÃ©trant ou haute cinÃ©tique â†’ Tri 1.
+    Traumatisme thorax/abdomen/rachis cervical ou bassin/hanche/fémur.
+    Pénétrant ou haute cinétique → Tri 1.
     """
     if det.get("pen") or det.get("cin") == "Haute":
-        return "1", "Traumatisme pÃ©nÃ©trant ou haute cinÃ©tique", "FRENCH Tri 1"
+        return "1", "Traumatisme pénétrant ou haute cinétique", "FRENCH Tri 1"
     if si(fc, pas) >= 1.0 or spo2 < 94:
         return "2", f"Traumatisme avec choc (SI {si(fc, pas)})", "FRENCH Tri 2"
-    return "2", "Traumatisme axial â€” Ã©valuation urgente", "FRENCH Tri 2"
+    return "2", "Traumatisme axial — évaluation urgente", "FRENCH Tri 2"
 
 
 def _triage_trauma_distal(det, **_) -> TriageResult:
     """
-    Traumatisme d'un membre ou de l'Ã©paule.
-    IschÃ©mie distale â†’ Tri 1 (urgence vasculaire).
+    Traumatisme d'un membre ou de l'épaule.
+    Ischémie distale → Tri 1 (urgence vasculaire).
     """
     if det.get("isch"):
-        return "1", "IschÃ©mie distale", "FRENCH Tri 1"
+        return "1", "Ischémie distale", "FRENCH Tri 1"
     if det.get("imp") and det.get("deform"):
-        return "2", "Fracture dÃ©placÃ©e avec impotence totale", "FRENCH Tri 2"
+        return "2", "Fracture déplacée avec impotence totale", "FRENCH Tri 2"
     if det.get("imp"):
         return "3A", "Impotence fonctionnelle totale", "FRENCH Tri 3A"
     if det.get("deform"):
-        return "3A", "DÃ©formation visible", "FRENCH Tri 3A"
-    return "4", "Traumatisme distal modÃ©rÃ©", "FRENCH Tri 4"
+        return "3A", "Déformation visible", "FRENCH Tri 3A"
+    return "4", "Traumatisme distal modéré", "FRENCH Tri 4"
 
 
-# â”€â”€ Handlers mÃ©tabolique â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Handlers métabolique ────────────────────────────────────────────────────
 
 def _triage_hypoglycemie(gcs, gl, **_) -> TriageResult:
-    """HypoglycÃ©mie â€” seuils GLYC["hs"] et GLYC["hm"]."""
+    """Hypoglycémie — seuils GLYC["hs"] et GLYC["hm"]."""
     if gl and gl < GLYC["hs"]:
-        return "2", f"HypoglycÃ©mie sÃ©vÃ¨re {gl} mg/dl â€” Glucose 30 % IV", "FRENCH Tri 2"
+        return "2", f"Hypoglycémie sévère {gl} mg/dl — Glucose 30 % IV", "FRENCH Tri 2"
     if gcs < 15:
-        return "2", f"HypoglycÃ©mie avec altÃ©ration GCS {gcs}/15", "FRENCH Tri 2"
-    return "3B", "HypoglycÃ©mie lÃ©gÃ¨re â€” resucrage oral", "FRENCH Tri 3B"
+        return "2", f"Hypoglycémie avec altération GCS {gcs}/15", "FRENCH Tri 2"
+    return "3B", "Hypoglycémie légère — resucrage oral", "FRENCH Tri 3B"
 
 
 def _triage_hyperglycemie(gcs, det, **_) -> TriageResult:
-    """HyperglycÃ©mie / CÃ©toacidose diabÃ©tique."""
+    """Hyperglycémie / Cétoacidose diabétique."""
     if det.get("ceto") or gcs < 15:
-        return "2", "CÃ©toacidose ou altÃ©ration de conscience", "FRENCH Tri 2"
-    return "4", "HyperglycÃ©mie tolÃ©rÃ©e", "FRENCH Tri 4"
+        return "2", "Cétoacidose ou altération de conscience", "FRENCH Tri 2"
+    return "4", "Hyperglycémie tolérée", "FRENCH Tri 4"
 
 
 def _triage_non_urgent(**_) -> TriageResult:
-    """Motifs non urgents â€” renouvellement ordonnance, examen administratif."""
+    """Motifs non urgents — renouvellement ordonnance, examen administratif."""
     return "5", "Consultation non urgente", "FRENCH Tri 5"
 
 
-# â”€â”€ TABLE DE DISPATCH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── TABLE DE DISPATCH ──────────────────────────────────────────────────────
 #
-# Association motif (clÃ©) â†’ handler (fonction).
-# ClÃ© = chaÃ®ne exacte du motif tel que saisi dans MOTS_CAT.
-# ClÃ© = tuple pour les motifs gÃ©rÃ©s par le mÃªme handler.
+# Association motif (clé) → handler (fonction).
+# Clé = chaîne exacte du motif tel que saisi dans MOTS_CAT.
+# Clé = tuple pour les motifs gérés par le même handler.
 
 _TRIAGE_DISPATCH: dict = {
     "Arret cardio-respiratoire":                          _triage_acr,
@@ -1983,7 +1861,7 @@ _TRIAGE_DISPATCH: dict = {
      "Examen administratif"):                             _triage_non_urgent,
 }
 
-# Index inversÃ© : motif_str â†’ handler, construit au chargement
+# Index inversé : motif_str → handler, construit au chargement
 _MOTIF_INDEX: dict[str, object] = {}
 for _key, _handler in _TRIAGE_DISPATCH.items():
     if isinstance(_key, tuple):
@@ -1999,28 +1877,28 @@ def french_triage(motif:str, det:Optional[dict],
                   age:float, n2:int,
                   gl:Optional[float]=None) -> tuple[str, str, str]:
     """
-    Moteur de triage FRENCH â€” SociÃ©tÃ© FranÃ§aise de MÃ©decine d'Urgence V1.1.
+    Moteur de triage FRENCH — Société Française de Médecine d'Urgence V1.1.
 
-    Applique l'algorithme de triage FRENCH pour dÃ©terminer le niveau de
-    prioritÃ© clinique (M, 1, 2, 3A, 3B, 4, 5) Ã  partir du motif de recours,
-    des paramÃ¨tres vitaux et des critÃ¨res cliniques spÃ©cifiques.
+    Applique l'algorithme de triage FRENCH pour déterminer le niveau de
+    priorité clinique (M, 1, 2, 3A, 3B, 4, 5) à partir du motif de recours,
+    des paramètres vitaux et des critères cliniques spécifiques.
 
     ARCHITECTURE DISPATCH
-        La logique par motif est distribuÃ©e dans des handlers indÃ©pendants
-        (_triage_*) enregistrÃ©s dans _TRIAGE_DISPATCH. Le dispatcher
-        rÃ©sout le motif â†’ handler en O(1) via l'index _MOTIF_INDEX.
-        Ajouter un motif = Ã©crire un handler + l'enregistrer dans la table.
+        La logique par motif est distribuée dans des handlers indépendants
+        (_triage_*) enregistrés dans _TRIAGE_DISPATCH. Le dispatcher
+        résout le motif → handler en O(1) via l'index _MOTIF_INDEX.
+        Ajouter un motif = écrire un handler + l'enregistrer dans la table.
 
-    HIÃ‰RARCHIE DES PRIORITÃ‰S (appliquÃ©e avant le dispatch)
-        1. NEWS2 â‰¥ 9 â†’ Tri M (engagement vital â€” transversal)
-        2. Purpura fulminans â†’ Tri 1 (transversal quel que soit le motif)
-        3. Dispatch motif-spÃ©cifique
+    HIÉRARCHIE DES PRIORITÉS (appliquée avant le dispatch)
+        1. NEWS2 ≥ 9 → Tri M (engagement vital — transversal)
+        2. Purpura fulminans → Tri 1 (transversal quel que soit le motif)
+        3. Dispatch motif-spécifique
         4. Fallback NEWS2 (motif inconnu)
 
     FALLBACK SUR NEWS2 (motif sans handler)
-        NEWS2 â‰¥ NEWS2_RISQUE_ELEVE (7) â†’ Tri 2
-        NEWS2 â‰¥ NEWS2_RISQUE_MOD   (5) â†’ Tri 3A
-        Sinon                           â†’ Tri 3B
+        NEWS2 ≥ NEWS2_RISQUE_ELEVE (7) → Tri 2
+        NEWS2 ≥ NEWS2_RISQUE_MOD   (5) → Tri 3A
+        Sinon                           → Tri 3B
 
     Parameters
     ----------
@@ -2032,23 +1910,23 @@ def french_triage(motif:str, det:Optional[dict],
     age : float
     n2 : int
     gl : float, optional
-        GlycÃ©mie capillaire en mg/dl.
+        Glycémie capillaire en mg/dl.
 
     Returns
     -------
     tuple[str, str, str]
-        (niveau, justification, rÃ©fÃ©rence)
+        (niveau, justification, référence)
 
     Notes
     -----
-    Valeurs None remplacÃ©es par valeurs physiologiques par dÃ©faut.
-    En cas d'erreur interne, retourne Tri 2 par sÃ©curitÃ©.
+    Valeurs None remplacées par valeurs physiologiques par défaut.
+    En cas d'erreur interne, retourne Tri 2 par sécurité.
 
     References
     ----------
     Taboulet P, et al. FRENCH Triage SFMU V1.1, Juin 2018.
     """
-    # â”€â”€ SÃ©curisation des entrÃ©es â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Sécurisation des entrées ──────────────────────────────────────────
     fc   = fc   or 80
     pas  = pas  or 120
     spo2 = spo2 or 98
@@ -2059,13 +1937,13 @@ def french_triage(motif:str, det:Optional[dict],
     det  = det  or {}
 
     try:
-        # â”€â”€ CritÃ¨res transversaux (prioritÃ© absolue) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Critères transversaux (priorité absolue) ──────────────────────
         if n2 >= NEWS2_TRI_M:
-            return "M", f"NEWS2 {n2} â‰¥ {NEWS2_TRI_M} â€” engagement vital", "NEWS2 Tri M"
+            return "M", f"NEWS2 {n2} ≥ {NEWS2_TRI_M} — engagement vital", "NEWS2 Tri M"
         if det.get("purpura"):
-            return "1", "PURPURA FULMINANS â€” CÃ©fotriaxone 2 g IV immÃ©diat", "SPILF/SFP 2017"
+            return "1", "PURPURA FULMINANS — Céfotriaxone 2 g IV immédiat", "SPILF/SFP 2017"
 
-        # â”€â”€ Dispatch par handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Dispatch par handler ──────────────────────────────────────────
         handler = _MOTIF_INDEX.get(motif)
         if handler is not None:
             return handler(
@@ -2074,15 +1952,15 @@ def french_triage(motif:str, det:Optional[dict],
                 gl=gl, det=det,
             )
 
-        # â”€â”€ Fallback NEWS2 (motif non rÃ©pertoriÃ©) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Fallback NEWS2 (motif non répertorié) ────────────────────────
         if n2 >= NEWS2_RISQUE_ELEVE:
-            return "2", f"NEWS2 {n2} â‰¥ {NEWS2_RISQUE_ELEVE} â€” risque Ã©levÃ©", "NEWS2 Tri 2"
+            return "2", f"NEWS2 {n2} ≥ {NEWS2_RISQUE_ELEVE} — risque élevé", "NEWS2 Tri 2"
         if n2 >= NEWS2_RISQUE_MOD:
-            return "3A", f"NEWS2 {n2} â‰¥ {NEWS2_RISQUE_MOD} â€” risque modÃ©rÃ©", "NEWS2 Tri 3A"
-        return "3B", f"Ã‰valuation standard â€” {motif}", "FRENCH Tri 3B"
+            return "3A", f"NEWS2 {n2} ≥ {NEWS2_RISQUE_MOD} — risque modéré", "NEWS2 Tri 3A"
+        return "3B", f"Évaluation standard — {motif}", "FRENCH Tri 3B"
 
     except Exception as e:
-        return "2", f"Erreur moteur de triage : {e}", "SÃ©curitÃ© Tri 2"
+        return "2", f"Erreur moteur de triage : {e}", "Sécurité Tri 2"
 
 
 def verifier_coherence(fc:float, pas:float, spo2:float,
@@ -2091,26 +1969,26 @@ def verifier_coherence(fc:float, pas:float, spo2:float,
                        n2:int,
                        gl:Optional[float]=None) -> tuple[list[str], list[str]]:
     """
-    VÃ©rification de cohÃ©rence clinique et dÃ©tection d'interactions.
+    Vérification de cohérence clinique et détection d'interactions.
 
-    ContrÃ´le transversal post-triage qui identifie les situations Ã  risque
-    immÃ©diat (interactions mÃ©dicamenteuses, hypoglycÃ©mie masquÃ©e, Ã©tat de
-    choc, hypoxÃ©mie) et gÃ©nÃ¨re des alertes diffÃ©renciÃ©es selon leur
-    gravitÃ© : danger (rouge) vs attention (orange).
+    Contrôle transversal post-triage qui identifie les situations à risque
+    immédiat (interactions médicamenteuses, hypoglycémie masquée, état de
+    choc, hypoxémie) et génère des alertes différenciées selon leur
+    gravité : danger (rouge) vs attention (orange).
 
-    ALERTES DANGER (rouge â€” action immÃ©diate)
-        â€¢ IMAO dÃ©tectÃ©        â€” Contre-indication absolue au Tramadol
-                                (syndrome sÃ©rotoninergique fatal).
-        â€¢ HypoglycÃ©mie sÃ©vÃ¨re â€” GlycÃ©mie < 54 mg/dl : Glucose 30 % IV.
-        â€¢ Shock Index â‰¥ 1.0   â€” Ã‰tat de choc probable.
-        â€¢ SpO2 < 90 %         â€” HypoxÃ©mie sÃ©vÃ¨re â€” O2 urgent.
-        â€¢ FC â‰¥ 150 ou â‰¤ 40    â€” Arythmie critique.
-        â€¢ TC sous AOD/AVK     â€” Risque d'hÃ©matome diffÃ©rÃ© â€” TDM urgent.
+    ALERTES DANGER (rouge — action immédiate)
+        • IMAO détecté        — Contre-indication absolue au Tramadol
+                                (syndrome sérotoninergique fatal).
+        • Hypoglycémie sévère — Glycémie < 54 mg/dl : Glucose 30 % IV.
+        • Shock Index ≥ 1.0   — État de choc probable.
+        • SpO2 < 90 %         — Hypoxémie sévère — O2 urgent.
+        • FC ≥ 150 ou ≤ 40    — Arythmie critique.
+        • TC sous AOD/AVK     — Risque d'hématome différé — TDM urgent.
 
-    ALERTES ATTENTION (orange â€” vigilance)
-        â€¢ ISRS/IRSNA          â€” Interaction majeure avec Tramadol.
-        â€¢ HypoglycÃ©mie modÃ©rÃ©e â€” Corriger avant antalgie.
-        â€¢ FR â‰¥ 30/min         â€” TachypnÃ©e significative.
+    ALERTES ATTENTION (orange — vigilance)
+        • ISRS/IRSNA          — Interaction majeure avec Tramadol.
+        • Hypoglycémie modérée — Corriger avant antalgie.
+        • FR ≥ 30/min         — Tachypnée significative.
 
     Parameters
     ----------
@@ -2119,39 +1997,39 @@ def verifier_coherence(fc:float, pas:float, spo2:float,
     eva : int
     motif : str
     atcd : list[str]
-        Liste des antÃ©cÃ©dents sÃ©lectionnÃ©s dans la sidebar.
+        Liste des antécédents sélectionnés dans la sidebar.
     det : dict
-        CritÃ¨res cliniques spÃ©cifiques au motif.
+        Critères cliniques spécifiques au motif.
     n2 : int
     gl : float, optional
-        GlycÃ©mie capillaire en mg/dl.
+        Glycémie capillaire en mg/dl.
 
     Returns
     -------
     tuple[list[str], list[str]]
-        (alertes danger, alertes attention) â€” listes de messages formatÃ©s.
+        (alertes danger, alertes attention) — listes de messages formatés.
 
     Notes
     -----
-    Cette fonction est appelÃ©e aprÃ¨s french_triage() et ses alertes sont
-    affichÃ©es au-dessus du rÃ©sultat de triage pour que l'IAO les voie
-    avant de dÃ©cider de la suite de la prise en charge.
+    Cette fonction est appelée après french_triage() et ses alertes sont
+    affichées au-dessus du résultat de triage pour que l'IAO les voie
+    avant de décider de la suite de la prise en charge.
     """
     D=[]; A=[]
     if "IMAO (inhibiteurs MAO)" in atcd:
-        D.append("IMAO â€” Tramadol CONTRE-INDIQUE (syndrome serotoninergique fatal)")
+        D.append("IMAO — Tramadol CONTRE-INDIQUE (syndrome serotoninergique fatal)")
     if "Antidepresseurs ISRS/IRSNA" in atcd:
-        A.append("ISRS/IRSNA â€” Tramadol deconseille â€” Preferer Dipidolor ou Morphine")
+        A.append("ISRS/IRSNA — Tramadol deconseille — Preferer Dipidolor ou Morphine")
     if gl:
-        if gl<GLYC["hs"]: D.append(f"HYPOGLYCEMIE SEVERE {gl}mg/dl ({mgdl_mmol(gl)}mmol/l) â€” Glucose 30% IV")
-        elif gl<GLYC["hm"]: A.append(f"Hypoglycemie moderee {gl}mg/dl â€” corriger avant antalgique")
+        if gl<GLYC["hs"]: D.append(f"HYPOGLYCEMIE SEVERE {gl}mg/dl ({mgdl_mmol(gl)}mmol/l) — Glucose 30% IV")
+        elif gl<GLYC["hm"]: A.append(f"Hypoglycemie moderee {gl}mg/dl — corriger avant antalgique")
     sh=si(fc,pas)
-    if sh>=1.0: D.append(f"Shock Index {sh}>=1.0 â€” etat de choc probable")
-    if spo2<90: D.append(f"SpO2 {spo2}% â€” O2 urgent")
-    if fr>=30:  A.append(f"FR {fr}/min â€” tachypnee")
-    if fc>=150 or fc<=40: D.append(f"FC {fc}bpm â€” arythmie critique")
+    if sh>=1.0: D.append(f"Shock Index {sh}>=1.0 — etat de choc probable")
+    if spo2<90: D.append(f"SpO2 {spo2}% — O2 urgent")
+    if fr>=30:  A.append(f"FR {fr}/min — tachypnee")
+    if fc>=150 or fc<=40: D.append(f"FC {fc}bpm — arythmie critique")
     if "Anticoagulants/AOD" in atcd and "Traumatisme cranien" in motif:
-        D.append("TC sous AOD/AVK â€” TDM urgent")
+        D.append("TC sous AOD/AVK — TDM urgent")
     return D,A
 
 def build_sbar(age:float, motif:str, cat:str,
@@ -2163,24 +2041,24 @@ def build_sbar(age:float, motif:str, cat:str,
                op:str="IAO",
                gl:Optional[float]=None) -> dict:
     """
-    Construction d'un rapport SBAR structurÃ© pour transmission DPI.
+    Construction d'un rapport SBAR structuré pour transmission DPI.
 
-    SBAR (Situation â€” Background â€” Assessment â€” Recommendation) est la
-    structure internationale standardisÃ©e de transmission inter-Ã©quipes
-    en milieu hospitalier, validÃ©e pour rÃ©duire les erreurs de
-    communication. Le dictionnaire retournÃ© alimente Ã  la fois l'affichage
-    HTML structurÃ© et l'export texte tÃ©lÃ©chargeable.
+    SBAR (Situation — Background — Assessment — Recommendation) est la
+    structure internationale standardisée de transmission inter-équipes
+    en milieu hospitalier, validée pour réduire les erreurs de
+    communication. Le dictionnaire retourné alimente à la fois l'affichage
+    HTML structuré et l'export texte téléchargeable.
 
     STRUCTURE SBAR
-        S â€” Situation     : IdentitÃ© anonyme, motif, niveau de triage.
-        B â€” Background   : AntÃ©cÃ©dents, allergies, oxygÃ©nothÃ©rapie, glycÃ©mie.
-        A â€” Assessment    : Vitaux complets, justification du triage.
-        R â€” Recommendation: Orientation, dÃ©lai, remarques IAO.
+        S — Situation     : Identité anonyme, motif, niveau de triage.
+        B — Background   : Antécédents, allergies, oxygénothérapie, glycémie.
+        A — Assessment    : Vitaux complets, justification du triage.
+        R — Recommendation: Orientation, délai, remarques IAO.
 
-    TRAÃ‡ABILITÃ‰
+    TRAÇABILITÉ
         Chaque rapport inclut horodatage (JJ/MM/AAAA HH:MM) et code
-        opÃ©rateur anonyme pour rÃ©pondre aux exigences de traÃ§abilitÃ©
-        mÃ©dico-lÃ©gale (AR 18/06/1990 â€” Belgique).
+        opérateur anonyme pour répondre aux exigences de traçabilité
+        médico-légale (AR 18/06/1990 — Belgique).
 
     Parameters
     ----------
@@ -2195,16 +2073,16 @@ def build_sbar(age:float, motif:str, cat:str,
     eva : int
     n2 : int
     niv, just, crit : str
-        RÃ©sultat de french_triage().
+        Résultat de french_triage().
     op : str, default "IAO"
-        Code opÃ©rateur anonyme.
+        Code opérateur anonyme.
     gl : float, optional
-        GlycÃ©mie capillaire en mg/dl.
+        Glycémie capillaire en mg/dl.
 
     Returns
     -------
     dict
-        Dictionnaire structurÃ© prÃªt pour SBAR_RENDER() et export texte.
+        Dictionnaire structuré prêt pour SBAR_RENDER() et export texte.
     """
     return {"heure":datetime.now().strftime("%d/%m/%Y %H:%M"),"op":op,"age":int(age),
             "motif":motif,"cat":cat,"atcd":", ".join(atcd) if atcd else "Aucun",
@@ -2214,51 +2092,51 @@ def build_sbar(age:float, motif:str, cat:str,
             "crit":crit,"just":just,"fc":fc,"pas":pas,"spo2":spo2,"fr":fr,
             "temp":temp,"gcs":gcs,"eva":eva,"n2":n2}
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # PHARMACOLOGIE BCFI
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 #
 # Tous les protocoles de ce module sont issus du BCFI (Belgian Centre for
 # Pharmacotherapeutic Information) et des RCP belges en vigueur. Les doses
-# affichÃ©es sont conformes aux recommandations officielles en Belgique et
-# doivent Ãªtre validÃ©es par un mÃ©decin prescripteur avant administration.
+# affichées sont conformes aux recommandations officielles en Belgique et
+# doivent être validées par un médecin prescripteur avant administration.
 #
-# Chaque fonction retourne systÃ©matiquement un tuple (rÃ©sultat | None, erreur | None)
-# pour permettre un traitement d'erreur uniforme cÃ´tÃ© UI.
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# Chaque fonction retourne systématiquement un tuple (résultat | None, erreur | None)
+# pour permettre un traitement d'erreur uniforme côté UI.
+# ══════════════════════════════════════════════════════════════════════════════
 
 _CI_A=["Ulcere gastro-duodenal","Insuffisance renale chronique","Insuffisance hepatique",
        "Grossesse en cours","Chimiotherapie en cours"]
 
 def ci_ains(atcd: list[str]) -> list[str]:
     """
-    DÃ©tection des contre-indications communes aux AINS.
+    Détection des contre-indications communes aux AINS.
 
-    Les AINS (KÃ©torolac, DiclofÃ©nac, IbuprofÃ¨ne) partagent les mÃªmes
-    contre-indications absolues : ulcÃ¨re gastro-duodÃ©nal Ã©volutif,
-    insuffisance rÃ©nale chronique, insuffisance hÃ©patique,
-    grossesse au-delÃ  du 1er trimestre, chimiothÃ©rapie en cours.
+    Les AINS (Kétorolac, Diclofénac, Ibuprofène) partagent les mêmes
+    contre-indications absolues : ulcère gastro-duodénal évolutif,
+    insuffisance rénale chronique, insuffisance hépatique,
+    grossesse au-delà du 1er trimestre, chimiothérapie en cours.
     """
     return [c for c in _CI_A if c in atcd]
 
 def paracetamol(poids: float) -> tuple[Optional[dict], Optional[str]]:
     """
-    ParacÃ©tamol IV â€” Antalgie de palier I (OMS).
+    Paracétamol IV — Antalgie de palier I (OMS).
 
-    DOSE ADULTE (â‰¥ 50 kg) : 1 g IV toutes les 6 h (maximum 4 g/24 h).
-    DOSE ADAPTÃ‰E AU POIDS (< 50 kg) : 15 mg/kg IV toutes les 6 h.
+    DOSE ADULTE (≥ 50 kg) : 1 g IV toutes les 6 h (maximum 4 g/24 h).
+    DOSE ADAPTÉE AU POIDS (< 50 kg) : 15 mg/kg IV toutes les 6 h.
 
     ADMINISTRATION
         Perfusion IV de 15 minutes dans 100 ml de NaCl 0,9 %.
-        DÃ©but d'action : 5-10 min â€” DurÃ©e d'effet : 4-6 h.
+        Début d'action : 5-10 min — Durée d'effet : 4-6 h.
 
     POSOLOGIE CIBLE
         Palier 1 seul            : EVA 0-3
-        Association systÃ©matique : EVA â‰¥ 4 (avec palier 2 ou 3)
+        Association systématique : EVA ≥ 4 (avec palier 2 ou 3)
 
     CONTRE-INDICATIONS
-        â€¢ Insuffisance hÃ©patique sÃ©vÃ¨re
-        â€¢ Allergie connue au paracÃ©tamol
+        • Insuffisance hépatique sévère
+        • Allergie connue au paracétamol
 
     Parameters
     ----------
@@ -2268,109 +2146,109 @@ def paracetamol(poids: float) -> tuple[Optional[dict], Optional[str]]:
     Returns
     -------
     tuple[dict | None, str | None]
-        (dose calculÃ©e, message d'erreur ou None).
+        (dose calculée, message d'erreur ou None).
 
     References
     ----------
-    BCFI â€” ParacÃ©tamol IV â€” RCP Belgique.
+    BCFI — Paracétamol IV — RCP Belgique.
     """
     if poids<=0: return None,"Poids invalide"
-    if poids>=PARA_POIDS_PIVOT_KG: return {"dose_g":PARA_DOSE_FIXE_G,"vol":"100ml NaCl 0.9% sur 15min","freq":"Toutes les 6h (max 4g/24h)","ref":"BCFI â€” Paracetamol IV"},None
+    if poids>=PARA_POIDS_PIVOT_KG: return {"dose_g":PARA_DOSE_FIXE_G,"vol":"100ml NaCl 0.9% sur 15min","freq":"Toutes les 6h (max 4g/24h)","ref":"BCFI — Paracetamol IV"},None
     dg=min(round(PARA_DOSE_KG*poids/1000,2),1.0)
-    return {"dose_g":dg,"vol":f"{dg*1000:.0f}mg dans 100ml NaCl 0.9%","freq":"Toutes les 6h","ref":"BCFI â€” Paracetamol IV"},None
+    return {"dose_g":dg,"vol":f"{dg*1000:.0f}mg dans 100ml NaCl 0.9%","freq":"Toutes les 6h","ref":"BCFI — Paracetamol IV"},None
 
 def ketorolac(poids:float, atcd:list[str]) -> tuple[Optional[dict], Optional[str]]:
     """
-    KÃ©torolac (Taradyl) IV â€” AINS palier II.
+    Kétorolac (Taradyl) IV — AINS palier II.
 
     DOSE
-        Adulte â‰¥ 50 kg : 30 mg IV
+        Adulte ≥ 50 kg : 30 mg IV
         Sujet < 50 kg  : 15 mg IV
 
     ADMINISTRATION
         IV lent sur 15 secondes minimum. Toutes les 6 heures.
-        DURÃ‰E MAXIMALE : 5 jours (risque d'insuffisance rÃ©nale aiguÃ«
-        et d'hÃ©morragie digestive au-delÃ ).
+        DURÉE MAXIMALE : 5 jours (risque d'insuffisance rénale aiguë
+        et d'hémorragie digestive au-delà).
 
     CONTRE-INDICATIONS ABSOLUES
-        Voir ci_ains() : ulcÃ¨re, IRC, insuffisance hÃ©patique, grossesse,
-        chimiothÃ©rapie.
+        Voir ci_ains() : ulcère, IRC, insuffisance hépatique, grossesse,
+        chimiothérapie.
 
     References
     ----------
-    BCFI â€” KÃ©torolac tromÃ©thamine â€” RCP Belgique.
+    BCFI — Kétorolac trométhamine — RCP Belgique.
     """
     ci=ci_ains(atcd)
     if ci: return None,f"Contre-indique : {', '.join(ci)}"
     d=15.0 if poids<50 else 30.0
-    return {"dose_mg":d,"admin":"IV lent 15s","freq":"Toutes 6h â€” max 5j","ref":"BCFI â€” Ketorolac (Taradyl)"},None
+    return {"dose_mg":d,"admin":"IV lent 15s","freq":"Toutes 6h — max 5j","ref":"BCFI — Ketorolac (Taradyl)"},None
 
 def tramadol(poids:float, atcd:list[str], age:float) -> tuple[Optional[dict], Optional[str]]:
     """
-    Tramadol IV â€” OpioÃ¯de faible palier II.
+    Tramadol IV — Opioïde faible palier II.
 
     DOSE
-        Adulte â‰¥ 50 kg : 100 mg IV
+        Adulte ≥ 50 kg : 100 mg IV
         Sujet < 50 kg  : 1,5 mg/kg IV
 
     ADMINISTRATION
-        DiluÃ© dans 100 ml NaCl 0,9 % â€” Perfusion sur 30 minutes.
+        Dilué dans 100 ml NaCl 0,9 % — Perfusion sur 30 minutes.
         Toutes les 6 heures (maximum 400 mg/24 h).
 
-    CONTRE-INDICATIONS ABSOLUES (dÃ©tectÃ©es automatiquement)
+    CONTRE-INDICATIONS ABSOLUES (détectées automatiquement)
 
-        IMAO (inhibiteurs de la monoamine oxydase) âš ï¸ CRITIQUE
-            Association Ã  risque de SYNDROME SÃ‰ROTONINERGIQUE FATAL
-            par accumulation de sÃ©rotonine dans le SNC. Le dÃ©lai de
-            sÃ©curitÃ© aprÃ¨s arrÃªt d'un IMAO irrÃ©versible est de 14 jours.
-            Alternatives : ParacÃ©tamol IV, Piritramide, Morphine.
+        IMAO (inhibiteurs de la monoamine oxydase) ⚠️ CRITIQUE
+            Association à risque de SYNDROME SÉROTONINERGIQUE FATAL
+            par accumulation de sérotonine dans le SNC. Le délai de
+            sécurité après arrêt d'un IMAO irréversible est de 14 jours.
+            Alternatives : Paracétamol IV, Piritramide, Morphine.
 
-        Ã‰pilepsie
-            Le tramadol abaisse le seuil Ã©pileptogÃ¨ne â€” risque de
-            convulsions, surtout aux doses Ã©levÃ©es.
+        Épilepsie
+            Le tramadol abaisse le seuil épileptogène — risque de
+            convulsions, surtout aux doses élevées.
 
     INTERACTIONS MAJEURES
-        ISRS/IRSNA : Risque de syndrome sÃ©rotoninergique. PrÃ©fÃ©rer
+        ISRS/IRSNA : Risque de syndrome sérotoninergique. Préférer
         Piritramide ou Morphine. Surveillance clinique si prescription
         maintenue (agitation, hyperthermie, myoclonies).
 
     References
     ----------
-    BCFI â€” Tramadol chlorhydrate â€” RCP Belgique.
-    AFMPS â€” Notice de sÃ©curitÃ© tramadol 2019.
+    BCFI — Tramadol chlorhydrate — RCP Belgique.
+    AFMPS — Notice de sécurité tramadol 2019.
     """
     als=[]
-    if "Epilepsie" in atcd: als.append("CONTRE-INDIQUE â€” Epilepsie (seuil epileptogene)")
-    if "IMAO (inhibiteurs MAO)" in atcd: als.append("CONTRE-INDICATION ABSOLUE â€” SYNDROME SEROTONINERGIQUE FATAL avec IMAO")
-    if "Antidepresseurs ISRS/IRSNA" in atcd: als.append("INTERACTION MAJEURE â€” ISRS/IRSNA â€” risque serotoninergique")
+    if "Epilepsie" in atcd: als.append("CONTRE-INDIQUE — Epilepsie (seuil epileptogene)")
+    if "IMAO (inhibiteurs MAO)" in atcd: als.append("CONTRE-INDICATION ABSOLUE — SYNDROME SEROTONINERGIQUE FATAL avec IMAO")
+    if "Antidepresseurs ISRS/IRSNA" in atcd: als.append("INTERACTION MAJEURE — ISRS/IRSNA — risque serotoninergique")
     d=100.0 if poids>=50 else round(1.5*poids,0)
-    return {"dose_mg":d,"admin":f"{d:.0f}mg dans 100ml NaCl 0.9% â€” IV 30min","freq":"Toutes 6h (max 400mg/24h)","alertes":als,"ref":"BCFI â€” Tramadol"},None
+    return {"dose_mg":d,"admin":f"{d:.0f}mg dans 100ml NaCl 0.9% — IV 30min","freq":"Toutes 6h (max 400mg/24h)","alertes":als,"ref":"BCFI — Tramadol"},None
 
 def piritramide(poids:float, age:float, atcd:list[str]) -> tuple[Optional[dict], Optional[str]]:
     """
-    Piritramide (Dipidolor) IV â€” OpioÃ¯de fort palier III.
+    Piritramide (Dipidolor) IV — Opioïde fort palier III.
 
-    AnalgÃ©sique opioÃ¯de de rÃ©fÃ©rence aux urgences belges pour la douleur
-    aiguÃ« sÃ©vÃ¨re (EVA â‰¥ 7) â€” demi-vie intermÃ©diaire (4-8 h) avec bonne
-    tolÃ©rance hÃ©modynamique.
+    Analgésique opioïde de référence aux urgences belges pour la douleur
+    aiguë sévère (EVA ≥ 7) — demi-vie intermédiaire (4-8 h) avec bonne
+    tolérance hémodynamique.
 
     TITRATION PROTOCOLE SFAR 2010
         Dose initiale : 0,03-0,05 mg/kg IV lent (1-2 min)
         Plafond       : 3 mg/bolus (6 mg si poids > 70 kg)
-        RÃ©Ã©valuation EVA Ã  10-15 min, titrer si EVA > 3
+        Réévaluation EVA à 10-15 min, titrer si EVA > 3
 
-    RÃ‰DUCTION DE DOSE DE 50 %
-        â€¢ Ã‚ge â‰¥ 70 ans
-        â€¢ Insuffisance rÃ©nale chronique
-        â€¢ Insuffisance hÃ©patique
+    RÉDUCTION DE DOSE DE 50 %
+        • Âge ≥ 70 ans
+        • Insuffisance rénale chronique
+        • Insuffisance hépatique
 
     ANTIDOTE
-        Naloxone 0,4 mg IV en cas de dÃ©pression respiratoire
+        Naloxone 0,4 mg IV en cas de dépression respiratoire
         (SpO2 < 90 % ou FR < 10/min).
 
     References
     ----------
-    BCFI â€” Piritramide (Dipidolor) â€” RCP Belgique.
+    BCFI — Piritramide (Dipidolor) — RCP Belgique.
     SFAR. Protocoles de titration morphinique aux urgences. 2010.
     """
     red=(age>=70 or "Insuffisance renale chronique" in atcd or "Insuffisance hepatique" in atcd)
@@ -2378,26 +2256,26 @@ def piritramide(poids:float, age:float, atcd:list[str]) -> tuple[Optional[dict],
     plafond = (PIRI_PLAFOND_LT70 if poids < 70 else PIRI_PLAFOND_GE70) * f
     dmin = min(round(PIRI_BOLUS_MIN * poids * f, 2), plafond)
     dmax = min(round(PIRI_BOLUS_MAX * poids * f, 2), plafond)
-    return {"dmin":dmin,"dmax":dmax,"admin":"IV lent 1-2min â€” titrer si EVA>3 apres 15min","note":"Dose -50% si age>=70/IRC/IH" if red else "","ref":"BCFI â€” Piritramide (Dipidolor)"},None
+    return {"dmin":dmin,"dmax":dmax,"admin":"IV lent 1-2min — titrer si EVA>3 apres 15min","note":"Dose -50% si age>=70/IRC/IH" if red else "","ref":"BCFI — Piritramide (Dipidolor)"},None
 
 def morphine(poids:float, age:float) -> tuple[Optional[dict], Optional[str]]:
     """
-    Morphine IV â€” OpioÃ¯de fort de rÃ©fÃ©rence palier III.
+    Morphine IV — Opioïde fort de référence palier III.
 
     TITRATION
         Dose initiale : 0,05-0,10 mg/kg IV (maximum 5 mg/bolus).
-        Paliers ultÃ©rieurs : 2 mg IV toutes les 5-10 minutes.
-        Objectif thÃ©rapeutique : EVA â‰¤ 3.
+        Paliers ultérieurs : 2 mg IV toutes les 5-10 minutes.
+        Objectif thérapeutique : EVA ≤ 3.
 
-    RÃ‰DUCTION DE DOSE DE 50 %
-        Ã‚ge â‰¥ 70 ans (risque de dÃ©pression respiratoire majorÃ©).
+    RÉDUCTION DE DOSE DE 50 %
+        Âge ≥ 70 ans (risque de dépression respiratoire majoré).
 
     ANTIDOTE
-        Naloxone 0,4 mg IV en cas de dÃ©pression respiratoire.
+        Naloxone 0,4 mg IV en cas de dépression respiratoire.
 
     References
     ----------
-    BCFI â€” Morphine chlorhydrate â€” RCP Belgique.
+    BCFI — Morphine chlorhydrate — RCP Belgique.
     """
     f = 0.5 if age >= 70 else 1.0
     plafond = (MORPH_PLAFOND_GE100 if poids >= 100 else MORPH_PLAFOND_STD) * f
@@ -2407,99 +2285,99 @@ def morphine(poids:float, age:float) -> tuple[Optional[dict], Optional[str]]:
         "dmin":  dmin,
         "dmax":  dmax,
         "palier": MORPH_PALIER_MG,
-        "admin": f"IV lent 2-3 min â€” titrer par paliers {MORPH_PALIER_MG:.0f} mg / 5-10 min",
-        "ref":   "BCFI â€” Morphine chlorhydrate â€” RCP Belgique",
+        "admin": f"IV lent 2-3 min — titrer par paliers {MORPH_PALIER_MG:.0f} mg / 5-10 min",
+        "ref":   "BCFI — Morphine chlorhydrate — RCP Belgique",
     }, None
 
 def naloxone(poids:float, age:float, dep:bool=False) -> tuple[Optional[dict], Optional[str]]:
     """
-    Naloxone (Narcan) IV â€” Antagoniste opioÃ¯de.
+    Naloxone (Narcan) IV — Antagoniste opioïde.
 
     INDICATION PRINCIPALE
-        DÃ©pression respiratoire induite par opioÃ¯des (SpO2 < 90 %
-        ou FR < 10/min) aprÃ¨s administration de Piritramide, Morphine
+        Dépression respiratoire induite par opioïdes (SpO2 < 90 %
+        ou FR < 10/min) après administration de Piritramide, Morphine
         ou Tramadol.
 
     TROIS PROTOCOLES SELON LE CONTEXTE
 
-    1. ADULTE SANS DÃ‰PENDANCE â€” Standard
+    1. ADULTE SANS DÉPENDANCE — Standard
        Dose : 0,4 mg IV direct
-       RÃ©pÃ©tition : toutes les 2-3 min jusqu'Ã  restauration ventilatoire
-       Dose cumulÃ©e maximale : 10 mg (au-delÃ , reconsidÃ©rer le diagnostic)
+       Répétition : toutes les 2-3 min jusqu'à restauration ventilatoire
+       Dose cumulée maximale : 10 mg (au-delà, reconsidérer le diagnostic)
 
-    2. ENFANT < 18 ANS â€” AdaptÃ© au poids
+    2. ENFANT < 18 ANS — Adapté au poids
        Dose : 0,01 mg/kg IV (maximum 0,4 mg par bolus)
-       RÃ©pÃ©tition : toutes les 2-3 min
+       Répétition : toutes les 2-3 min
 
-    3. PATIENT DÃ‰PENDANT AUX OPIOÃDES â€” Titration douce
+    3. PATIENT DÉPENDANT AUX OPIOÏDES — Titration douce
        Dose : 0,04 mg IV par paliers de 2 minutes
        Objectif : restaurer la ventilation, PAS lever totalement
-                  l'analgÃ©sie (risque de syndrome de sevrage aigu et
-                  de douleur rebond sÃ©vÃ¨re)
+                  l'analgésie (risque de syndrome de sevrage aigu et
+                  de douleur rebond sévère)
 
     SURVEILLANCE POST-INJECTION
         La demi-vie courte de la Naloxone (30-90 min) est plus courte
-        que celle des opioÃ¯des antagonisÃ©s. Surveillance SpO2 + FR +
-        conscience continue pendant au moins 2 heures aprÃ¨s la
-        derniÃ¨re injection pour dÃ©tecter une resÃ©dation.
+        que celle des opioïdes antagonisés. Surveillance SpO2 + FR +
+        conscience continue pendant au moins 2 heures après la
+        dernière injection pour détecter une resédation.
 
     References
     ----------
-    BCFI â€” Naloxone chlorhydrate (Narcan) â€” RCP Belgique.
+    BCFI — Naloxone chlorhydrate (Narcan) — RCP Belgique.
     """
     als=[]
     if dep:
-        d=NALOO_DEP_MG; a="{NALOO_DEP_MG}mg IV/2min â€” titration douce"; n="Dependance â€” objectif : ventilation, pas levee totale"
+        d=NALOO_DEP_MG; a="{NALOO_DEP_MG}mg IV/2min — titration douce"; n="Dependance — objectif : ventilation, pas levee totale"
         als.append("Risque sevrage si surdosage")
     elif age<18:
         d=min(round(NALOO_PED_KG*poids,3),NALOO_ADULTE_MG); a=f"{d}mg IV (0.01mg/kg)"; n=f"Ped : {d}mg pour {poids}kg"
     else:
-        d=NALOO_ADULTE_MG; a=f"{NALOO_ADULTE_MG}mg IV â€” repeter 2-3min (max 10mg)"; n="Si pas de reponse a 10mg : reconsiderer"
-    return {"dose":d,"admin":a,"note":n,"alertes":als,"surv":"Monitor SpO2+FR â€” demi-vie courte 30-90min","ref":"BCFI â€” Naloxone (Narcan)"},None
+        d=NALOO_ADULTE_MG; a=f"{NALOO_ADULTE_MG}mg IV — repeter 2-3min (max 10mg)"; n="Si pas de reponse a 10mg : reconsiderer"
+    return {"dose":d,"admin":a,"note":n,"alertes":als,"surv":"Monitor SpO2+FR — demi-vie courte 30-90min","ref":"BCFI — Naloxone (Narcan)"},None
 
 def adrenaline(poids: float) -> tuple[Optional[dict], Optional[str]]:
     """
-    AdrÃ©naline IM â€” Traitement de premiÃ¨re intention du choc anaphylactique.
+    Adrénaline IM — Traitement de première intention du choc anaphylactique.
 
-    La voie intramusculaire est la VOIE DE RÃ‰FÃ‰RENCE dans l'anaphylaxie
-    (pas la voie IV, qui est rÃ©servÃ©e Ã  l'arrÃªt cardiaque).
+    La voie intramusculaire est la VOIE DE RÉFÉRENCE dans l'anaphylaxie
+    (pas la voie IV, qui est réservée à l'arrêt cardiaque).
 
     DOSE
-        Adulte â‰¥ 30 kg : 0,5 mg IM (0,5 ml de solution 1 mg/ml)
+        Adulte ≥ 30 kg : 0,5 mg IM (0,5 ml de solution 1 mg/ml)
         Enfant < 30 kg : 0,01 mg/kg IM (maximum 0,5 mg)
 
     SITE D'INJECTION
-        Face antÃ©ro-latÃ©rale de la cuisse (muscle vaste externe).
-        Absorption plus rapide et moins variable qu'au deltoÃ¯de.
+        Face antéro-latérale de la cuisse (muscle vaste externe).
+        Absorption plus rapide et moins variable qu'au deltoïde.
 
-    RÃ‰PÃ‰TITION
-        Toutes les 5 Ã  15 minutes si absence d'amÃ©lioration hÃ©modynamique
-        ou respiratoire. En l'absence de rÃ©ponse aprÃ¨s 2 doses IM,
-        envisager la voie IV (mÃ©decin).
+    RÉPÉTITION
+        Toutes les 5 à 15 minutes si absence d'amélioration hémodynamique
+        ou respiratoire. En l'absence de réponse après 2 doses IM,
+        envisager la voie IV (médecin).
 
     SURVEILLANCE
         Monitorage continu : FC, PA, SpO2, rythme cardiaque (ECG).
-        Effets indÃ©sirables attendus : tachycardie, tremblements, pÃ¢leur,
-        cÃ©phalÃ©es â€” transitoires et proportionnels Ã  la dose.
+        Effets indésirables attendus : tachycardie, tremblements, pâleur,
+        céphalées — transitoires et proportionnels à la dose.
 
     References
     ----------
-    BCFI â€” AdrÃ©naline Sterop 1 mg/ml â€” RCP Belgique.
-    EAACI. Lignes directrices europÃ©ennes anaphylaxie. 2023.
+    BCFI — Adrénaline Sterop 1 mg/ml — RCP Belgique.
+    EAACI. Lignes directrices européennes anaphylaxie. 2023.
     """
     if poids<=0: return None,"Poids invalide"
     d=0.5 if poids>=ADRE_POIDS_ADULTE_KG else min(round(ADRE_DOSE_KG*poids,3),ADRE_DOSE_ADULTE_MG)
     n="0.5ml sol 1mg/ml" if poids>=30 else f"0.01mg/kg = {d}mg"
-    return {"dose_mg":d,"voie":"IM face antero-lat cuisse","note":n,"rep":"Repeter 5-15min si pas d'amelioration","ref":"BCFI â€” Adrenaline Sterop 1mg/ml"},None
+    return {"dose_mg":d,"voie":"IM face antero-lat cuisse","note":n,"rep":"Repeter 5-15min si pas d'amelioration","ref":"BCFI — Adrenaline Sterop 1mg/ml"},None
 
 def glucose(poids:float, gl:Optional[float]=None) -> tuple[Optional[dict], Optional[str]]:
     """
-    Glucose 30 % IV (Glucosie) â€” Correction d'hypoglycÃ©mie sÃ©vÃ¨re.
+    Glucose 30 % IV (Glucosie) — Correction d'hypoglycémie sévère.
 
-    GARDE-FOU DE SÃ‰CURITÃ‰ CRITIQUE
-        Si la glycÃ©mie capillaire n'a pas Ã©tÃ© mesurÃ©e (gl is None),
-        le protocole est DÃ‰SACTIVÃ‰ et retourne une erreur. Cette rÃ¨gle
-        empÃªche l'administration aveugle de glucose sans confirmation
+    GARDE-FOU DE SÉCURITÉ CRITIQUE
+        Si la glycémie capillaire n'a pas été mesurée (gl is None),
+        le protocole est DÉSACTIVÉ et retourne une erreur. Cette règle
+        empêche l'administration aveugle de glucose sans confirmation
         biologique.
 
     DOSE
@@ -2507,35 +2385,35 @@ def glucose(poids:float, gl:Optional[float]=None) -> tuple[Optional[dict], Optio
         Maximum : 15 g (50 ml de solution 30 %)
 
     ADMINISTRATION
-        IV lent sur 5 minutes, prÃ©fÃ©rer une voie centrale si disponible
-        (risque d'extravasation douloureuse avec nÃ©crose cutanÃ©e sur
-        voie pÃ©riphÃ©rique).
+        IV lent sur 5 minutes, préférer une voie centrale si disponible
+        (risque d'extravasation douloureuse avec nécrose cutanée sur
+        voie périphérique).
 
-    ALTERNATIVE SI PAS D'ACCÃˆS VEINEUX
+    ALTERNATIVE SI PAS D'ACCÈS VEINEUX
         Glucagon 1 mg IM ou SC (GlucaGen HypoKit). Inefficace en cas
-        d'hÃ©patopathie ou d'Ã©puisement des rÃ©serves glycogÃ©niques
-        (alcoolisme, jeÃ»ne prolongÃ©).
+        d'hépatopathie ou d'épuisement des réserves glycogéniques
+        (alcoolisme, jeûne prolongé).
 
-    CONTRÃ”LE
-        GlycÃ©mie capillaire de contrÃ´le Ã  T+15 min, puis Ã  T+30 min.
-        Objectif : glycÃ©mie > 100 mg/dl (> 5,5 mmol/l).
+    CONTRÔLE
+        Glycémie capillaire de contrôle à T+15 min, puis à T+30 min.
+        Objectif : glycémie > 100 mg/dl (> 5,5 mmol/l).
 
     References
     ----------
-    BCFI â€” Glucose 30 % (Glucosie) â€” RCP Belgique.
+    BCFI — Glucose 30 % (Glucosie) — RCP Belgique.
     """
-    if gl is None: return None,"GlycÃ©mie non mesurÃ©e â€” protocole dÃ©sactivÃ©"
+    if gl is None: return None,"Glycémie non mesurée — protocole désactivé"
     dg=min(round(GLUCOSE_DOSE_KG*poids,1),GLUCOSE_MAX_G); dm=round(dg/GLUCOSE_DOSE_KG,0)
-    return {"dose_g":dg,"vol":f"{dm:.0f}ml Glucose 30% IV lent 5min","ctrl":"GlycÃ©mie de contrÃ´le Ã  15 min","ref":"BCFI â€” Glucose 30% (Glucosie)"},None
+    return {"dose_g":dg,"vol":f"{dm:.0f}ml Glucose 30% IV lent 5min","ctrl":"Glycémie de contrôle à 15 min","ref":"BCFI — Glucose 30% (Glucosie)"},None
 
 def ceftriaxone(poids:float, age:float) -> tuple[Optional[dict], Optional[str]]:
     """
-    Ceftriaxone IV â€” AntibiothÃ©rapie d'urgence (purpura fulminans, mÃ©ningite).
+    Ceftriaxone IV — Antibiothérapie d'urgence (purpura fulminans, méningite).
 
     INDICATION URGENTE
-        Purpura fulminans suspectÃ© â†’ injection IMMÃ‰DIATE avant transfert,
-        mÃªme en prÃ©-hospitalier, avant hÃ©mocultures si impossibles rapidement.
-        Le pronostic vital dÃ©pend du dÃ©lai d'administration.
+        Purpura fulminans suspecté → injection IMMÉDIATE avant transfert,
+        même en pré-hospitalier, avant hémocultures si impossibles rapidement.
+        Le pronostic vital dépend du délai d'administration.
 
     DOSE
         Adulte       : 2 g IV (ou IM si voie veineuse impossible)
@@ -2543,76 +2421,76 @@ def ceftriaxone(poids:float, age:float) -> tuple[Optional[dict], Optional[str]]:
 
     ADMINISTRATION
         IV direct sur 3-5 minutes ou IM en injection profonde.
-        Peut Ãªtre reconstituÃ©e dans 10 ml d'eau PPI pour injection IV.
+        Peut être reconstituée dans 10 ml d'eau PPI pour injection IV.
 
     INDICATIONS
-        â€¢ Purpura fulminans (mÃ©ningococcÃ©mie) â€” urgence absolue
-        â€¢ MÃ©ningite bactÃ©rienne de l'adulte
-        â€¢ Sepsis communautaire sÃ©vÃ¨re (en complÃ©ment)
+        • Purpura fulminans (méningococcémie) — urgence absolue
+        • Méningite bactérienne de l'adulte
+        • Sepsis communautaire sévère (en complément)
 
     References
     ----------
-    BCFI â€” Ceftriaxone â€” RCP Belgique.
+    BCFI — Ceftriaxone — RCP Belgique.
     SPILF / SFP. Recommandations purpura fulminans. 2017.
     """
     dg=CEFRTRX_ADULTE_G if age>=18 else min(round(CEFRTRX_PED_KG*poids,1),CEFRTRX_ADULTE_G)
     n="Ne pas attendre le medecin si purpura" if age>=18 else f"100mg/kg = {dg*1000:.0f}mg"
-    return {"dose_g":dg,"admin":"IV 3-5min ou IM si VVP impossible","note":n,"ref":"BCFI â€” Ceftriaxone â€” SPILF 2017"},None
+    return {"dose_g":dg,"admin":"IV 3-5min ou IM si VVP impossible","note":n,"ref":"BCFI — Ceftriaxone — SPILF 2017"},None
 
 def litican(poids: float, age: float,
             atcd: list[str]) -> tuple[Optional[dict], Optional[str]]:
     """
-    Litican IM â€” Antispasmodique / AntinausÃ©eux (TiÃ©monium mÃ©thylsulfate).
+    Litican IM — Antispasmodique / Antinauséeux (Tiémonium méthylsulfate).
 
-    MÃ©dicament utilisÃ© en protocole local aux Urgences du Hainaut (Wallonie)
-    pour le traitement symptomatique des vomissements, des nausÃ©es et des
-    coliques spasmodiques (colique nÃ©phrÃ©tique, colique hÃ©patique, spasmes
+    Médicament utilisé en protocole local aux Urgences du Hainaut (Wallonie)
+    pour le traitement symptomatique des vomissements, des nausées et des
+    coliques spasmodiques (colique néphrétique, colique hépatique, spasmes
     digestifs).
 
     COMPOSITION
-        TiÃ©monium mÃ©thylsulfate 40 mg (antispasmodique anticholinergique)
-        â€” ampoule de 2 ml solution injectable.
-        âš ï¸ Ne pas confondre avec Litican comprimÃ©s (composition diffÃ©rente).
+        Tiémonium méthylsulfate 40 mg (antispasmodique anticholinergique)
+        — ampoule de 2 ml solution injectable.
+        ⚠️ Ne pas confondre avec Litican comprimés (composition différente).
 
-    MÃ‰CANISME D'ACTION
-        Antagoniste muscarinique M1/M3 â€” relÃ¢chement de la musculature
+    MÉCANISME D'ACTION
+        Antagoniste muscarinique M1/M3 — relâchement de la musculature
         lisse digestive, urologique et biliaire sans effet central notable
-        aux doses thÃ©rapeutiques.
+        aux doses thérapeutiques.
 
-    DOSE â€” ADULTE (â‰¥ 15 ans ou poids â‰¥ 15 kg)
+    DOSE — ADULTE (≥ 15 ans ou poids ≥ 15 kg)
         40 mg IM profond (1 ampoule de 2 ml)
-        Ã€ renouveler si besoin aprÃ¨s 4-6 h (maximum 3 Ã— 40 mg / 24 h)
+        À renouveler si besoin après 4-6 h (maximum 3 × 40 mg / 24 h)
 
-    DOSE â€” ENFANT (< 15 ans ou poids < 15 kg)
-        1 mg/kg IM â€” maximum 40 mg par injection
-        CalculÃ© automatiquement selon le poids saisi en sidebar.
+    DOSE — ENFANT (< 15 ans ou poids < 15 kg)
+        1 mg/kg IM — maximum 40 mg par injection
+        Calculé automatiquement selon le poids saisi en sidebar.
 
     VOIE D'ADMINISTRATION
-        Injection intramusculaire profonde dans le quadrant supÃ©ro-externe
-        fessier ou dans la face antÃ©ro-latÃ©rale de la cuisse (enfant).
-        âš ï¸ Ne pas administrer par voie IV (risque de bradycardie sÃ©vÃ¨re).
+        Injection intramusculaire profonde dans le quadrant supéro-externe
+        fessier ou dans la face antéro-latérale de la cuisse (enfant).
+        ⚠️ Ne pas administrer par voie IV (risque de bradycardie sévère).
 
     CONTRE-INDICATIONS
-        â€¢ Glaucome par fermeture de l'angle (CI absolue)
-        â€¢ RÃ©tention urinaire connue / adÃ©nome prostatique symptomatique
-        â€¢ IlÃ©us paralytique / occlusion intestinale (CI absolue)
-        â€¢ Tachycardie supra-ventriculaire â€” effet anticholinergique additif
-        â€¢ Grossesse au-delÃ  du 1er trimestre (donnÃ©es insuffisantes)
-        â€¢ Allaitement (donnÃ©es insuffisantes)
+        • Glaucome par fermeture de l'angle (CI absolue)
+        • Rétention urinaire connue / adénome prostatique symptomatique
+        • Iléus paralytique / occlusion intestinale (CI absolue)
+        • Tachycardie supra-ventriculaire — effet anticholinergique additif
+        • Grossesse au-delà du 1er trimestre (données insuffisantes)
+        • Allaitement (données insuffisantes)
 
-    PRÃ‰CAUTIONS
-        â€¢ Conduite automobile â€” effet sÃ©datif possible
-        â€¢ MyasthÃ©nie â€” potentialisation de la faiblesse musculaire
-        â€¢ Associer un antiÃ©mÃ©tique si nausÃ©es persistantes (MÃ©toclopramide IV)
+    PRÉCAUTIONS
+        • Conduite automobile — effet sédatif possible
+        • Myasthénie — potentialisation de la faiblesse musculaire
+        • Associer un antiémétique si nausées persistantes (Métoclopramide IV)
 
     Parameters
     ----------
     poids : float
-        Poids en kg (dÃ©termine le rÃ©gime posologique adulte vs enfant).
+        Poids en kg (détermine le régime posologique adulte vs enfant).
     age : float
-        Ã‚ge en annÃ©es (contrÃ´le les CI et la posologie pÃ©diatrique).
+        Âge en années (contrôle les CI et la posologie pédiatrique).
     atcd : list[str]
-        AntÃ©cÃ©dents â€” dÃ©tection des CI (glaucome, rÃ©tention urinaire).
+        Antécédents — détection des CI (glaucome, rétention urinaire).
 
     Returns
     -------
@@ -2621,47 +2499,47 @@ def litican(poids: float, age: float,
 
     References
     ----------
-    BCFI â€” TiÃ©monium mÃ©thylsulfate (Litican) â€” RCP Belgique.
+    BCFI — Tiémonium méthylsulfate (Litican) — RCP Belgique.
     Dapoigny M, et al. Anticholinergics in functional bowel disorders.
     Neurogastroenterol Motil. 2005.
-    Protocole local â€” Urgences Hainaut, Wallonie.
+    Protocole local — Urgences Hainaut, Wallonie.
     """
     if poids <= 0:
         return None, "Poids invalide"
 
-    # â”€â”€ DÃ©tection des contre-indications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Détection des contre-indications ─────────────────────────────────
     ci_detectees: list[str] = []
     if "Glaucome" in atcd or "Glaucome par fermeture de l'angle" in atcd:
         ci_detectees.append("Glaucome par fermeture de l'angle (CI absolue)")
     if "Adenome prostatique" in atcd or "Retention urinaire" in atcd:
-        ci_detectees.append("RÃ©tention urinaire / adÃ©nome prostatique (CI relative)")
+        ci_detectees.append("Rétention urinaire / adénome prostatique (CI relative)")
     if "Grossesse en cours" in atcd:
-        ci_detectees.append("Grossesse â€” donnÃ©es insuffisantes (prudence)")
+        ci_detectees.append("Grossesse — données insuffisantes (prudence)")
     if ci_detectees:
         return None, f"Contre-indication : {' | '.join(ci_detectees)}"
 
-    # â”€â”€ Calcul de dose â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Calcul de dose ────────────────────────────────────────────────────
     if poids >= LITICAN_POIDS_PIVOT_KG and age >= 15:
         # Adulte
         dose_mg   = LITICAN_DOSE_ADULTE_MG
         dose_note = "1 ampoule de 2 ml (40 mg/2 ml)"
-        regime    = "Adulte â‰¥ 15 ans"
+        regime    = "Adulte ≥ 15 ans"
     else:
-        # Enfant : 1 mg/kg IM â€” plafonnÃ© Ã  40 mg
+        # Enfant : 1 mg/kg IM — plafonné à 40 mg
         dose_mg   = min(round(LITICAN_DOSE_KG_ENF * poids, 1), LITICAN_DOSE_MAX_ENF_MG)
         dose_note = f"1 mg/kg = {dose_mg} mg pour {poids} kg"
-        regime    = f"PÃ©diatrique ({poids} kg)"
+        regime    = f"Pédiatrique ({poids} kg)"
 
     return {
         "dose_mg":    dose_mg,
         "dose_note":  dose_note,
         "regime":     regime,
-        "voie":       "IM profond â€” quadrant supÃ©ro-externe fessier ou cuisse",
-        "volume":     f"{dose_mg / 20:.1f} ml de solution Ã  20 mg/ml",
-        "freq":       f"Si besoin aprÃ¨s 4-6 h â€” max {LITICAN_DOSE_MAX_JOUR:.0f} mg/24 h",
+        "voie":       "IM profond — quadrant supéro-externe fessier ou cuisse",
+        "volume":     f"{dose_mg / 20:.1f} ml de solution à 20 mg/ml",
+        "freq":       f"Si besoin après 4-6 h — max {LITICAN_DOSE_MAX_JOUR:.0f} mg/24 h",
         "ci_list":    ci_detectees,
-        "attention":  "NE PAS INJECTER EN IV â€” bradycardie possible",
-        "ref":        "BCFI â€” TiÃ©monium mÃ©thylsulfate (Litican) â€” RCP Belgique â€” Protocole local Hainaut",
+        "attention":  "NE PAS INJECTER EN IV — bradycardie possible",
+        "ref":        "BCFI — Tiémonium méthylsulfate (Litican) — RCP Belgique — Protocole local Hainaut",
     }, None
 
 
@@ -2674,59 +2552,59 @@ def protocole_epilepsie_ped(
     gl: Optional[float] = None,
 ) -> dict:
     """
-    Protocole mÃ©dicamenteux â€” Crise Ã©pileptique pÃ©diatrique.
+    Protocole médicamenteux — Crise épileptique pédiatrique.
 
-    Algorithme sÃ©quentiel 4 lignes conforme SFNP / ISPE 2022 / EpiCARE 2023.
-    Doses calculÃ©es en mg/kg avec plafonds, dÃ©bits et volumes prÃ©cis.
+    Algorithme séquentiel 4 lignes conforme SFNP / ISPE 2022 / EpiCARE 2023.
+    Doses calculées en mg/kg avec plafonds, débits et volumes précis.
 
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    LIGNE 1 â€” BENZODIAZÃ‰PINE HORS VVP (IAO autonome â€” T0)
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    Midazolam buccal (BuccolamÂ®)         0,3 mg/kg â€” max 10 mg
-      â†’ Voie de 1er choix si enfant conscient â€” dÃ©pÃ´t gingivo-jugal
-    Midazolam IM / intranasale           0,2 mg/kg â€” max 10 mg
-      â†’ Si buccale impossible (crise sÃ©vÃ¨re, refus)
-      â†’ Intranasale : 0,5 ml/narine max â€” atomiseur MAD requis
-    DiazÃ©pam rectal (StesolidÂ®)          0,5 mg/kg â€” max 10 mg
-      â†’ Alternative en dernier recours hors VVP
+    ══════════════════════════════════════════════════════════════════
+    LIGNE 1 — BENZODIAZÉPINE HORS VVP (IAO autonome — T0)
+    ══════════════════════════════════════════════════════════════════
+    Midazolam buccal (Buccolam®)         0,3 mg/kg — max 10 mg
+      → Voie de 1er choix si enfant conscient — dépôt gingivo-jugal
+    Midazolam IM / intranasale           0,2 mg/kg — max 10 mg
+      → Si buccale impossible (crise sévère, refus)
+      → Intranasale : 0,5 ml/narine max — atomiseur MAD requis
+    Diazépam rectal (Stesolid®)          0,5 mg/kg — max 10 mg
+      → Alternative en dernier recours hors VVP
 
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    LIGNE 2 â€” BENZODIAZÃ‰PINE IV (mÃ©decin â€” T+5 min aprÃ¨s L1)
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    LorazÃ©pam IV (TemestaÂ®)              0,1 mg/kg â€” max 4 mg
-      â†’ RÃ©fÃ©rence internationale â€” moins de rebond qu'au DiazÃ©pam
-    ClonazÃ©pam IV (RivotrilÂ®)            0,02 mg/kg â€” max 1 mg
-      â†’ RÃ©fÃ©rence belge aux urgences pÃ©diatriques
-    DiazÃ©pam IV                          0,3 mg/kg â€” max 10 mg
+    ══════════════════════════════════════════════════════════════════
+    LIGNE 2 — BENZODIAZÉPINE IV (médecin — T+5 min après L1)
+    ══════════════════════════════════════════════════════════════════
+    Lorazépam IV (Temesta®)              0,1 mg/kg — max 4 mg
+      → Référence internationale — moins de rebond qu'au Diazépam
+    Clonazépam IV (Rivotril®)            0,02 mg/kg — max 1 mg
+      → Référence belge aux urgences pédiatriques
+    Diazépam IV                          0,3 mg/kg — max 10 mg
 
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    LIGNE 3 â€” ANTIÃ‰PILEPTIQUE IV (T+10 min â€” EME opÃ©rationnel)
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    LÃ©vÃ©tiracÃ©tam IV (KeppraÂ®)           60 mg/kg â€” max 4 500 mg
-      â†’ 1er choix â€” pas d'effet sÃ©datif â€” perfusion 15 min
-    Valproate IV (DÃ©pakineÂ®)             40 mg/kg â€” max 3 000 mg
-      â†’ 2e choix â€” CI : maladie mitochondriale, hÃ©patopathie
-      â†’ Perfusion â‰¥ 5 min (6 mg/kg/min max)
-    PhÃ©nobarbital IV                     20 mg/kg â€” max 1 000 mg
-      â†’ Vitesse MAX 1 mg/kg/min â€” monitoring ECG obligatoire
+    ══════════════════════════════════════════════════════════════════
+    LIGNE 3 — ANTIÉPILEPTIQUE IV (T+10 min — EME opérationnel)
+    ══════════════════════════════════════════════════════════════════
+    Lévétiracétam IV (Keppra®)           60 mg/kg — max 4 500 mg
+      → 1er choix — pas d'effet sédatif — perfusion 15 min
+    Valproate IV (Dépakine®)             40 mg/kg — max 3 000 mg
+      → 2e choix — CI : maladie mitochondriale, hépatopathie
+      → Perfusion ≥ 5 min (6 mg/kg/min max)
+    Phénobarbital IV                     20 mg/kg — max 1 000 mg
+      → Vitesse MAX 1 mg/kg/min — monitoring ECG obligatoire
 
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    ANTIDOTE BENZODIAZÃ‰PINES â€” FLUMAZÃ‰NIL
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    FlumazÃ©nil (AnexateÂ®)                0,01 mg/kg â€” max 0,2 mg
-      â†’ Si dÃ©pression respiratoire sÃ©vÃ¨re post-benzodiazÃ©pine
-      â†’ IV lent sur 15 s â€” demi-vie courte : surveiller resÃ©dation
+    ══════════════════════════════════════════════════════════════════
+    ANTIDOTE BENZODIAZÉPINES — FLUMAZÉNIL
+    ══════════════════════════════════════════════════════════════════
+    Flumazénil (Anexate®)                0,01 mg/kg — max 0,2 mg
+      → Si dépression respiratoire sévère post-benzodiazépine
+      → IV lent sur 15 s — demi-vie courte : surveiller resédation
 
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    SÃ‰CURITÃ‰S INTÃ‰GRÃ‰ES
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-      â€¢ GlycÃ©mie AVANT tout antiÃ©pileptique (hypoglycÃ©mie = cause curable)
-      â€¢ LibÃ©ration VAS + position latÃ©rale de sÃ©curitÃ© si inconscient
-      â€¢ O2 lunettes 2-4 l/min si SpO2 < 95 % â€” masque haute concentration
+    ══════════════════════════════════════════════════════════════════
+    SÉCURITÉS INTÉGRÉES
+    ══════════════════════════════════════════════════════════════════
+      • Glycémie AVANT tout antiépileptique (hypoglycémie = cause curable)
+      • Libération VAS + position latérale de sécurité si inconscient
+      • O2 lunettes 2-4 l/min si SpO2 < 95 % — masque haute concentration
         si SpO2 < 90 %
-      â€¢ TempÃ©rature â€” antipyrÃ©tique si fiÃ¨vre (ne pas entraver le diagnostic)
-      â€¢ Valproate CI formelle chez enfant < 2 ans avec retard dÃ©veloppement
-        (risque hÃ©patotoxicitÃ© fatale â€” suspicion maladie mÃ©tabolique)
+      • Température — antipyrétique si fièvre (ne pas entraver le diagnostic)
+      • Valproate CI formelle chez enfant < 2 ans avec retard développement
+        (risque hépatotoxicité fatale — suspicion maladie métabolique)
 
     References
     ----------
@@ -2737,41 +2615,41 @@ def protocole_epilepsie_ped(
     Appleton R, et al. Lorazepam vs diazepam in the acute treatment of
     epileptic seizures. Epilepsia. 2008;49(3):470-4.
     SFNP / EpiCARE. Protocole de prise en charge de l'EME de l'enfant. 2023.
-    BCFI â€” Midazolam / DiazÃ©pam / LorazÃ©pam / ClonazÃ©pam / LÃ©vÃ©tiracÃ©tam /
-    Valproate / PhÃ©nobarbital / FlumazÃ©nil â€” RCP Belgique.
+    BCFI — Midazolam / Diazépam / Lorazépam / Clonazépam / Lévétiracétam /
+    Valproate / Phénobarbital / Flumazénil — RCP Belgique.
     """
-    # â”€â”€ Alerte glycÃ©mie â€” cause curable â€” prioritaire sur tout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Alerte glycémie — cause curable — prioritaire sur tout ───────────
     glycemie_alerte = None
     if gl is None:
         glycemie_alerte = (
-            "GlycÃ©mie NON MESURÃ‰E â€” RÃ©aliser IMMÃ‰DIATEMENT "
-            "(hypoglycÃ©mie = cause curable de crise)"
+            "Glycémie NON MESURÉE — Réaliser IMMÉDIATEMENT "
+            "(hypoglycémie = cause curable de crise)"
         )
     elif gl < 54:
         glycemie_alerte = (
-            f"HYPOGLYCÃ‰MIE SÃ‰VÃˆRE {gl} mg/dl ({round(gl/18.016,1)} mmol/l) â€” "
-            "Glucose 30 % IV AVANT tout antiÃ©pileptique"
+            f"HYPOGLYCÉMIE SÉVÈRE {gl} mg/dl ({round(gl/18.016,1)} mmol/l) — "
+            "Glucose 30 % IV AVANT tout antiépileptique"
         )
 
-    # â”€â”€ BuccolamÂ® â€” volumes prÃ©dÃ©finis par tranche d'Ã¢ge (AMM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Buccolam® — volumes prédéfinis par tranche d'âge (AMM) ──────────
     if   age < 1:   buccolam_vol = "2,5 mg / 0,5 ml"
     elif age < 5:   buccolam_vol = "5 mg / 1 ml"
     elif age < 10:  buccolam_vol = "7,5 mg / 1,5 ml"
     else:           buccolam_vol = "10 mg / 2 ml"
 
-    # â”€â”€ LIGNE 1a â€” Midazolam buccal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── LIGNE 1a — Midazolam buccal ───────────────────────────────────────
     dose_midaz_bucc = min(round(MIDAZOLAM_BUCC_KG * poids, 1), MIDAZOLAM_BUCC_MAX_MG)
     ligne1a = {
-        "med":          "Midazolam buccal (BuccolamÂ®)",
+        "med":          "Midazolam buccal (Buccolam®)",
         "dose_mg":       dose_midaz_bucc,
         "volume":        buccolam_vol,
-        "admin":         "DÃ©poser entre la gencive et la joue â€” cÃ´tÃ© opposÃ© Ã  la rotation de tÃªte",
+        "admin":         "Déposer entre la gencive et la joue — côté opposé à la rotation de tête",
         "delai":         "Effet en 5-10 min",
-        "peut_repeter":  "1 seule dose â€” appel mÃ©decin si Ã©chec",
-        "ref":           "BCFI â€” Midazolam buccal (Buccolam) â€” RCP Belgique",
+        "peut_repeter":  "1 seule dose — appel médecin si échec",
+        "ref":           "BCFI — Midazolam buccal (Buccolam) — RCP Belgique",
     }
 
-    # â”€â”€ LIGNE 1b â€” Midazolam IM / intranasale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── LIGNE 1b — Midazolam IM / intranasale ─────────────────────────────
     dose_midaz_im = min(round(MIDAZOLAM_IM_IN_KG * poids, 1), MIDAZOLAM_IM_IN_MAX_MG)
     # Volume intranasale : utiliser solution 5 mg/ml (max 0,5 ml/narine)
     vol_in = round(dose_midaz_im / 5.0, 2)
@@ -2779,140 +2657,140 @@ def protocole_epilepsie_ped(
     ligne1b = {
         "med":      "Midazolam IM / Intranasale",
         "dose_mg":   dose_midaz_im,
-        "voie_im":   f"IM face antÃ©ro-latÃ©rale de cuisse â€” solution 5 mg/ml ({round(dose_midaz_im/5,1)} ml)",
+        "voie_im":   f"IM face antéro-latérale de cuisse — solution 5 mg/ml ({round(dose_midaz_im/5,1)} ml)",
         "voie_in":   (
-            f"IN : {vol_in} ml total â€” {vol_in_par_narine} ml / narine "
-            f"avec atomiseur MAD â€” solution 5 mg/ml"
+            f"IN : {vol_in} ml total — {vol_in_par_narine} ml / narine "
+            f"avec atomiseur MAD — solution 5 mg/ml"
         ),
-        "delai":     "Effet en 5-10 min â€” lÃ©gÃ¨rement plus lent que buccal",
-        "ref":       "BCFI â€” Midazolam (Dormicum) â€” Protocole IN off-label, usage local validÃ©",
+        "delai":     "Effet en 5-10 min — légèrement plus lent que buccal",
+        "ref":       "BCFI — Midazolam (Dormicum) — Protocole IN off-label, usage local validé",
     }
 
-    # â”€â”€ LIGNE 1c â€” DiazÃ©pam rectal (Stesolid) â€” dernier recours hors VVP â”€
+    # ── LIGNE 1c — Diazépam rectal (Stesolid) — dernier recours hors VVP ─
     dose_diaz_rect = min(round(DIAZEPAM_RECT_KG * poids, 1), DIAZEPAM_RECT_MAX_MG)
     ligne1c = {
-        "med":      "DiazÃ©pam rectal (StesolidÂ®) â€” Alternatif",
+        "med":      "Diazépam rectal (Stesolid®) — Alternatif",
         "dose_mg":   dose_diaz_rect,
-        "admin":     "Tube rectal prÃ©chauffÃ© dans la main â€” insertion douce, maintien 2 min",
+        "admin":     "Tube rectal préchauffé dans la main — insertion douce, maintien 2 min",
         "delai":     "Effet en 5-15 min",
-        "ref":       "BCFI â€” DiazÃ©pam rectal (Stesolid) â€” RCP Belgique",
+        "ref":       "BCFI — Diazépam rectal (Stesolid) — RCP Belgique",
     }
 
-    # â”€â”€ LIGNE 2 â€” BenzodiazÃ©pines IV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── LIGNE 2 — Benzodiazépines IV ─────────────────────────────────────
     dose_lora  = min(round(LORAZEPAM_IV_KG * poids, 2),  LORAZEPAM_IV_MAX_MG)
     dose_clona = min(round(CLONAZEPAM_IV_KG * poids, 3), CLONAZEPAM_IV_MAX_MG)
     dose_diaz_iv = min(round(DIAZEPAM_IV_KG * poids, 1), DIAZEPAM_IV_MAX_MG)
 
     ligne2_lora = {
-        "med":      "LorazÃ©pam IV (TemestaÂ®) â€” RÃ©fÃ©rence",
+        "med":      "Lorazépam IV (Temesta®) — Référence",
         "dose_mg":   dose_lora,
-        "admin":     f"{dose_lora} mg IV lent sur 2-3 min â€” rincer avec NaCl 0,9 %",
-        "delai":     "Effet en 2-5 min â€” durÃ©e d'action 4-6 h",
+        "admin":     f"{dose_lora} mg IV lent sur 2-3 min — rincer avec NaCl 0,9 %",
+        "delai":     "Effet en 2-5 min — durée d'action 4-6 h",
         "attention": "Surveiller SpO2 + FR en continu",
-        "ref":       "BCFI â€” LorazÃ©pam (Temesta) â€” RCP Belgique",
+        "ref":       "BCFI — Lorazépam (Temesta) — RCP Belgique",
     }
     ligne2_clona = {
-        "med":      "ClonazÃ©pam IV (RivotrilÂ®) â€” RÃ©fÃ©rence belge",
+        "med":      "Clonazépam IV (Rivotril®) — Référence belge",
         "dose_mg":   dose_clona,
-        "admin":     f"{dose_clona} mg dans 10 ml NaCl 0,9 % â€” IV lent 2-5 min",
+        "admin":     f"{dose_clona} mg dans 10 ml NaCl 0,9 % — IV lent 2-5 min",
         "delai":     "Effet en 1-3 min",
-        "ref":       "BCFI â€” ClonazÃ©pam (Rivotril) â€” RCP Belgique",
+        "ref":       "BCFI — Clonazépam (Rivotril) — RCP Belgique",
     }
     ligne2_diaz = {
-        "med":      "DiazÃ©pam IV (ValiumÂ®)",
+        "med":      "Diazépam IV (Valium®)",
         "dose_mg":   dose_diaz_iv,
-        "admin":     f"{dose_diaz_iv} mg IV lent â€” max 2 mg/min â€” risque rebond",
-        "ref":       "BCFI â€” DiazÃ©pam IV â€” RCP Belgique",
+        "admin":     f"{dose_diaz_iv} mg IV lent — max 2 mg/min — risque rebond",
+        "ref":       "BCFI — Diazépam IV — RCP Belgique",
     }
 
-    # â”€â”€ LIGNE 3 â€” AntiÃ©pileptiques IV (EME opÃ©rationnel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    # LÃ©vÃ©tiracÃ©tam
+    # ── LIGNE 3 — Antiépileptiques IV (EME opérationnel) ─────────────────
+    # Lévétiracétam
     dose_leveti   = min(round(LEVETI_IV_KG * poids, 0), LEVETI_IV_MAX_MG)
     vol_leveti    = round(dose_leveti / 100, 1)
     # Valproate
     dose_valp     = min(round(VALPROATE_IV_KG * poids, 0), VALPROATE_IV_MAX_MG)
     debit_valp_mg_min = round(VALPROATE_IV_KG * poids / VALPROATE_IV_DEBIT_MIN, 1)
-    ci_valp = ("CI formelle : enfant < 2 ans avec retard dÃ©veloppement "
-               "â€” maladie mÃ©tabolique suspectÃ©e") if age < 2 else ""
-    # PhÃ©nobarbital
+    ci_valp = ("CI formelle : enfant < 2 ans avec retard développement "
+               "— maladie métabolique suspectée") if age < 2 else ""
+    # Phénobarbital
     dose_phenob   = min(round(PHENOBARB_IV_KG * poids, 0), PHENOBARB_IV_MAX_MG)
     duree_phenob  = round(dose_phenob / (PHENOBARB_DEBIT_MG_KG_MIN * poids), 1)
 
     ligne3_leveti = {
-        "med":      "LÃ©vÃ©tiracÃ©tam IV (KeppraÂ®) â€” 1er choix",
+        "med":      "Lévétiracétam IV (Keppra®) — 1er choix",
         "dose_mg":   dose_leveti,
         "volume":    f"{vol_leveti} ml de solution 100 mg/ml",
-        "admin":     f"{dose_leveti:.0f} mg dans 100 ml NaCl 0,9 % â€” perfusion IV 15 min",
-        "avantage":  "Pas de sÃ©dation, pas d'interaction CYP450, monitoring minimal",
-        "ref":       "BCFI â€” LÃ©vÃ©tiracÃ©tam (Keppra) â€” RCP Belgique",
+        "admin":     f"{dose_leveti:.0f} mg dans 100 ml NaCl 0,9 % — perfusion IV 15 min",
+        "avantage":  "Pas de sédation, pas d'interaction CYP450, monitoring minimal",
+        "ref":       "BCFI — Lévétiracétam (Keppra) — RCP Belgique",
     }
     ligne3_valp = {
-        "med":       "Valproate IV (DÃ©pakineÂ®) â€” 2e choix",
+        "med":       "Valproate IV (Dépakine®) — 2e choix",
         "dose_mg":    dose_valp,
         "admin":     (
-            f"{dose_valp:.0f} mg dans 100 ml NaCl 0,9 % â€” perfusion IV â‰¥ {VALPROATE_IV_DEBIT_MIN:.0f} min "
-            f"(dÃ©bit max {debit_valp_mg_min:.0f} mg/min)"
+            f"{dose_valp:.0f} mg dans 100 ml NaCl 0,9 % — perfusion IV ≥ {VALPROATE_IV_DEBIT_MIN:.0f} min "
+            f"(débit max {debit_valp_mg_min:.0f} mg/min)"
         ),
         "ci":         ci_valp,
-        "ref":        "BCFI â€” Acide valproÃ¯que (DÃ©pakine IV) â€” RCP Belgique",
+        "ref":        "BCFI — Acide valproïque (Dépakine IV) — RCP Belgique",
     }
     ligne3_phenob = {
-        "med":       "PhÃ©nobarbital IV â€” 3e choix",
+        "med":       "Phénobarbital IV — 3e choix",
         "dose_mg":    dose_phenob,
         "admin":     (
-            f"{dose_phenob:.0f} mg IV lent â€” "
+            f"{dose_phenob:.0f} mg IV lent — "
             f"vitesse MAX {PHENOBARB_DEBIT_MG_KG_MIN} mg/kg/min "
-            f"â†’ durÃ©e min {duree_phenob} min"
+            f"→ durée min {duree_phenob} min"
         ),
-        "attention":  "Risque dÃ©pression respiratoire + hypotension â€” PrÃ©voir IOT",
+        "attention":  "Risque dépression respiratoire + hypotension — Prévoir IOT",
         "ecg":        "Monitoring ECG obligatoire pendant toute la perfusion",
-        "ref":        "BCFI â€” PhÃ©nobarbital IV â€” RCP Belgique",
+        "ref":        "BCFI — Phénobarbital IV — RCP Belgique",
     }
 
-    # â”€â”€ ANTIDOTE â€” FlumazÃ©nil â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── ANTIDOTE — Flumazénil ─────────────────────────────────────────────
     dose_fluma = min(round(FLUMAZENIL_DOSE_MG * poids, 3), FLUMAZENIL_MAX_MG)
     antidote = {
-        "med":       "FlumazÃ©nil (AnexateÂ®) â€” Antidote benzodiazÃ©pines",
-        "indication":"DÃ©pression respiratoire sÃ©vÃ¨re post-benzodiazÃ©pine",
+        "med":       "Flumazénil (Anexate®) — Antidote benzodiazépines",
+        "indication":"Dépression respiratoire sévère post-benzodiazépine",
         "dose_mg":    dose_fluma,
         "dose_total": FLUMAZENIL_MAX_TOTAL,
         "admin":     (
-            f"{dose_fluma} mg IV lent sur 15 s â€” "
-            f"rÃ©pÃ©table toutes les 60 s jusqu'Ã  max {FLUMAZENIL_MAX_TOTAL} mg"
+            f"{dose_fluma} mg IV lent sur 15 s — "
+            f"répétable toutes les 60 s jusqu'à max {FLUMAZENIL_MAX_TOTAL} mg"
         ),
-        "attention":  "Demi-vie courte (1 h) < benzodiazÃ©pines â€” surveiller resÃ©dation",
-        "ref":        "BCFI â€” FlumazÃ©nil (Anexate) â€” RCP Belgique",
+        "attention":  "Demi-vie courte (1 h) < benzodiazépines — surveiller resédation",
+        "ref":        "BCFI — Flumazénil (Anexate) — RCP Belgique",
     }
 
-    # â”€â”€ ChronomÃ¨tre clinique â€” alertes temporelles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Chronomètre clinique — alertes temporelles ────────────────────────
     chrono = {
-        "T0":     "ArrivÃ©e â€” Position LAS â€” VAS libres â€” O2 â€” GlycÃ©mie",
-        "T0_L1":  "IMMÃ‰DIAT si crise en cours â€” Midazolam buccal / IM",
-        "T5":     "Si crise persiste â†’ LIGNE 2 â€” LorazÃ©pam ou ClonazÃ©pam IV (mÃ©decin)",
-        "T10":    "Si crise persiste â†’ LIGNE 3 â€” LÃ©vÃ©tiracÃ©tam IV",
-        "T30":    "EME Ã©tabli â€” RÃ©animation pÃ©diatrique â€” Intubation Ã  discuter",
+        "T0":     "Arrivée — Position LAS — VAS libres — O2 — Glycémie",
+        "T0_L1":  "IMMÉDIAT si crise en cours — Midazolam buccal / IM",
+        "T5":     "Si crise persiste → LIGNE 2 — Lorazépam ou Clonazépam IV (médecin)",
+        "T10":    "Si crise persiste → LIGNE 3 — Lévétiracétam IV",
+        "T30":    "EME établi — Réanimation pédiatrique — Intubation à discuter",
     }
 
-    # â”€â”€ Score AVPU â€” Ã©valuation rapide de la conscience â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Score AVPU — évaluation rapide de la conscience ──────────────────
     avpu_guide = {
-        "A": "Alert â€” Yeux ouverts, rÃ©pond spontanÃ©ment â€” Normal",
-        "V": "Voice â€” RÃ©pond Ã  la voix seulement â€” AltÃ©ration lÃ©gÃ¨re",
-        "P": "Pain â€” RÃ©pond Ã  la douleur seulement â€” AltÃ©ration sÃ©vÃ¨re",
-        "U": "Unresponsive â€” Aucune rÃ©ponse â€” Coma",
+        "A": "Alert — Yeux ouverts, répond spontanément — Normal",
+        "V": "Voice — Répond à la voix seulement — Altération légère",
+        "P": "Pain — Répond à la douleur seulement — Altération sévère",
+        "U": "Unresponsive — Aucune réponse — Coma",
     }
 
-    # â”€â”€ Surveillance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Surveillance ──────────────────────────────────────────────────────
     surveillance = [
-        "Position latÃ©rale de sÃ©curitÃ© (PLS) si inconscient",
-        "LibÃ©ration des voies aÃ©riennes supÃ©rieures â€” aspiration si besoin",
-        "SpO2 en continu â€” O2 si < 95 % (lunettes) / < 90 % (masque HC)",
-        "FR toutes les 2 min post-benzodiazÃ©pine â€” alarme si < 12/min",
-        "FC et PA en continu aprÃ¨s ligne 2",
-        "AVPU toutes les 5 min â€” noter l'heure de reprise de conscience",
-        "GlycÃ©mie capillaire â€” rÃ©pÃ©ter si non faite",
-        "TempÃ©rature â€” antipyrÃ©tique si fiÃ¨vre (ne pas entraver le diagnostic)",
-        "VVP dÃ¨s que possible â€” prÃ©lÃ¨vements sanguins (NFS, CRP, ionogramme, NH3)",
-        f"APPEL MÃ‰DECIN SENIOR si crise persiste > {EME_SEUIL_MIN} min aprÃ¨s ligne 1",
+        "Position latérale de sécurité (PLS) si inconscient",
+        "Libération des voies aériennes supérieures — aspiration si besoin",
+        "SpO2 en continu — O2 si < 95 % (lunettes) / < 90 % (masque HC)",
+        "FR toutes les 2 min post-benzodiazépine — alarme si < 12/min",
+        "FC et PA en continu après ligne 2",
+        "AVPU toutes les 5 min — noter l'heure de reprise de conscience",
+        "Glycémie capillaire — répéter si non faite",
+        "Température — antipyrétique si fièvre (ne pas entraver le diagnostic)",
+        "VVP dès que possible — prélèvements sanguins (NFS, CRP, ionogramme, NH3)",
+        f"APPEL MÉDECIN SENIOR si crise persiste > {EME_SEUIL_MIN} min après ligne 1",
     ]
 
     return {
@@ -2931,79 +2809,79 @@ def protocole_epilepsie_ped(
         "avpu_guide":      avpu_guide,
         "surveillance":    surveillance,
         "ref": (
-            "SFNP / EpiCARE 2023 â€” ISPE 2022 â€” BCFI Belgique â€” "
-            "Protocole EME pÃ©diatrique â€” Urgences Hainaut"
+            "SFNP / EpiCARE 2023 — ISPE 2022 — BCFI Belgique — "
+            "Protocole EME pédiatrique — Urgences Hainaut"
         ),
     }
     """
-    Protocole mÃ©dicamenteux â€” Crise Ã©pileptique pÃ©diatrique.
+    Protocole médicamenteux — Crise épileptique pédiatrique.
 
-    Algorithme sÃ©quentiel en 3 lignes conforme aux recommandations de la
-    SociÃ©tÃ© FranÃ§aise de Neurologie PÃ©diatrique (SFNP) et du rÃ©seau
-    europÃ©en EpiCARE (2023). Les doses sont calculÃ©es en mg/kg avec
-    plafonds de sÃ©curitÃ© clinique.
+    Algorithme séquentiel en 3 lignes conforme aux recommandations de la
+    Société Française de Neurologie Pédiatrique (SFNP) et du réseau
+    européen EpiCARE (2023). Les doses sont calculées en mg/kg avec
+    plafonds de sécurité clinique.
 
-    SÃ‰QUENCE THÃ‰RAPEUTIQUE
+    SÉQUENCE THÉRAPEUTIQUE
 
-    â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-    â•‘  LIGNE 1 â€” BenzodiazÃ©pine hors VVP (IAO autonome)           â•‘
-    â•‘  DÃ©lai : dÃ¨s l'arrivÃ©e si crise en cours ou > 5 min         â•‘
-    â•‘                                                              â•‘
-    â•‘  Midazolam buccal (BuccolamÂ®)  0,3 mg/kg â€” max 10 mg        â•‘
-    â•‘    â†’ Voie de rÃ©fÃ©rence chez l'enfant conscient               â•‘
-    â•‘    â†’ Instiller entre la gencive et la joue cÃ´tÃ© opposÃ©       â•‘
-    â•‘       Ã  la tÃªte si elle tourne                               â•‘
-    â•‘                                                              â•‘
-    â•‘  OU DiazÃ©pam rectal (StesolidÂ®) 0,5 mg/kg â€” max 10 mg       â•‘
-    â•‘    â†’ Alternative si voie buccale impossible                  â•‘
-    â•‘    â†’ Tube rectal prÃ©chauffÃ© dans la main                     â•‘
-    â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  LIGNE 1 — Benzodiazépine hors VVP (IAO autonome)           ║
+    ║  Délai : dès l'arrivée si crise en cours ou > 5 min         ║
+    ║                                                              ║
+    ║  Midazolam buccal (Buccolam®)  0,3 mg/kg — max 10 mg        ║
+    ║    → Voie de référence chez l'enfant conscient               ║
+    ║    → Instiller entre la gencive et la joue côté opposé       ║
+    ║       à la tête si elle tourne                               ║
+    ║                                                              ║
+    ║  OU Diazépam rectal (Stesolid®) 0,5 mg/kg — max 10 mg       ║
+    ║    → Alternative si voie buccale impossible                  ║
+    ║    → Tube rectal préchauffé dans la main                     ║
+    ╚══════════════════════════════════════════════════════════════╝
 
-    â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-    â•‘  LIGNE 2 â€” BenzodiazÃ©pine IV (mÃ©decin / VVP posÃ©e)          â•‘
-    â•‘  DÃ©lai : si crise persiste 5 min aprÃ¨s ligne 1              â•‘
-    â•‘                                                              â•‘
-    â•‘  LorazÃ©pam IV (TemestaÂ®)  0,1 mg/kg â€” max 4 mg              â•‘
-    â•‘    â†’ RÃ©fÃ©rence internationale en urgence                     â•‘
-    â•‘    â†’ IV lent sur 2-3 min â€” surveillance FR + SpO2           â•‘
-    â•‘                                                              â•‘
-    â•‘  OU DiazÃ©pam IV  0,3 mg/kg â€” max 10 mg                      â•‘
-    â•‘  OU ClonazÃ©pam IV (RivotrilÂ®) 0,02 mg/kg â€” max 1 mg         â•‘
-    â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  LIGNE 2 — Benzodiazépine IV (médecin / VVP posée)          ║
+    ║  Délai : si crise persiste 5 min après ligne 1              ║
+    ║                                                              ║
+    ║  Lorazépam IV (Temesta®)  0,1 mg/kg — max 4 mg              ║
+    ║    → Référence internationale en urgence                     ║
+    ║    → IV lent sur 2-3 min — surveillance FR + SpO2           ║
+    ║                                                              ║
+    ║  OU Diazépam IV  0,3 mg/kg — max 10 mg                      ║
+    ║  OU Clonazépam IV (Rivotril®) 0,02 mg/kg — max 1 mg         ║
+    ╚══════════════════════════════════════════════════════════════╝
 
-    â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-    â•‘  LIGNE 3 â€” EME rÃ©fractaire (rÃ©animation pÃ©diatrique)         â•‘
-    â•‘  DÃ©lai : si crise persiste aprÃ¨s 2 doses de benzodiazÃ©pines  â•‘
-    â•‘                                                              â•‘
-    â•‘  LÃ©vÃ©tiracÃ©tam IV (KeppraÂ®)  60 mg/kg â€” max 4 500 mg        â•‘
-    â•‘    â†’ Perfusion IV sur 15 min dans NaCl 0,9 %                â•‘
-    â•‘    â†’ Premier choix hors contre-indication                    â•‘
-    â•‘                                                              â•‘
-    â•‘  OU PhÃ©nobarbital IV  20 mg/kg â€” max 1 000 mg               â•‘
-    â•‘    â†’ Perfusion IV lente (< 1 mg/kg/min) â€” monitoring ECG    â•‘
-    â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  LIGNE 3 — EME réfractaire (réanimation pédiatrique)         ║
+    ║  Délai : si crise persiste après 2 doses de benzodiazépines  ║
+    ║                                                              ║
+    ║  Lévétiracétam IV (Keppra®)  60 mg/kg — max 4 500 mg        ║
+    ║    → Perfusion IV sur 15 min dans NaCl 0,9 %                ║
+    ║    → Premier choix hors contre-indication                    ║
+    ║                                                              ║
+    ║  OU Phénobarbital IV  20 mg/kg — max 1 000 mg               ║
+    ║    → Perfusion IV lente (< 1 mg/kg/min) — monitoring ECG    ║
+    ╚══════════════════════════════════════════════════════════════╝
 
-    SÃ‰CURITÃ‰S INTÃ‰GRÃ‰ES
-        â€¢ HypoglycÃ©mie : vÃ©rifiÃ©e systÃ©matiquement (cause curable)
-          Si glycÃ©mie < 54 mg/dl â†’ Glucose 30 % AVANT les antiÃ©pileptiques
-        â€¢ Voie IV rÃ©servÃ©e ligne 2+ : ligne 1 accessible Ã  l'IAO sans VVP
-        â€¢ Surveillance obligatoire : SpO2, FR, FC, conscience en continu
-        â€¢ Antidote benzodiazÃ©pines : FlumazÃ©nil (si dÃ©pression respiratoire)
+    SÉCURITÉS INTÉGRÉES
+        • Hypoglycémie : vérifiée systématiquement (cause curable)
+          Si glycémie < 54 mg/dl → Glucose 30 % AVANT les antiépileptiques
+        • Voie IV réservée ligne 2+ : ligne 1 accessible à l'IAO sans VVP
+        • Surveillance obligatoire : SpO2, FR, FC, conscience en continu
+        • Antidote benzodiazépines : Flumazénil (si dépression respiratoire)
 
     Parameters
     ----------
     poids : float
         Poids en kg (calibration des doses).
     age : float
-        Ã‚ge en annÃ©es.
+        Âge en années.
     duree_min : float
-        DurÃ©e estimÃ©e de la crise en minutes.
+        Durée estimée de la crise en minutes.
     en_cours : bool
-        Vrai si la crise est toujours active Ã  l'arrivÃ©e.
+        Vrai si la crise est toujours active à l'arrivée.
     atcd : list[str]
-        AntÃ©cÃ©dents (dÃ©tection Ã©pilepsie connue, traitements en cours).
+        Antécédents (détection épilepsie connue, traitements en cours).
     gl : float, optional
-        GlycÃ©mie capillaire en mg/dl â€” contrÃ´le obligatoire.
+        Glycémie capillaire en mg/dl — contrôle obligatoire.
 
     Returns
     -------
@@ -3011,12 +2889,12 @@ def protocole_epilepsie_ped(
         {
           "glycemie_alerte": str ou None,
           "ligne1": dict (Midazolam buccal),
-          "ligne1b": dict (DiazÃ©pam rectal â€” alternative),
-          "ligne2": dict (LorazÃ©pam IV),
-          "ligne2b": dict (DiazÃ©pam IV),
-          "ligne2c": dict (ClonazÃ©pam IV),
-          "ligne3a": dict (LÃ©vÃ©tiracÃ©tam IV),
-          "ligne3b": dict (PhÃ©nobarbital IV),
+          "ligne1b": dict (Diazépam rectal — alternative),
+          "ligne2": dict (Lorazépam IV),
+          "ligne2b": dict (Diazépam IV),
+          "ligne2c": dict (Clonazépam IV),
+          "ligne3a": dict (Lévétiracétam IV),
+          "ligne3b": dict (Phénobarbital IV),
           "surveillance": list[str],
           "ref": str,
         }
@@ -3028,144 +2906,144 @@ def protocole_epilepsie_ped(
     Appleton R, et al. Lorazepam vs. diazepam in the acute treatment of
     epileptic seizures and reduces the need for further antiepileptic
     therapy. Epilepsia. 2008;49(3):470-4.
-    SFNP / EpiCARE. Protocole de prise en charge de l'Ã©tat de mal
-    Ã©pileptique de l'enfant. 2023.
-    BCFI â€” Midazolam buccal (Buccolam) / DiazÃ©pam (Stesolid) /
-    LorazÃ©pam (Temesta) / ClonazÃ©pam (Rivotril) / LÃ©vÃ©tiracÃ©tam (Keppra) /
-    PhÃ©nobarbital â€” RCP Belgique.
+    SFNP / EpiCARE. Protocole de prise en charge de l'état de mal
+    épileptique de l'enfant. 2023.
+    BCFI — Midazolam buccal (Buccolam) / Diazépam (Stesolid) /
+    Lorazépam (Temesta) / Clonazépam (Rivotril) / Lévétiracétam (Keppra) /
+    Phénobarbital — RCP Belgique.
     """
-    # â”€â”€ Alerte glycÃ©mie â€” cause curable prioritaire â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Alerte glycémie — cause curable prioritaire ───────────────────────
     glycemie_alerte = None
     if gl is None:
         glycemie_alerte = (
-            "GlycÃ©mie capillaire NON MESURÃ‰E â€” "
-            "Ã€ rÃ©aliser IMMÃ‰DIATEMENT (hypoglycÃ©mie = cause curable)"
+            "Glycémie capillaire NON MESURÉE — "
+            "À réaliser IMMÉDIATEMENT (hypoglycémie = cause curable)"
         )
     elif gl < 54:
         glycemie_alerte = (
-            f"HYPOGLYCÃ‰MIE SÃ‰VÃˆRE {gl} mg/dl â€” "
-            "Glucose 30 % IV AVANT tout antiÃ©pileptique"
+            f"HYPOGLYCÉMIE SÉVÈRE {gl} mg/dl — "
+            "Glucose 30 % IV AVANT tout antiépileptique"
         )
 
-    # â”€â”€ Ligne 1 â€” Midazolam buccal (Buccolam) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ligne 1 — Midazolam buccal (Buccolam) ────────────────────────────
     dose_midaz = min(
         round(MIDAZOLAM_BUCC_KG * poids, 1),
         MIDAZOLAM_BUCC_MAX_MG,
     )
-    # Volumes prÃ©dÃ©finis Buccolam selon tranche d'Ã¢ge / poids
+    # Volumes prédéfinis Buccolam selon tranche d'âge / poids
     if   age < 1:   buccolam_vol = "2,5 mg / 0,5 ml"
     elif age < 5:   buccolam_vol = "5 mg / 1 ml"
     elif age < 10:  buccolam_vol = "7,5 mg / 1,5 ml"
     else:           buccolam_vol = "10 mg / 2 ml"
 
     ligne1 = {
-        "med":    "Midazolam buccal (BuccolamÂ®)",
+        "med":    "Midazolam buccal (Buccolam®)",
         "dose_mg": dose_midaz,
         "volume":  buccolam_vol,
         "admin": (
-            "DÃ©poser entre la gencive et la joue â€” "
-            "cÃ´tÃ© opposÃ© Ã  la rotation de tÃªte si prÃ©sente"
+            "Déposer entre la gencive et la joue — "
+            "côté opposé à la rotation de tête si présente"
         ),
         "delai":  "Effet attendu en 5-10 min",
-        "peut_repeter": "1 seule dose â€” appeler le mÃ©decin si Ã©chec",
-        "ref":    "BCFI â€” Midazolam buccal (Buccolam) â€” RCP Belgique",
+        "peut_repeter": "1 seule dose — appeler le médecin si échec",
+        "ref":    "BCFI — Midazolam buccal (Buccolam) — RCP Belgique",
     }
 
-    # â”€â”€ Ligne 1b â€” DiazÃ©pam rectal (Stesolid) â€” alternative â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ligne 1b — Diazépam rectal (Stesolid) — alternative ──────────────
     dose_diaz_rect = min(
         round(DIAZEPAM_RECT_KG * poids, 1),
         DIAZEPAM_RECT_MAX_MG,
     )
     ligne1b = {
-        "med":     "DiazÃ©pam rectal (StesolidÂ®)",
+        "med":     "Diazépam rectal (Stesolid®)",
         "dose_mg":  dose_diaz_rect,
-        "admin":    "Tube rectal prÃ©chauffÃ© dans la main â€” insertion rectale douce",
+        "admin":    "Tube rectal préchauffé dans la main — insertion rectale douce",
         "delai":    "Effet attendu en 5-15 min",
-        "ref":      "BCFI â€” DiazÃ©pam rectal (Stesolid) â€” RCP Belgique",
+        "ref":      "BCFI — Diazépam rectal (Stesolid) — RCP Belgique",
     }
 
-    # â”€â”€ Ligne 2 â€” LorazÃ©pam IV (Temesta) â€” rÃ©fÃ©rence internationale â”€â”€â”€â”€â”€â”€
+    # ── Ligne 2 — Lorazépam IV (Temesta) — référence internationale ──────
     dose_lora = min(
         round(LORAZEPAM_IV_KG * poids, 2),
         LORAZEPAM_IV_MAX_MG,
     )
     ligne2 = {
-        "med":     "LorazÃ©pam IV (TemestaÂ®)",
+        "med":     "Lorazépam IV (Temesta®)",
         "dose_mg":  dose_lora,
-        "admin":    f"{dose_lora} mg IV lent sur 2-3 min â€” rincer avec NaCl 0,9 %",
+        "admin":    f"{dose_lora} mg IV lent sur 2-3 min — rincer avec NaCl 0,9 %",
         "delai":    "Effet attendu en 2-5 min",
         "attention":"Surveillance SpO2 + FR + conscience en continu",
-        "ref":      "BCFI â€” LorazÃ©pam (Temesta) â€” RCP Belgique",
+        "ref":      "BCFI — Lorazépam (Temesta) — RCP Belgique",
     }
 
-    # â”€â”€ Ligne 2b â€” DiazÃ©pam IV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ligne 2b — Diazépam IV ────────────────────────────────────────────
     dose_diaz_iv = min(
         round(DIAZEPAM_IV_KG * poids, 1),
         DIAZEPAM_IV_MAX_MG,
     )
     ligne2b = {
-        "med":     "DiazÃ©pam IV (ValiumÂ®)",
+        "med":     "Diazépam IV (Valium®)",
         "dose_mg":  dose_diaz_iv,
-        "admin":    f"{dose_diaz_iv} mg IV lent â€” max 2 mg/min",
-        "ref":      "BCFI â€” DiazÃ©pam IV â€” RCP Belgique",
+        "admin":    f"{dose_diaz_iv} mg IV lent — max 2 mg/min",
+        "ref":      "BCFI — Diazépam IV — RCP Belgique",
     }
 
-    # â”€â”€ Ligne 2c â€” ClonazÃ©pam IV (Rivotril) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ligne 2c — Clonazépam IV (Rivotril) ──────────────────────────────
     dose_clona = min(
         round(CLONAZEPAM_IV_KG * poids, 3),
         CLONAZEPAM_IV_MAX_MG,
     )
     ligne2c = {
-        "med":     "ClonazÃ©pam IV (RivotrilÂ®)",
+        "med":     "Clonazépam IV (Rivotril®)",
         "dose_mg":  dose_clona,
-        "admin":    f"{dose_clona} mg IV lent sur 2-5 min diluÃ© dans 10 ml NaCl 0,9 %",
-        "ref":      "BCFI â€” ClonazÃ©pam (Rivotril) â€” RCP Belgique",
+        "admin":    f"{dose_clona} mg IV lent sur 2-5 min dilué dans 10 ml NaCl 0,9 %",
+        "ref":      "BCFI — Clonazépam (Rivotril) — RCP Belgique",
     }
 
-    # â”€â”€ Ligne 3a â€” LÃ©vÃ©tiracÃ©tam IV (Keppra) â€” premier choix EME â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ligne 3a — Lévétiracétam IV (Keppra) — premier choix EME ─────────
     dose_leveti = min(
         round(LEVETI_IV_KG * poids, 0),
         LEVETI_IV_MAX_MG,
     )
     vol_leveti = round(dose_leveti / 100, 1)  # sol 100 mg/ml
     ligne3a = {
-        "med":      "LÃ©vÃ©tiracÃ©tam IV (KeppraÂ®)",
+        "med":      "Lévétiracétam IV (Keppra®)",
         "dose_mg":   dose_leveti,
-        "volume":    f"{vol_leveti} ml de solution Ã  100 mg/ml",
+        "volume":    f"{vol_leveti} ml de solution à 100 mg/ml",
         "admin":    (
-            f"{dose_leveti:.0f} mg diluÃ©s dans 100 ml NaCl 0,9 % â€” "
+            f"{dose_leveti:.0f} mg dilués dans 100 ml NaCl 0,9 % — "
             "perfusion IV sur 15 min"
         ),
-        "avantage": "Pas d'effet sÃ©datif, pas d'interaction CYP450, monitoring minimal",
-        "ref":       "BCFI â€” LÃ©vÃ©tiracÃ©tam (Keppra) â€” RCP Belgique",
+        "avantage": "Pas d'effet sédatif, pas d'interaction CYP450, monitoring minimal",
+        "ref":       "BCFI — Lévétiracétam (Keppra) — RCP Belgique",
     }
 
-    # â”€â”€ Ligne 3b â€” PhÃ©nobarbital IV â€” alternative â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ligne 3b — Phénobarbital IV — alternative ────────────────────────
     dose_phenob = min(
         round(PHENOBARB_IV_KG * poids, 0),
         PHENOBARB_IV_MAX_MG,
     )
     ligne3b = {
-        "med":     "PhÃ©nobarbital IV",
+        "med":     "Phénobarbital IV",
         "dose_mg":  dose_phenob,
         "admin":   (
-            f"{dose_phenob:.0f} mg IV lent â€” "
-            "vitesse MAX 1 mg/kg/min â€” monitoring ECG obligatoire"
+            f"{dose_phenob:.0f} mg IV lent — "
+            "vitesse MAX 1 mg/kg/min — monitoring ECG obligatoire"
         ),
-        "attention": "Risque dÃ©pression respiratoire + hypotension â€” IOT disponible",
-        "ref":       "BCFI â€” PhÃ©nobarbital IV â€” RCP Belgique",
+        "attention": "Risque dépression respiratoire + hypotension — IOT disponible",
+        "ref":       "BCFI — Phénobarbital IV — RCP Belgique",
     }
 
-    # â”€â”€ Surveillance obligatoire â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Surveillance obligatoire ──────────────────────────────────────────
     surveillance = [
-        "SpO2 en continu â€” Alarme < 92 %",
-        "FR toutes les 2 min aprÃ¨s injection de benzodiazÃ©pine",
-        "FC et PA en continu aprÃ¨s ligne 2",
-        "Conscience : Ã©valuation GCS toutes les 5 min",
-        "GlycÃ©mie capillaire â€” Ã  rÃ©pÃ©ter si non faite",
-        "TempÃ©rature â€” cause curable de la crise",
-        "Voie veineuse pÃ©riphÃ©rique dÃ¨s que possible",
-        "Appel mÃ©decin senior si crise persiste > 5 min aprÃ¨s ligne 1",
+        "SpO2 en continu — Alarme < 92 %",
+        "FR toutes les 2 min après injection de benzodiazépine",
+        "FC et PA en continu après ligne 2",
+        "Conscience : évaluation GCS toutes les 5 min",
+        "Glycémie capillaire — à répéter si non faite",
+        "Température — cause curable de la crise",
+        "Voie veineuse périphérique dès que possible",
+        "Appel médecin senior si crise persiste > 5 min après ligne 1",
     ]
 
     return {
@@ -3179,8 +3057,8 @@ def protocole_epilepsie_ped(
         "ligne3b":         ligne3b,
         "surveillance":    surveillance,
         "ref": (
-            "SFNP / EpiCARE 2023 â€” BCFI â€” Protocole EME pÃ©diatrique "
-            "â€” Urgences Hainaut, Belgique"
+            "SFNP / EpiCARE 2023 — BCFI — Protocole EME pédiatrique "
+            "— Urgences Hainaut, Belgique"
         ),
     }
 
@@ -3188,32 +3066,32 @@ def protocole_epilepsie_ped(
 def protocole_eva(eva:int, poids:float, age:float,
                   atcd:list[str], gl:Optional[float]=None) -> dict:
     """
-    Protocole antalgique paliers OMS adaptÃ© Ã  l'EVA.
+    Protocole antalgique paliers OMS adapté à l'EVA.
 
-    Construit automatiquement la liste des antalgiques recommandÃ©s en
-    fonction de l'intensitÃ© douloureuse rapportÃ©e par l'EVA (Ã‰chelle
-    Visuelle Analogique 0-10), avec dÃ©tection intÃ©grÃ©e des
+    Construit automatiquement la liste des antalgiques recommandés en
+    fonction de l'intensité douloureuse rapportée par l'EVA (Échelle
+    Visuelle Analogique 0-10), avec détection intégrée des
     contre-indications et interactions.
 
-    Ã‰CHELLE OMS ADAPTÃ‰E AUX URGENCES
+    ÉCHELLE OMS ADAPTÉE AUX URGENCES
 
         EVA 0-3   : Palier I seul
-                    â†’ ParacÃ©tamol IV (1 g ou 15 mg/kg)
+                    → Paracétamol IV (1 g ou 15 mg/kg)
 
         EVA 4-6   : Palier I + Palier II
-                    â†’ ParacÃ©tamol IV systÃ©matique (association)
-                    â†’ KÃ©torolac IV 30 mg (si pas de CI AINS)
-                    â†’ Tramadol IV 100 mg (si pas de CI opioÃ¯de faible)
+                    → Paracétamol IV systématique (association)
+                    → Kétorolac IV 30 mg (si pas de CI AINS)
+                    → Tramadol IV 100 mg (si pas de CI opioïde faible)
 
         EVA 7-10  : Palier I + Palier III
-                    â†’ ParacÃ©tamol IV systÃ©matique (association)
-                    â†’ Piritramide (Dipidolor) IV â€” titration 0,03-0,05 mg/kg
+                    → Paracétamol IV systématique (association)
+                    → Piritramide (Dipidolor) IV — titration 0,03-0,05 mg/kg
 
-    DÃ‰TECTIONS AUTOMATIQUES
-        â€¢ IMAO           â†’ exclusion Tramadol (syndrome sÃ©rotoninergique)
-        â€¢ Ã‰pilepsie      â†’ exclusion Tramadol (seuil Ã©pileptogÃ¨ne)
-        â€¢ ISRS/IRSNA    â†’ Tramadol dÃ©conseillÃ© (interaction majeure)
-        â€¢ CI AINS        â†’ exclusion KÃ©torolac
+    DÉTECTIONS AUTOMATIQUES
+        • IMAO           → exclusion Tramadol (syndrome sérotoninergique)
+        • Épilepsie      → exclusion Tramadol (seuil épileptogène)
+        • ISRS/IRSNA    → Tramadol déconseillé (interaction majeure)
+        • CI AINS        → exclusion Kétorolac
 
     Parameters
     ----------
@@ -3223,18 +3101,18 @@ def protocole_eva(eva:int, poids:float, age:float,
     age : float
     atcd : list[str]
     gl : float, optional
-        GlycÃ©mie (utilisÃ©e pour corrÃ©lation hypoglycÃ©mie-antalgie).
+        Glycémie (utilisée pour corrélation hypoglycémie-antalgie).
 
     Returns
     -------
     dict
-        {"als": alertes globales, "recs": liste des recommandations mÃ©dicamenteuses}
+        {"als": alertes globales, "recs": liste des recommandations médicamenteuses}
     """
     als=[]; recs=[]
     imao="IMAO (inhibiteurs MAO)" in atcd; isrs="Antidepresseurs ISRS/IRSNA" in atcd
     ci=ci_ains(atcd)
-    if imao: als.append("IMAO â€” Tramadol CONTRE-INDIQUE â€” Utiliser Paracetamol ou Dipidolor")
-    if isrs: als.append("ISRS/IRSNA â€” Tramadol deconseille â€” Preferer Dipidolor ou Morphine")
+    if imao: als.append("IMAO — Tramadol CONTRE-INDIQUE — Utiliser Paracetamol ou Dipidolor")
+    if isrs: als.append("ISRS/IRSNA — Tramadol deconseille — Preferer Dipidolor ou Morphine")
     r,_=paracetamol(poids)
     if r: recs.append({"p":"1","nom":"Paracetamol IV","dose":f"{r['dose_g']}g","d":r["vol"],"al":[],"ref":r["ref"]})
     if eva>=4:
@@ -3249,9 +3127,9 @@ def protocole_eva(eva:int, poids:float, age:float,
         if r4: recs.append({"p":"3","nom":"Piritramide (Dipidolor) IV","dose":f"{r4['dmin']}-{r4['dmax']}mg","d":r4["admin"],"al":[],"ref":r4["ref"]})
     return {"als":als,"recs":recs}
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # HELPERS UI
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 def H(s): st.markdown(s, unsafe_allow_html=True)
 
 def SEC(t): H(f'<div class="sec">{t}</div>')
@@ -3273,21 +3151,21 @@ def CARD_END(): H('</div>')
 
 def PURPURA(det):
     if det and det.get("purpura"):
-        H('<div class="purp"><div class="purp-title">PURPURA FULMINANS â€” TRI 1 IMMEDIAT</div>'
-          '<div class="purp-body">Ceftriaxone 2g IV (ou IM si VVP impossible) â€” NE PAS ATTENDRE LE BILAN.<br>'
-          'Appel medecin senior â€” Transfert dechocage immediat.</div></div>')
+        H('<div class="purp"><div class="purp-title">PURPURA FULMINANS — TRI 1 IMMEDIAT</div>'
+          '<div class="purp-body">Ceftriaxone 2g IV (ou IM si VVP impossible) — NE PAS ATTENDRE LE BILAN.<br>'
+          'Appel medecin senior — Transfert dechocage immediat.</div></div>')
 
 def N2_BANNER(n2):
     if n2>=9:
         H(f'<div class="purp" style="background:linear-gradient(135deg,#1A0A2E,#2D1B69);border-color:#7C3AED;">'
-          f'<div class="purp-title" style="color:#E879F9;">NEWS2 {n2} â€” ENGAGEMENT VITAL â€” APPEL IMMEDIAT</div>'
-          f'<div class="purp-body" style="color:#EDE9FE;">Transfert dechocage â€” Medecin sans delai.</div></div>')
-    elif n2>=7: AL(f"NEWS2 {n2}>=7 â€” Appel medical immediat","danger")
-    elif n2>=5: AL(f"NEWS2 {n2}>=5 â€” Reevaluation toutes les 30min","warning")
+          f'<div class="purp-title" style="color:#E879F9;">NEWS2 {n2} — ENGAGEMENT VITAL — APPEL IMMEDIAT</div>'
+          f'<div class="purp-body" style="color:#EDE9FE;">Transfert dechocage — Medecin sans delai.</div></div>')
+    elif n2>=7: AL(f"NEWS2 {n2}>=7 — Appel medical immediat","danger")
+    elif n2>=5: AL(f"NEWS2 {n2}>=5 — Reevaluation toutes les 30min","warning")
 
 def GAUGE(n2, bpco=False):
     lbl,css,pct=n2_meta(n2)
-    note=f'<div style="font-size:.62rem;opacity:.75;margin-top:4px;">Echelle 2 BPCO â€” Cible SpO2 88-92%</div>' if bpco else ""
+    note=f'<div style="font-size:.62rem;opacity:.75;margin-top:4px;">Echelle 2 BPCO — Cible SpO2 88-92%</div>' if bpco else ""
     H(f'<div class="n2-dash {css}">'
       f'<div style="font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.7;">SCORE NEWS2</div>'
       f'<div class="n2-big">{n2}</div>'
@@ -3313,10 +3191,10 @@ def VITAUX(fc,pas,spo2,fr,temp,gcs,bpco=False):
       f'<div class="vit {pas_n}"><div class="vit-k">PAS</div><div class="vit-v">{pas}</div><div class="vit-u">mmHg</div></div>'
       f'<div class="vit {sp_n}"><div class="vit-k">SpO2{"*" if bpco else ""}</div><div class="vit-v">{spo2}</div><div class="vit-u">%</div></div>'
       f'<div class="vit {fr_n}"><div class="vit-k">FR</div><div class="vit-v">{fr}</div><div class="vit-u">/min</div></div>'
-      f'<div class="vit {t_n}"><div class="vit-k">Temp</div><div class="vit-v">{temp}</div><div class="vit-u">Â°C</div></div>'
+      f'<div class="vit {t_n}"><div class="vit-k">Temp</div><div class="vit-v">{temp}</div><div class="vit-u">°C</div></div>'
       f'<div class="vit {g_n}"><div class="vit-k">GCS</div><div class="vit-v">{gcs}</div><div class="vit-u">/15</div></div>'
       f'</div>')
-    if bpco: AL("BPCO â€” Cible SpO2 : 88â€“92 % â€” Ã‰viter la normoxie (risque narcose COâ‚‚)","warning")
+    if bpco: AL("BPCO — Cible SpO2 : 88–92 % — Éviter la normoxie (risque narcose CO₂)","warning")
 
 def TRI_CARD_INLINE(niv,just,n2):
     css=TCSS.get(niv,"tri-5"); lbl=LABELS.get(niv,niv); sec_=SECTEURS.get(niv,""); d=DELAIS.get(niv,"?")
@@ -3346,85 +3224,85 @@ def RX(nom,dose,details,ref,palier="2",alertes=None):
     H(f'<div class="rx {pc}"><div class="rx-name">{nom}</div><div class="rx-dose">{dose}</div>'
       f'<div class="rx-detail">{dt}</div><div class="rx-ref">{ref}</div></div>')
 
-def RX_LOCK(msg="DonnÃ©e manquante : GlycÃ©mie requise â€” Protocoles dÃ©sactivÃ©s"):
-    H(f'<div class="rx-lock"><div class="rx-lock-icon"></div><strong>Protocole dÃ©sactivÃ©</strong><br>{msg}</div>')
+def RX_LOCK(msg="Donnée manquante : Glycémie requise — Protocoles désactivés"):
+    H(f'<div class="rx-lock"><div class="rx-lock-icon"></div><strong>Protocole désactivé</strong><br>{msg}</div>')
 
-def GLYC_WIDGET(key, label="GlycÃ©mie capillaire (mg/dl)", req=False):
+def GLYC_WIDGET(key, label="Glycémie capillaire (mg/dl)", req=False):
     """
-    Widget de saisie de glycÃ©mie avec garde-fou de sÃ©curitÃ© clinique.
+    Widget de saisie de glycémie avec garde-fou de sécurité clinique.
 
     GARDE-FOU CRITIQUE
         Si l'utilisateur ne saisit rien (valeur 0), retourne None. Cette
-        valeur None DÃ‰SACTIVE automatiquement les protocoles Glucose 30 %
-        dans l'onglet Pharmacie via RX_LOCK(). Cette rÃ¨gle empÃªche
+        valeur None DÉSACTIVE automatiquement les protocoles Glucose 30 %
+        dans l'onglet Pharmacie via RX_LOCK(). Cette règle empêche
         l'administration aveugle de glucose sans confirmation biologique.
 
     ALERTES AUTOMATIQUES
-        â€¢ < 54 mg/dl (3,0 mmol/l)  : HypoglycÃ©mie sÃ©vÃ¨re â€” Glucose 30 % IV
-        â€¢ < 70 mg/dl (3,9 mmol/l)  : HypoglycÃ©mie modÃ©rÃ©e â€” vigilance
+        • < 54 mg/dl (3,0 mmol/l)  : Hypoglycémie sévère — Glucose 30 % IV
+        • < 70 mg/dl (3,9 mmol/l)  : Hypoglycémie modérée — vigilance
 
     CONVERSION AUTOMATIQUE
-        Affichage simultanÃ© en mg/dl (unitÃ© belge) et mmol/l
-        (unitÃ© internationale SI).
+        Affichage simultané en mg/dl (unité belge) et mmol/l
+        (unité internationale SI).
 
     Parameters
     ----------
     key : str
-        ClÃ© Streamlit unique pour l'input.
+        Clé Streamlit unique pour l'input.
     label : str, optional
-        LibellÃ© personnalisÃ©.
+        Libellé personnalisé.
     req : bool, optional
         Si True, affiche un avertissement si la valeur est manquante.
 
     Returns
     -------
     float or None
-        GlycÃ©mie en mg/dl ou None si non saisie (safety gate).
+        Glycémie en mg/dl ou None si non saisie (safety gate).
     """
     v=st.number_input(label,0,1500,0,5,key=key)
     if v==0:
-        if req: AL("GlycÃ©mie non saisie â€” saisir la valeur pour activer les protocoles","warning")
-        else: st.caption("Saisir 0 si non rÃ©alisÃ©e")
+        if req: AL("Glycémie non saisie — saisir la valeur pour activer les protocoles","warning")
+        else: st.caption("Saisir 0 si non réalisée")
         return None
-    mm=mgdl_mmol(v); st.caption(f"â†’ {mm} mmol/l")
-    if v<GLYC["hs"]: AL(f"HYPOGLYCEMIE SEVERE {v}mg/dl ({mm}mmol/l) â€” Glucose 30% IV immÃ©diat","danger")
+    mm=mgdl_mmol(v); st.caption(f"→ {mm} mmol/l")
+    if v<GLYC["hs"]: AL(f"HYPOGLYCEMIE SEVERE {v}mg/dl ({mm}mmol/l) — Glucose 30% IV immédiat","danger")
     elif v<GLYC["hm"]: AL(f"Hypoglycemie moderee {v}mg/dl","warning")
     return float(v)
 
 def BPCO_WIDGET(pfx):
     """
-    Widget d'identification BPCO avec bascule d'Ã©chelle NEWS2.
+    Widget d'identification BPCO avec bascule d'échelle NEWS2.
 
-    Lorsque l'utilisateur coche Â« Patient BPCO connu Â», le moteur NEWS2
-    bascule automatiquement de l'Ã‰chelle 1 (cible â‰¥ 96 %) vers
-    l'Ã‰chelle 2 (cible 88-92 %) et gÃ©nÃ¨re une alerte de risque de
-    narcose au COâ‚‚ si SpO2 > 96 %.
+    Lorsque l'utilisateur coche « Patient BPCO connu », le moteur NEWS2
+    bascule automatiquement de l'Échelle 1 (cible ≥ 96 %) vers
+    l'Échelle 2 (cible 88-92 %) et génère une alerte de risque de
+    narcose au CO₂ si SpO2 > 96 %.
 
-    CRITÃˆRE ASSOCIÃ‰
-        L'item Â« s'exprime en phrases complÃ¨tes Â» est un marqueur
-        indirect de la sÃ©vÃ©ritÃ© de la dyspnÃ©e (incapacitÃ© Ã  terminer
-        une phrase = dyspnÃ©e sÃ©vÃ¨re).
+    CRITÈRE ASSOCIÉ
+        L'item « s'exprime en phrases complètes » est un marqueur
+        indirect de la sévérité de la dyspnée (incapacité à terminer
+        une phrase = dyspnée sévère).
 
     Returns
     -------
     tuple[bool, bool]
-        (flag BPCO, flag parole complÃ¨te).
+        (flag BPCO, flag parole complète).
     """
-    bp=st.checkbox("Patient BPCO connu ?",key=f"{pfx}_bp",help="Cible SpO2 88-92% â€” Echelle 2 NEWS2")
-    if bp: AL("BPCO â€” Cible SpO2 88-92% â€” Echelle 2 activee","warning")
-    pa=st.radio("S'exprime en phrases complÃ¨tes ?",[True,False],format_func=lambda x:"Oui â€” phrases complÃ¨tes" if x else "Non â€” mots isolÃ©s",horizontal=True,key=f"{pfx}_pa")
+    bp=st.checkbox("Patient BPCO connu ?",key=f"{pfx}_bp",help="Cible SpO2 88-92% — Echelle 2 NEWS2")
+    if bp: AL("BPCO — Cible SpO2 88-92% — Echelle 2 activee","warning")
+    pa=st.radio("S'exprime en phrases complètes ?",[True,False],format_func=lambda x:"Oui — phrases complètes" if x else "Non — mots isolés",horizontal=True,key=f"{pfx}_pa")
     return bp,pa
 
 def SI_WIDGET(fc,pas):
     sh=si(fc,pas); css="si-c" if sh>=1.0 else ("si-w" if sh>=0.8 else "si-ok")
-    lbl="CHOC PROBABLE" if sh>=1.0 else ("Surveillance rapprochÃ©e" if sh>=0.8 else "Normal")
+    lbl="CHOC PROBABLE" if sh>=1.0 else ("Surveillance rapprochée" if sh>=0.8 else "Normal")
     H(f'<div class="si-box"><div class="si-l">Shock Index</div><div class="si-v {css}">{sh}</div><div class="si-l">{lbl}</div></div>')
 
 def SBAR_RENDER(s):
     H(f'<div class="sbar">'
       # Header
-      f'<div class="sbar-hdr"><div class="sbar-hdr-title">RAPPORT SBAR â€” AKIR-IAO v18.0 Pro Edition</div>'
-      f'<div class="sbar-hdr-sub">OpÃ©rateur : {s["op"]} | {s["heure"]} | FRENCH SFMU V1.1 â€” Hainaut, Belgique</div></div>'
+      f'<div class="sbar-hdr"><div class="sbar-hdr-title">RAPPORT SBAR — AKIR-IAO v18.0 Pro Edition</div>'
+      f'<div class="sbar-hdr-sub">Opérateur : {s["op"]} | {s["heure"]} | FRENCH SFMU V1.1 — Hainaut, Belgique</div></div>'
       # S
       f'<div class="sbar-sec"><div class="sbar-sec-head"><div class="sbar-letter">S</div>'
       f'<div class="sbar-sec-title">Situation</div></div>'
@@ -3454,44 +3332,44 @@ def SBAR_RENDER(s):
       f'<div class="sbar-sec"><div class="sbar-sec-head"><div class="sbar-letter">R</div>'
       f'<div class="sbar-sec-title">Recommendation</div></div>'
       f'<div class="sbar-body">Orientation : <strong>{s["sec"]}</strong><br>'
-      f'Delai maximum : {s["delai"]} min<br>Remarques : [Ã€ complÃ©ter]</div></div>'
+      f'Delai maximum : {s["delai"]} min<br>Remarques : [À compléter]</div></div>'
       # Footer
-      f'<div class="sbar-ftr">Document d\'aide a la decision â€” Ne se substitue pas au jugement clinique du medecin responsable. '
-      f'AR 18/06/1990 modifie â€” Hainaut, Wallonie, Belgique.</div></div>')
+      f'<div class="sbar-ftr">Document d\'aide a la decision — Ne se substitue pas au jugement clinique du medecin responsable. '
+      f'AR 18/06/1990 modifie — Hainaut, Wallonie, Belgique.</div></div>')
 
 def DISC():
     H('<div class="disc">AKIR-IAO est un outil d\'aide a la decision clinique. Il ne remplace pas le jugement '
-      'du medecin responsable. Doses conformes au BCFI Belgique â€” validation medicale obligatoire avant administration. '
-      'RGPD : UUID anonyme â€” aucun identifiant nominal collectÃ© â€” stockage local uniquement.'
-      '<div class="disc-sig">AKIR-IAO v18.0 â€” Hospital Pro Edition â€” DÃ©veloppeur : Ismail Ibn-Daifa â€” FRENCH Triage SFMU V1.1 â€” Hainaut, Wallonie, Belgique</div></div>')
+      'du medecin responsable. Doses conformes au BCFI Belgique — validation medicale obligatoire avant administration. '
+      'RGPD : UUID anonyme — aucun identifiant nominal collecté — stockage local uniquement.'
+      '<div class="disc-sig">AKIR-IAO v18.0 — Hospital Pro Edition — Développeur : Ismail Ibn-Daifa — FRENCH Triage SFMU V1.1 — Hainaut, Wallonie, Belgique</div></div>')
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # PERSISTANCE & AUDIT LOG IMMUABLE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 #
-# ARCHITECTURE DE TRAÃ‡ABILITÃ‰
+# ARCHITECTURE DE TRAÇABILITÉ
 #
 # Trois fichiers distincts :
-#   akir_reg.json       â€” Registre des patients (anonyme, RGPD)
-#   akir_audit.log      â€” Journal d'audit immuable Ã  intÃ©gritÃ© hashÃ©e
-#   akir_errors.log     â€” Erreurs techniques (aucune donnÃ©e patient)
+#   akir_reg.json       — Registre des patients (anonyme, RGPD)
+#   akir_audit.log      — Journal d'audit immuable à intégrité hashée
+#   akir_errors.log     — Erreurs techniques (aucune donnée patient)
 #
-# INTÃ‰GRITÃ‰ DU JOURNAL D'AUDIT
-#   Chaque entrÃ©e d'audit contient le hash SHA-256 de son propre contenu
-#   combinÃ© avec le hash de l'entrÃ©e prÃ©cÃ©dente (chaÃ®ne de hashes).
-#   Toute modification a posteriori d'une entrÃ©e invalide la chaÃ®ne
-#   entiÃ¨re, ce qui est dÃ©tectable par audit_verifier_integrite().
-#   Ce mÃ©canisme rÃ©pond aux exigences de traÃ§abilitÃ© mÃ©dico-lÃ©gale
-#   (AR 18/06/1990 â€” Belgique) sans nÃ©cessiter de base de donnÃ©es.
+# INTÉGRITÉ DU JOURNAL D'AUDIT
+#   Chaque entrée d'audit contient le hash SHA-256 de son propre contenu
+#   combiné avec le hash de l'entrée précédente (chaîne de hashes).
+#   Toute modification a posteriori d'une entrée invalide la chaîne
+#   entière, ce qui est détectable par audit_verifier_integrite().
+#   Ce mécanisme répond aux exigences de traçabilité médico-légale
+#   (AR 18/06/1990 — Belgique) sans nécessiter de base de données.
 #
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 import hashlib
 
-RF  = "akir_reg.json"       # Registre patients â€” JSON â€” RGPD-compliant
-ALF = "akir_audit.log"      # Audit log â€” format texte hashÃ©
-EF  = "akir_errors.log"     # Erreurs techniques â€” aucune donnÃ©e patient
+RF  = "akir_reg.json"       # Registre patients — JSON — RGPD-compliant
+ALF = "akir_audit.log"      # Audit log — format texte hashé
+EF  = "akir_errors.log"     # Erreurs techniques — aucune donnée patient
 
-# Hash sentinel pour la premiÃ¨re entrÃ©e (pas de prÃ©cÃ©dent)
+# Hash sentinel pour la première entrée (pas de précédent)
 _HASH_GENESIS = "0" * 64
 
 
@@ -3509,7 +3387,7 @@ def _load(f: str) -> list:
 def _save(f: str, d: list) -> None:
     """
     Sauvegarde atomique en JSON.
-    Ã‰chec silencieux avec log d'erreur pour ne jamais interrompre l'UI.
+    Échec silencieux avec log d'erreur pour ne jamais interrompre l'UI.
     """
     try:
         with open(f, "w", encoding="utf-8") as fp:
@@ -3524,11 +3402,11 @@ def _save(f: str, d: list) -> None:
 
 def _hash_entree(contenu: str, hash_precedent: str) -> str:
     """
-    Calcule le hash SHA-256 d'une entrÃ©e d'audit enchaÃ®nÃ©e.
+    Calcule le hash SHA-256 d'une entrée d'audit enchaînée.
 
-    La chaÃ®ne hashÃ©e = contenu + hash_prÃ©cÃ©dent, ce qui rend chaque
-    entrÃ©e dÃ©pendante de toutes les entrÃ©es antÃ©rieures. Toute
-    modification d'une entrÃ©e passÃ©e invalide les hashs suivants.
+    La chaîne hashée = contenu + hash_précédent, ce qui rend chaque
+    entrée dépendante de toutes les entrées antérieures. Toute
+    modification d'une entrée passée invalide les hashs suivants.
     """
     payload = f"{contenu}|{hash_precedent}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -3546,41 +3424,41 @@ def audit_log(
     Chaque ligne d'audit est de la forme :
         TIMESTAMP | UID | ACTION | OPERATEUR | DETAILS | HASH
 
-    Le HASH est calculÃ© sur le contenu de cette ligne + le HASH de la
-    ligne prÃ©cÃ©dente. Cela forme une chaÃ®ne cryptographique oÃ¹ toute
-    altÃ©ration est dÃ©tectable.
+    Le HASH est calculé sur le contenu de cette ligne + le HASH de la
+    ligne précédente. Cela forme une chaîne cryptographique où toute
+    altération est détectable.
 
-    ACTIONS AUDITÃ‰ES
-        TRIAGE      â€” Calcul de niveau de triage
-        PHARMA      â€” Consultation protocole pharmacologique
-        EXPORT      â€” Export CSV du registre
-        SESSION     â€” Ouverture / fermeture de session
-        ALERTE      â€” Alerte clinique critique gÃ©nÃ©rÃ©e
+    ACTIONS AUDITÉES
+        TRIAGE      — Calcul de niveau de triage
+        PHARMA      — Consultation protocole pharmacologique
+        EXPORT      — Export CSV du registre
+        SESSION     — Ouverture / fermeture de session
+        ALERTE      — Alerte clinique critique générée
 
     Parameters
     ----------
     uid : str
-        UUID anonyme du patient (8 caractÃ¨res).
+        UUID anonyme du patient (8 caractères).
     action : str
-        Code d'action standardisÃ© (TRIAGE, PHARMA, EXPORT, etc.).
+        Code d'action standardisé (TRIAGE, PHARMA, EXPORT, etc.).
     operateur : str
-        Code opÃ©rateur anonyme (ex. IAO01).
+        Code opérateur anonyme (ex. IAO01).
     details : dict, optional
-        MÃ©tadonnÃ©es complÃ©mentaires (niveau, motif, score).
+        Métadonnées complémentaires (niveau, motif, score).
     """
     try:
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         det_str = json.dumps(details or {}, ensure_ascii=False, separators=(",", ":"))
         contenu = f"{ts}|{uid}|{action}|{operateur}|{det_str}"
 
-        # Lire le hash de la derniÃ¨re entrÃ©e pour enchaÃ®ner
+        # Lire le hash de la dernière entrée pour enchaîner
         hash_prev = _HASH_GENESIS
         if os.path.exists(ALF):
             try:
                 with open(ALF, "r", encoding="utf-8") as f:
                     lines = [l.strip() for l in f.readlines() if l.strip()]
                 if lines:
-                    # Le hash est le dernier champ de la derniÃ¨re ligne
+                    # Le hash est le dernier champ de la dernière ligne
                     hash_prev = lines[-1].rsplit("|", 1)[-1]
             except Exception:
                 hash_prev = _HASH_GENESIS
@@ -3601,19 +3479,19 @@ def audit_log(
 
 def audit_verifier_integrite() -> tuple[bool, str]:
     """
-    VÃ©rifie l'intÃ©gritÃ© cryptographique du journal d'audit.
+    Vérifie l'intégrité cryptographique du journal d'audit.
 
-    Recalcule la chaÃ®ne de hashes depuis le dÃ©but et compare chaque
-    entrÃ©e avec le hash stockÃ©. Retourne False dÃ¨s qu'une discordance
-    est dÃ©tectÃ©e, ce qui indique une modification a posteriori.
+    Recalcule la chaîne de hashes depuis le début et compare chaque
+    entrée avec le hash stocké. Retourne False dès qu'une discordance
+    est détectée, ce qui indique une modification a posteriori.
 
     Returns
     -------
     tuple[bool, str]
-        (intÃ©gritÃ©_ok, message_rapport)
+        (intégrité_ok, message_rapport)
     """
     if not os.path.exists(ALF):
-        return True, "Journal d'audit absent â€” aucune vÃ©rification possible."
+        return True, "Journal d'audit absent — aucune vérification possible."
     try:
         with open(ALF, "r", encoding="utf-8") as f:
             lines = [l.strip() for l in f.readlines() if l.strip()]
@@ -3624,47 +3502,47 @@ def audit_verifier_integrite() -> tuple[bool, str]:
         for i, ligne in enumerate(lines, 1):
             parts = ligne.rsplit("|", 1)
             if len(parts) != 2:
-                return False, f"Ligne {i} malformÃ©e â€” intÃ©gritÃ© compromise."
+                return False, f"Ligne {i} malformée — intégrité compromise."
             contenu, hash_stocke = parts[0], parts[1]
             hash_calcule = _hash_entree(contenu, hash_prev)
             if hash_calcule != hash_stocke:
                 return False, (
-                    f"IntÃ©gritÃ© violÃ©e Ã  la ligne {i} â€” "
-                    f"hash attendu {hash_calcule[:16]}â€¦ "
-                    f"obtenu {hash_stocke[:16]}â€¦"
+                    f"Intégrité violée à la ligne {i} — "
+                    f"hash attendu {hash_calcule[:16]}… "
+                    f"obtenu {hash_stocke[:16]}…"
                 )
             hash_prev = hash_stocke
 
-        return True, f"Journal d'audit intÃ¨gre â€” {len(lines)} entrÃ©es vÃ©rifiÃ©es."
+        return True, f"Journal d'audit intègre — {len(lines)} entrées vérifiées."
     except Exception as e:
-        return False, f"Erreur de vÃ©rification : {e}"
+        return False, f"Erreur de vérification : {e}"
 
 
 def enreg(d: dict) -> str:
     """
     Enregistrement d'un patient dans le registre anonyme local.
 
-    CONFORMITÃ‰ RGPD
-        â€¢ GÃ©nÃ¨re un UUID anonyme (8 caractÃ¨res hexadÃ©cimaux en majuscules)
-          pour identifier le patient sans aucune donnÃ©e nominative.
-        â€¢ Aucun champ nom/prÃ©nom/NISS/adresse n'est stockÃ©.
-        â€¢ Seuls les paramÃ¨tres cliniques sont conservÃ©s.
-        â€¢ Cap automatique Ã  REGISTRE_CAP entrÃ©es (rotation FIFO).
-        â€¢ Stockage local uniquement â€” aucune transmission Ã  un tiers.
+    CONFORMITÉ RGPD
+        • Génère un UUID anonyme (8 caractères hexadécimaux en majuscules)
+          pour identifier le patient sans aucune donnée nominative.
+        • Aucun champ nom/prénom/NISS/adresse n'est stocké.
+        • Seuls les paramètres cliniques sont conservés.
+        • Cap automatique à REGISTRE_CAP entrées (rotation FIFO).
+        • Stockage local uniquement — aucune transmission à un tiers.
 
     AUDIT
-        Chaque enregistrement gÃ©nÃ¨re une entrÃ©e dans le journal d'audit
-        immuable avec hash enchaÃ®nÃ©.
+        Chaque enregistrement génère une entrée dans le journal d'audit
+        immuable avec hash enchaîné.
 
     Parameters
     ----------
     d : dict
-        DonnÃ©es cliniques du patient (motif, catÃ©gorie, niveau, vitaux).
+        Données cliniques du patient (motif, catégorie, niveau, vitaux).
 
     Returns
     -------
     str
-        UUID anonyme de 8 caractÃ¨res affichÃ© Ã  l'IAO pour traÃ§abilitÃ©.
+        UUID anonyme de 8 caractères affiché à l'IAO pour traçabilité.
     """
     uid = str(uuid.uuid4())[:8].upper()
     r   = _load(RF)
@@ -3685,7 +3563,7 @@ def enreg(d: dict) -> str:
     })
     _save(RF, r[:REGISTRE_CAP])
 
-    # Audit log avec intÃ©gritÃ© hashÃ©e
+    # Audit log avec intégrité hashée
     audit_log(uid, "TRIAGE", d.get("op", "IAO"), {
         "motif": d.get("motif", ""),
         "niv":   d.get("niv",   ""),
@@ -3694,38 +3572,38 @@ def enreg(d: dict) -> str:
     return uid
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # SESSION STATE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 _DEF={"sid":lambda:str(uuid.uuid4())[:8].upper(),"op":"",
       "t_arr":None,"t_cont":None,"t_reev":None,
       "histo":[],"reevs":[],"uid_cur":None}
 for k,v in _DEF.items():
     if k not in st.session_state: st.session_state[k]=v() if callable(v) else v
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # EN-TETE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 H('<div class="app-hdr">'
-  '<div class="app-hdr-title">AKIR-IAO v18.0 â€” Pro Edition</div>'
-  '<div class="app-hdr-sub">Aide au Triage Infirmier â€” Urgences â€” Hainaut, Wallonie, Belgique</div>'
+  '<div class="app-hdr-title">AKIR-IAO v18.0 — Pro Edition</div>'
+  '<div class="app-hdr-sub">Aide au Triage Infirmier — Urgences — Hainaut, Wallonie, Belgique</div>'
   '<div class="app-hdr-tags">'
   '<span class="tag">FRENCH SFMU V1.1</span>'
   '<span class="tag">BCFI Belgique</span>'
   '<span class="tag">RGPD</span>'
-  '<span class="tag">DÃ©v. : Ismail Ibn-Daifa</span>'
+  '<span class="tag">Dév. : Ismail Ibn-Daifa</span>'
   '</div></div>')
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# SIDEBAR â€” PATIENT & SESSION
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR — PATIENT & SESSION
+# ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    SEC("OpÃ©rateur IAO")
-    op_in=st.text_input("Code opÃ©rateur",value=st.session_state.op,max_chars=10,placeholder="IAO01",
-                         help="Ne saisir ni nom ni prenom â€” RGPD")
+    SEC("Opérateur IAO")
+    op_in=st.text_input("Code opérateur",value=st.session_state.op,max_chars=10,placeholder="IAO01",
+                         help="Ne saisir ni nom ni prenom — RGPD")
     if op_in: st.session_state.op=op_in.upper()
 
-    SEC("ChronomÃ¨tre")
+    SEC("Chronomètre")
     sa,sb=st.columns(2)
     if sa.button("Arrivee",use_container_width=True):
         st.session_state.t_arr=datetime.now()
@@ -3740,62 +3618,62 @@ with st.sidebar:
           f'font-size:2.2rem;font-weight:700;color:{col};">{m:02d}:{s_:02d}</div>')
 
     SEC("Patient")
-    age=st.number_input("Ã‚ge (ans)",0,120,45,key="p_age")
+    age=st.number_input("Âge (ans)",0,120,45,key="p_age")
     if age==0:
-        am=st.number_input("Ã‚ge en mois",0,11,3,key="p_am")
+        am=st.number_input("Âge en mois",0,11,3,key="p_am")
         age=round(am/12.0,4)
-        AL(f"Nourrisson {am} mois â€” seuils pediatriques","info")
+        AL(f"Nourrisson {am} mois — seuils pediatriques","info")
     poids=st.number_input("Poids (kg)",1,250,70,key="p_kg")
-    atcd=st.multiselect("AntÃ©cÃ©dents pertinents",ATCD,key="p_atcd")
+    atcd=st.multiselect("Antécédents pertinents",ATCD,key="p_atcd")
     alg=st.text_input("Allergies",key="p_alg",placeholder="ex: Penicilline")
-    o2=st.checkbox("O2 supplÃ©mentaire",key="p_o2")
+    o2=st.checkbox("O2 supplémentaire",key="p_o2")
 
     SEC("Session RGPD")
     st.caption(f"Session : {st.session_state.sid}")
-    st.caption("UUID anonyme â€” aucun nom collectÃ©")
+    st.caption("UUID anonyme — aucun nom collecté")
     if st.button("Nouvelle session",use_container_width=True):
         for k,v in _DEF.items(): st.session_state[k]=v() if callable(v) else v
         st.rerun()
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# ONGLETS PRINCIPAUX â€” Mobile-first avec icones
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# ONGLETS PRINCIPAUX — Mobile-first avec icones
+# ══════════════════════════════════════════════════════════════════════════════
 T=st.tabs([
     "Tri Rapide",
     "Vitaux & GCS",
-    "AnamnÃ¨se",
+    "Anamnèse",
     "Triage",
     "Scores Cliniques",
     "Pharmacie",
-    "RÃ©Ã©valuation",
+    "Réévaluation",
     "Historique",
     "Transmission SBAR",
 ])
 t_rap,t_vit,t_ana,t_tri,t_sco,t_pha,t_rev,t_his,t_sbar=T
 
-# Variables partagees â€” initialisees avec valeurs physiologiques par dÃ©faut
+# Variables partagees — initialisees avec valeurs physiologiques par défaut
 temp=fr=fc=pas=spo2=gcs=news2=None
 motif=cat=""; details={}; eva=0; niv=just=crit=""; gl_global=None
 bpco_g=False
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 1 â€” TRI RAPIDE
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 1 — TRI RAPIDE
+# ──────────────────────────────────────────────────────────────────────────────
 with t_rap:
     CARD("Constantes vitales","")
     c1,c2,c3=st.columns(3)
-    temp=c1.number_input("TempÃ©rature (Â°C)",30.0,45.0,37.0,.1,key="r_t")
+    temp=c1.number_input("Température (°C)",30.0,45.0,37.0,.1,key="r_t")
     fc  =c2.number_input("FC (bpm)",20,220,80,key="r_fc")
     pas =c3.number_input("PAS (mmHg)",40,260,120,key="r_pas")
     c4,c5,c6=st.columns(3)
     spo2=c4.number_input("SpO2 (%)",50,100,98,key="r_sp")
     fr  =c5.number_input("FR (/min)",5,60,16,key="r_fr")
-    gcs =c6.number_input("GCS (3â€“15)",3,15,15,key="r_gcs")
+    gcs =c6.number_input("GCS (3–15)",3,15,15,key="r_gcs")
     CARD_END()
 
-    CARD("Motif & SÃ©curitÃ©","")
-    bpco_r=st.checkbox("Patient BPCO connu ?",key="r_bp",help="Active l'Ã‰chelle 2 NEWS2 â€” Cible SpO2 88â€“92 %")
-    if bpco_r: AL("BPCO â€” Cible SpO2 : 88â€“92 % â€” Ã‰chelle 2 NEWS2 activÃ©e","warning")
+    CARD("Motif & Sécurité","")
+    bpco_r=st.checkbox("Patient BPCO connu ?",key="r_bp",help="Active l'Échelle 2 NEWS2 — Cible SpO2 88–92 %")
+    if bpco_r: AL("BPCO — Cible SpO2 : 88–92 % — Échelle 2 NEWS2 activée","warning")
     news2,nw=calculer_news2(fr,spo2,o2,temp,pas,fc,gcs,bpco_r)
     for w in nw: AL(w,"warning")
     GAUGE(news2,bpco_r)
@@ -3803,10 +3681,10 @@ with t_rap:
     cat="Tri rapide"
     eva=int(st.select_slider("EVA",[str(i) for i in range(11)],value="0",key="r_eva"))
     details={"eva":eva,"atcd":atcd}
-    details["purpura"]=st.checkbox("Purpura non effaÃ§able (test du verre)",key="r_pur",
-        help="Purpura fulminans â€” Tri 1 absolu â€” CÃ©fotriaxone 2 g IV IMMÃ‰DIAT")
+    details["purpura"]=st.checkbox("Purpura non effaçable (test du verre)",key="r_pur",
+        help="Purpura fulminans — Tri 1 absolu — Céfotriaxone 2 g IV IMMÉDIAT")
     if details.get("purpura"): PURPURA(details)
-    gl_r=GLYC_WIDGET("r_gl","GlycÃ©mie capillaire (mg/dl)")
+    gl_r=GLYC_WIDGET("r_gl","Glycémie capillaire (mg/dl)")
     if gl_r: details["glycemie_mgdl"]=gl_r; gl_global=gl_r
     CARD_END()
 
@@ -3820,13 +3698,13 @@ with t_rap:
         for a in A: AL(a,"warning")
     VITAUX(fc,pas,spo2,fr,temp,gcs,bpco_r)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 2 â€” VITAUX & GCS
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 2 — VITAUX & GCS
+# ──────────────────────────────────────────────────────────────────────────────
 with t_vit:
-    CARD("ParamÃ¨tres vitaux","")
+    CARD("Paramètres vitaux","")
     v1,v2,v3=st.columns(3)
-    temp=v1.number_input("TempÃ©rature (Â°C)",30.0,45.0,37.0,.1,key="v_t")
+    temp=v1.number_input("Température (°C)",30.0,45.0,37.0,.1,key="v_t")
     fc  =v1.number_input("FC (bpm)",20,220,80,key="v_fc")
     pas =v2.number_input("PAS (mmHg)",40,260,120,key="v_pas")
     spo2=v2.number_input("SpO2 (%)",50,100,98,key="v_sp")
@@ -3835,9 +3713,9 @@ with t_vit:
 
     CARD("Glasgow Coma Scale","")
     g1,g2,g3=st.columns(3)
-    gy=g1.selectbox("Yeux (Y)",[4,3,2,1],format_func=lambda x:{4:"4 â€” SpontanÃ©e",3:"3 â€” Ã€ la demande",2:"2 â€” Ã€ la douleur",1:"1 â€” Aucune"}[x],key="v_gy")
-    gv=g2.selectbox("Verbale (V)",[5,4,3,2,1],format_func=lambda x:{5:"5 â€” OrientÃ©e",4:"4 â€” Confuse",3:"3 â€” Mots",2:"2 â€” Sons",1:"1 â€” Aucune"}[x],key="v_gv")
-    gm=g3.selectbox("Motrice (M)",[6,5,4,3,2,1],format_func=lambda x:{6:"6 â€” ObÃ©it aux ordres",5:"5 â€” Localise",4:"4 â€” Ã‰vitement",3:"3 â€” Flexion anormale",2:"2 â€” Extension",1:"1 â€” Aucune"}[x],key="v_gm")
+    gy=g1.selectbox("Yeux (Y)",[4,3,2,1],format_func=lambda x:{4:"4 — Spontanée",3:"3 — À la demande",2:"2 — À la douleur",1:"1 — Aucune"}[x],key="v_gy")
+    gv=g2.selectbox("Verbale (V)",[5,4,3,2,1],format_func=lambda x:{5:"5 — Orientée",4:"4 — Confuse",3:"3 — Mots",2:"2 — Sons",1:"1 — Aucune"}[x],key="v_gv")
+    gm=g3.selectbox("Motrice (M)",[6,5,4,3,2,1],format_func=lambda x:{6:"6 — Obéit aux ordres",5:"5 — Localise",4:"4 — Évitement",3:"3 — Flexion anormale",2:"2 — Extension",1:"1 — Aucune"}[x],key="v_gm")
     gcs,_=calculer_gcs(gy,gv,gm)
     st.metric("Score GCS",f"{gcs} / 15", delta=None)
     CARD_END()
@@ -3853,7 +3731,7 @@ with t_vit:
     with c1:
         sh=si(fc,pas); css="si-c" if sh>=1.0 else ("si-w" if sh>=0.8 else "si-ok")
         H(f'<div class="si-box"><div class="si-l">Shock Index</div><div class="si-v {css}">{sh}</div>'
-          f'<div class="si-l">{"CHOC PROBABLE" if sh>=1.0 else ("Surveillance rapprochÃ©e" if sh>=0.8 else "Normal")}</div></div>')
+          f'<div class="si-l">{"CHOC PROBABLE" if sh>=1.0 else ("Surveillance rapprochée" if sh>=0.8 else "Normal")}</div></div>')
     with c2:
         if age<18:
             sv,si_i,si_a=sipa(fc,age)
@@ -3862,32 +3740,32 @@ with t_vit:
               f'<div class="si-l" style="font-size:.6rem;">{si_i}</div></div>')
     DISC()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 3 â€” ANAMNESE
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 3 — ANAMNESE
+# ──────────────────────────────────────────────────────────────────────────────
 with t_ana:
     if temp is None: temp=37.0; fc=80; pas=120; spo2=98; fr=16; gcs=15
 
-    CARD("Ã‰valuation de la douleur","")
-    eva=int(st.select_slider("EVA (0=aucune â€” 10=maximale)",[str(i) for i in range(11)],value="0",key="a_eva"))
+    CARD("Évaluation de la douleur","")
+    eva=int(st.select_slider("EVA (0=aucune — 10=maximale)",[str(i) for i in range(11)],value="0",key="a_eva"))
     CARD_END()
 
     CARD("Motif de recours","")
-    cat=st.selectbox("CatÃ©gorie",list(MOTS_CAT.keys()),key="a_cat")
+    cat=st.selectbox("Catégorie",list(MOTS_CAT.keys()),key="a_cat")
     motif=st.selectbox("Motif principal",MOTS_CAT[cat],key="a_mot")
     CARD_END()
 
     CARD("Alerte transversale","")
     details={"eva":eva,"atcd":atcd}
-    details["purpura"]=st.checkbox("Purpura non effaÃ§able (test du verre â€” OBLIGATOIRE)",key="a_pur",
-        help="Purpura fulminans â€” Tri 1 absolu â€” CÃ©fotriaxone 2 g IV IMMÃ‰DIAT")
+    details["purpura"]=st.checkbox("Purpura non effaçable (test du verre — OBLIGATOIRE)",key="a_pur",
+        help="Purpura fulminans — Tri 1 absolu — Céfotriaxone 2 g IV IMMÉDIAT")
     if details.get("purpura"): PURPURA(details)
     CARD_END()
 
-    CARD("Questions discriminantes â€” FRENCH V1.1","")
+    CARD("Questions discriminantes — FRENCH V1.1","")
     if motif=="Douleur thoracique / SCA":
-        details["ecg"]=st.selectbox("ECG 12 dÃ©rivations",["Normal","Anormal typique SCA","Anormal non typique"])
-        details["douleur"]=st.selectbox("CaractÃ¨re de la douleur",["Atypique","Typique (constrictive, irradiante)","Coronaire probable"])
+        details["ecg"]=st.selectbox("ECG 12 dérivations",["Normal","Anormal typique SCA","Anormal non typique"])
+        details["douleur"]=st.selectbox("Caractère de la douleur",["Atypique","Typique (constrictive, irradiante)","Coronaire probable"])
         fx=st.columns(4)
         fv=[fx[0].checkbox("HTA",key="f_hta",value="HTA" in atcd),
             fx[1].checkbox("Diabete",key="f_dia"),
@@ -3896,76 +3774,76 @@ with t_ana:
         details["frcv"]=sum(fv)
     elif motif in("Dyspnee / insuffisance respiratoire","Dyspnee / insuffisance cardiaque"):
         bp,pa=BPCO_WIDGET("a_dysp"); details["bpco"]=bp; details["parole"]=pa
-        details["orth"]=st.checkbox("OrthopnÃ©e",key="a_orth")
+        details["orth"]=st.checkbox("Orthopnée",key="a_orth")
         details["tirage"]=st.checkbox("Tirage intercostal / sus-sternal",key="a_tir")
     elif motif=="AVC / Deficit neurologique":
-        details["delai"]=st.number_input("DÃ©lai depuis dÃ©but des symptÃ´mes (h)",0.0,72.0,2.0,.5,key="a_del")
-        details["def_prog"]=st.checkbox("DÃ©ficit neurologique progressif",key="a_dp")
+        details["delai"]=st.number_input("Délai depuis début des symptômes (h)",0.0,72.0,2.0,.5,key="a_del")
+        details["def_prog"]=st.checkbox("Déficit neurologique progressif",key="a_dp")
     elif motif=="Traumatisme cranien":
         details["aod"]=st.checkbox("Sous anticoagulants / AOD",key="a_aod",value="Anticoagulants/AOD" in atcd)
         details["pdc"]=st.checkbox("Perte de conscience initiale",key="a_pdc")
     elif motif=="Petechie / Purpura":
-        AL("TEST DU VERRE OBLIGATOIRE â€” taches non effacables = urgence absolue","warning")
-        details["neff"]=st.checkbox("NON effaÃ§able Ã  la pression du verre",key="a_neff")
-        details["etendu"]=st.checkbox("Purpura Ã©tendu (plusieurs rÃ©gions)",key="a_eten")
+        AL("TEST DU VERRE OBLIGATOIRE — taches non effacables = urgence absolue","warning")
+        details["neff"]=st.checkbox("NON effaçable à la pression du verre",key="a_neff")
+        details["etendu"]=st.checkbox("Purpura étendu (plusieurs régions)",key="a_eten")
         if details.get("neff"): PURPURA({"purpura":True})
     elif motif=="Fievre":
-        details["conf"]=st.checkbox("Confusion / altÃ©ration de l'Ã©tat mental",key="a_conf")
-        details["tol_mal"]=st.checkbox("Mauvaise tolÃ©rance clinique",key="a_tol")
+        details["conf"]=st.checkbox("Confusion / altération de l'état mental",key="a_conf")
+        details["tol_mal"]=st.checkbox("Mauvaise tolérance clinique",key="a_tol")
     elif motif in("Hypoglycemie","Alteration de conscience / Coma","Convulsions / EME"):
-        gla=GLYC_WIDGET("a_gl","GlycÃ©mie capillaire (mg/dl) â€” SYSTÃ‰MATIQUE")
+        gla=GLYC_WIDGET("a_gl","Glycémie capillaire (mg/dl) — SYSTÉMATIQUE")
         if gla: details["glycemie_mgdl"]=gla; gl_global=gla
     elif motif=="Pediatrie - Crise epileptique":
-        # GlycÃ©mie â€” cause curable prioritaire
-        gla_ep=GLYC_WIDGET("a_gl_ep","GlycÃ©mie capillaire (mg/dl) â€” SYSTÃ‰MATIQUE avant antiÃ©pileptique",req=True)
+        # Glycémie — cause curable prioritaire
+        gla_ep=GLYC_WIDGET("a_gl_ep","Glycémie capillaire (mg/dl) — SYSTÉMATIQUE avant antiépileptique",req=True)
         if gla_ep: details["glycemie_mgdl"]=gla_ep; gl_global=gla_ep
 
-        SEC("CaractÃ©risation de la crise")
+        SEC("Caractérisation de la crise")
         ec1,ec2=st.columns(2)
-        details["en_cours"]     = ec1.checkbox("Crise EN COURS Ã  l'arrivÃ©e",      key="ep_enc",
-            help="Ligne 1 immÃ©diate â€” Midazolam buccal")
-        details["duree_min"]    = ec2.number_input("DurÃ©e estimÃ©e (min)",          0,120,0,  key="ep_dur",
-            help="â‰¥ 5 min = traitement actif | â‰¥ 30 min = EME Ã©tabli")
+        details["en_cours"]     = ec1.checkbox("Crise EN COURS à l'arrivée",      key="ep_enc",
+            help="Ligne 1 immédiate — Midazolam buccal")
+        details["duree_min"]    = ec2.number_input("Durée estimée (min)",          0,120,0,  key="ep_dur",
+            help="≥ 5 min = traitement actif | ≥ 30 min = EME établi")
         details["eme_etabli"]   = st.checkbox(
-            f"EME Ã©tabli (> {EME_ETABLI_MIN} min ou 2 crises sans reprise de conscience)",
+            f"EME établi (> {EME_ETABLI_MIN} min ou 2 crises sans reprise de conscience)",
             key="ep_eme")
         if details.get("eme_etabli"):
-            AL("EME Ã‰TABLI â€” Appel mÃ©decin senior IMMÃ‰DIAT â€” RÃ©animation pÃ©diatrique","danger")
+            AL("EME ÉTABLI — Appel médecin senior IMMÉDIAT — Réanimation pédiatrique","danger")
 
         SEC("Type de crise")
         t1,t2,t3=st.columns(3)
-        details["febrile"]      = t1.checkbox("Crise fÃ©brile",         key="ep_feb")
+        details["febrile"]      = t1.checkbox("Crise fébrile",         key="ep_feb")
         details["focale"]       = t2.checkbox("Focale (partielle)",    key="ep_foc",
-            help="Crise fÃ©brile complexe si focale")
-        details["repetee_24h"]  = t3.checkbox("RÃ©pÃ©tÃ©e en 24 h",      key="ep_rep",
-            help="Crise fÃ©brile complexe si rÃ©pÃ©tÃ©e")
+            help="Crise fébrile complexe si focale")
+        details["repetee_24h"]  = t3.checkbox("Répétée en 24 h",      key="ep_rep",
+            help="Crise fébrile complexe si répétée")
         t4,t5=st.columns(2)
-        details["premiere_crise"]= t4.checkbox("1Ã¨re crise de la vie", key="ep_1re",
-            help="Bilan Ã©tiologique urgent â€” Tri 2 systÃ©matique")
+        details["premiere_crise"]= t4.checkbox("1ère crise de la vie", key="ep_1re",
+            help="Bilan étiologique urgent — Tri 2 systématique")
         details["habituelle"]   = t5.checkbox("Crise habituelle connue",key="ep_hab",
-            help="Patient Ã©pileptique â€” comparer Ã  la sÃ©miologie habituelle")
+            help="Patient épileptique — comparer à la sémiologie habituelle")
 
-        SEC("Signes associÃ©s")
+        SEC("Signes associés")
         s1,s2,s3=st.columns(3)
-        details["signes_meninges"] = s1.checkbox("Signes mÃ©ningÃ©s",    key="ep_men",
-            help="MÃ©ningite / EncÃ©phalite â†’ Tri 1")
-        details["tc_associe"]      = s2.checkbox("Traumatisme crÃ¢nien",key="ep_tc",
-            help="Imagerie urgente â†’ Tri 1")
-        details["conscience_incomplete"]=s3.checkbox("Conscience incomplÃ¨te", key="ep_ci",
-            help="Phase post-critique prolongÃ©e â†’ Tri 2")
+        details["signes_meninges"] = s1.checkbox("Signes méningés",    key="ep_men",
+            help="Méningite / Encéphalite → Tri 1")
+        details["tc_associe"]      = s2.checkbox("Traumatisme crânien",key="ep_tc",
+            help="Imagerie urgente → Tri 1")
+        details["conscience_incomplete"]=s3.checkbox("Conscience incomplète", key="ep_ci",
+            help="Phase post-critique prolongée → Tri 2")
         s4,s5=st.columns(2)
-        details["recuperee"]    = s4.checkbox("RÃ©cupÃ©ration complÃ¨te", key="ep_rec")
-        details["plan_urgence"] = s5.checkbox("Plan d'urgence familial documentÃ©", key="ep_plu")
+        details["recuperee"]    = s4.checkbox("Récupération complète", key="ep_rec")
+        details["plan_urgence"] = s5.checkbox("Plan d'urgence familial documenté", key="ep_plu")
         details["atcd"]         = atcd  # passe les ATCD au handler
     elif motif=="Hyperglycemie / Cetoacidose":
-        gla2=GLYC_WIDGET("a_gl2","GlycÃ©mie capillaire (mg/dl)")
+        gla2=GLYC_WIDGET("a_gl2","Glycémie capillaire (mg/dl)")
         if gla2: details["glycemie_mgdl"]=gla2; gl_global=gla2
-        details["ceto"]=st.checkbox("CÃ©tose Ã©levÃ©e / acidocÃ©tose confirmÃ©e",key="a_ceto")
+        details["ceto"]=st.checkbox("Cétose élevée / acidocétose confirmée",key="a_ceto")
     CARD_END()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 4 â€” TRIAGE
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 4 — TRIAGE
+# ──────────────────────────────────────────────────────────────────────────────
 with t_tri:
     if temp is None: temp=37.0; fc=80; pas=120; spo2=98; fr=16; gcs=15
     if not motif: motif="Fievre"; cat="Infectiologie"
@@ -3976,7 +3854,7 @@ with t_tri:
 
     # Glycemie si non saisie
     if not details.get("glycemie_mgdl") and not gl_global:
-        glt=GLYC_WIDGET("t_gl","GlycÃ©mie capillaire (mg/dl)")
+        glt=GLYC_WIDGET("t_gl","Glycémie capillaire (mg/dl)")
         if glt: details["glycemie_mgdl"]=glt; gl_global=glt
     gl_t=details.get("glycemie_mgdl") or gl_global
 
@@ -3986,17 +3864,17 @@ with t_tri:
 
     if st.session_state.t_reev:
         mn=(datetime.now()-st.session_state.t_reev).total_seconds()/60
-        if mn>DELAIS.get(niv,60): AL(f"Reevaluation en retard : {int(mn)} min â€” max {DELAIS[niv]} min","danger")
+        if mn>DELAIS.get(niv,60): AL(f"Reevaluation en retard : {int(mn)} min — max {DELAIS[niv]} min","danger")
 
     GAUGE(news2,bpco_t)
     TRI_CARD_INLINE(niv,just,news2)
-    st.caption(f"CritÃ¨re : {crit}")
+    st.caption(f"Critère : {crit}")
 
     c1,c2=st.columns(2)
     with c1: SI_WIDGET(fc,pas)
     with c2:
         sh=si(fc,pas)
-        if sh>=1.0: AL(f"Shock Index {sh} â€” Choc probable","danger")
+        if sh>=1.0: AL(f"Shock Index {sh} — Choc probable","danger")
 
     D,A=verifier_coherence(fc,pas,spo2,fr,gcs,temp,details.get("eva",0),motif,atcd,details,news2,gl_t)
     for d in D: AL(d,"danger")
@@ -4005,7 +3883,7 @@ with t_tri:
     if st.session_state.t_arr and st.session_state.t_cont:
         ds=(st.session_state.t_cont-st.session_state.t_arr).total_seconds()
         cm=10 if niv in("M","1","2") else 30
-        AL(f"Delai IAO : {int(ds/60)} min â€” cible {cm} min â€” {'DEPASSE' if ds/60>=cm else 'Dans les delais'}",
+        AL(f"Delai IAO : {int(ds/60)} min — cible {cm} min — {'DEPASSE' if ds/60>=cm else 'Dans les delais'}",
            "danger" if ds/60>=cm else "success")
 
     if st.button("Enregistrer ce patient",type="primary",use_container_width=True):
@@ -4015,16 +3893,16 @@ with t_tri:
         st.session_state.t_reev=datetime.now()
         st.session_state.histo.insert(0,{"uid":uid,"h":datetime.now().strftime("%H:%M"),
                                           "motif":motif,"niv":niv,"n2":news2})
-        st.success(f"Patient enregistre â€” UID : {uid}")
+        st.success(f"Patient enregistre — UID : {uid}")
 
     TRI_BANNER_FIXED(niv,just,news2)
     DISC()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 5 â€” SCORES CLINIQUES
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 5 — SCORES CLINIQUES
+# ──────────────────────────────────────────────────────────────────────────────
 with t_sco:
-    CARD("qSOFA â€” Detection sepsis rapide","")
+    CARD("qSOFA — Detection sepsis rapide","")
     qs,qp,qw=calculer_qsofa(fr or 16,gcs or 15,pas or 120)
     for w in qw: AL(w,"warning")
     c1,c2=st.columns(2)
@@ -4037,7 +3915,7 @@ with t_sco:
         if not qp: AL("Aucun critere positif","success")
     CARD_END()
 
-    CARD("FAST â€” Detection AVC","")
+    CARD("FAST — Detection AVC","")
     f1,f2,f3,f4=st.columns(4)
     ff=f1.checkbox("Face",key="sf"); fa=f2.checkbox("Bras",key="sa")
     fs=f3.checkbox("Langage",key="ss"); ft=f4.checkbox("Debut brutal",key="st2")
@@ -4045,43 +3923,43 @@ with t_sco:
     AL(fi,"danger" if fal else ("warning" if fsc>=1 else "success"))
     CARD_END()
 
-    CARD("TIMI â€” Risque SCA sans sus-decalage","")
+    CARD("TIMI — Risque SCA sans sus-decalage","")
     ti1,ti2=st.columns(2)
     ta=ti1.checkbox("Age >=65 ans",key="ti_a",value=age>=65)
     tf=ti1.checkbox(">=3 FRCV",key="ti_f"); tstT=ti1.checkbox("Stenose >=50%",key="ti_s")
     taspi=ti2.checkbox("Aspirine 7j",key="ti_asp"); ttr=ti2.checkbox("Troponine+",key="ti_tr")
     tdst=ti2.checkbox("Deviation ST",key="ti_d"); tcris=ti2.checkbox(">=2 crises/24h",key="ti_c")
     tsc,_=calculer_timi(age,int(tf)*3,tstT,taspi,ttr,tdst,int(tcris)*2)
-    ti_lbl="Risque Ã©levÃ©" if tsc>=5 else ("IntermÃ©diaire" if tsc>=3 else "Faible")
+    ti_lbl="Risque élevé" if tsc>=5 else ("Intermédiaire" if tsc>=3 else "Faible")
     ti_css="si-c" if tsc>=5 else ("si-w" if tsc>=3 else "si-ok")
     H(f'<div class="si-box"><div class="si-l">Score TIMI</div><div class="si-v {ti_css}">{tsc}/7</div>'
       f'<div class="si-l">{ti_lbl}</div></div>')
     CARD_END()
 
-    CARD("Algoplus â€” Douleur patient age non communicant","")
+    CARD("Algoplus — Douleur patient age non communicant","")
     al1,al2,al3,al4,al5=st.columns(5)
     av=al1.checkbox("Visage",key="ag_v"); ar=al2.checkbox("Regard",key="ag_r")
     ap=al3.checkbox("Plaintes",key="ag_p"); aac=al4.checkbox("Corps",key="ag_ac")
     aco=al5.checkbox("Comportement",key="ag_co")
     asc,ai,acss,_=calculer_algoplus(av,ar,ap,aac,aco)
-    AL(f"Algoplus {asc}/5 â€” {ai}",acss)
+    AL(f"Algoplus {asc}/5 — {ai}",acss)
     CARD_END()
 
     CARD("Clinical Frailty Scale","")
     cfs_v=st.slider("Score CFS (1-9)",1,9,3,key="cfs")
     st.caption(CFS_LBL.get(cfs_v,""))
     cfl,cfc,cfr=evaluer_cfs(cfs_v)
-    AL(f"CFS {cfs_v} â€” {cfl}",cfc)
-    if cfr: AL("CFS >=5 â€” Envisager remontee du niveau de triage","warning")
+    AL(f"CFS {cfs_v} — {cfl}",cfc)
+    if cfr: AL("CFS >=5 — Envisager remontee du niveau de triage","warning")
     CARD_END()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 6 â€” PHARMACIE
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 6 — PHARMACIE
+# ──────────────────────────────────────────────────────────────────────────────
 with t_pha:
     gl_ph=details.get("glycemie_mgdl") or gl_global
 
-    # â”€â”€ Bandeau poids â€” toutes les doses sont calculÃ©es pour CE patient â”€â”€â”€
+    # ── Bandeau poids — toutes les doses sont calculées pour CE patient ───
     H(f"""<div style="
         background:linear-gradient(135deg,#004A99,#0066CC);
         color:#fff;border-radius:12px;padding:14px 20px;
@@ -4089,20 +3967,20 @@ with t_pha:
         justify-content:space-between;align-items:center;">
       <div>
         <div style="font-size:.7rem;opacity:.8;text-transform:uppercase;letter-spacing:.08em;">
-          Doses calculÃ©es pour ce patient
+          Doses calculées pour ce patient
         </div>
         <div style="font-size:1.5rem;font-weight:800;letter-spacing:-.02em;">
-          {poids} kg â€” {age} ans
+          {poids} kg — {age} ans
         </div>
       </div>
       <div style="text-align:right;font-size:.78rem;opacity:.85;line-height:1.7;">
-        Modifier le poids dans la barre latÃ©rale<br>
+        Modifier le poids dans la barre latérale<br>
         Toutes les doses se recalculent automatiquement
       </div>
     </div>""")
 
-    # â”€â”€ RÃ©capitulatif doses â€” tableau synthÃ¨se au poids du patient â”€â”€â”€â”€â”€â”€â”€â”€
-    with st.expander("RÃ©capitulatif des doses au poids â€” tableau synthÃ¨se", expanded=False):
+    # ── Récapitulatif doses — tableau synthèse au poids du patient ────────
+    with st.expander("Récapitulatif des doses au poids — tableau synthèse", expanded=False):
         # Calculer toutes les doses
         _pr,_ = paracetamol(poids)
         _kr,_ = ketorolac(poids, atcd)
@@ -4116,23 +3994,23 @@ with t_pha:
         _li,_ = litican(poids, age, atcd)
 
         rows = [
-            ("ParacÃ©tamol IV",     f"{_pr['dose_g'] if _pr else 'â€”'} g",             "Toutes 6 h â€” max 4 g/24 h",         "Palier 1"),
-            ("KÃ©torolac IV",       f"{_kr['dose_mg'] if _kr else 'CI AINS'} mg",      "Toutes 6 h â€” max 5 j",              "Palier 2"),
-            ("Tramadol IV",        f"{_tr['dose_mg']:.0f} mg" if _tr else "CI",       "Toutes 6 h â€” max 400 mg/24 h",      "Palier 2"),
-            ("Piritramide IV",     f"{_pi['dmin']}-{_pi['dmax']} mg" if _pi else "â€”", "Titration / 15 min si EVA > 3",     "Palier 3"),
-            ("Morphine IV",        f"{_mo['dmin']}-{_mo['dmax']} mg" if _mo else "â€”", f"Paliers {MORPH_PALIER_MG:.0f} mg / 5-10 min", "Palier 3"),
-            ("Naloxone IV",        f"{_nr['dose']} mg" if _nr else "â€”",               "RÃ©pÃ©ter / 2-3 min â€” max 10 mg",     "Antidote"),
-            ("AdrÃ©naline IM",      f"{_ar['dose_mg']} mg" if _ar else "â€”",            "RÃ©pÃ©ter / 5-15 min si besoin",      "Anaphylaxie"),
-            ("Glucose 30 % IV",    f"{_gr['dose_g']} g ({round(_gr['dose_g']/0.3,0):.0f} ml)" if _gr else "â€”", "ContrÃ´le glycÃ©mie Ã  15 min", "HypoglycÃ©mie"),
-            ("Ceftriaxone IV",     f"{_cr['dose_g']} g" if _cr else "â€”",              "Dose unique urgence",               "Infectieux"),
+            ("Paracétamol IV",     f"{_pr['dose_g'] if _pr else '—'} g",             "Toutes 6 h — max 4 g/24 h",         "Palier 1"),
+            ("Kétorolac IV",       f"{_kr['dose_mg'] if _kr else 'CI AINS'} mg",      "Toutes 6 h — max 5 j",              "Palier 2"),
+            ("Tramadol IV",        f"{_tr['dose_mg']:.0f} mg" if _tr else "CI",       "Toutes 6 h — max 400 mg/24 h",      "Palier 2"),
+            ("Piritramide IV",     f"{_pi['dmin']}-{_pi['dmax']} mg" if _pi else "—", "Titration / 15 min si EVA > 3",     "Palier 3"),
+            ("Morphine IV",        f"{_mo['dmin']}-{_mo['dmax']} mg" if _mo else "—", f"Paliers {MORPH_PALIER_MG:.0f} mg / 5-10 min", "Palier 3"),
+            ("Naloxone IV",        f"{_nr['dose']} mg" if _nr else "—",               "Répéter / 2-3 min — max 10 mg",     "Antidote"),
+            ("Adrénaline IM",      f"{_ar['dose_mg']} mg" if _ar else "—",            "Répéter / 5-15 min si besoin",      "Anaphylaxie"),
+            ("Glucose 30 % IV",    f"{_gr['dose_g']} g ({round(_gr['dose_g']/0.3,0):.0f} ml)" if _gr else "—", "Contrôle glycémie à 15 min", "Hypoglycémie"),
+            ("Ceftriaxone IV",     f"{_cr['dose_g']} g" if _cr else "—",              "Dose unique urgence",               "Infectieux"),
             ("Litican IM",         f"{_li['dose_mg']:.0f} mg" if _li else "CI",       f"Max {LITICAN_DOSE_MAX_JOUR:.0f} mg/24 h", "Antispasmodique"),
         ]
 
         H("""<table style="width:100%;border-collapse:collapse;font-size:.78rem;">
           <thead><tr style="background:#004A99;color:#fff;">
-            <th style="padding:7px 10px;text-align:left;border-radius:8px 0 0 0;">MÃ©dicament</th>
-            <th style="padding:7px 10px;text-align:center;">Dose calculÃ©e</th>
-            <th style="padding:7px 10px;text-align:left;">FrÃ©quence / Note</th>
+            <th style="padding:7px 10px;text-align:left;border-radius:8px 0 0 0;">Médicament</th>
+            <th style="padding:7px 10px;text-align:center;">Dose calculée</th>
+            <th style="padding:7px 10px;text-align:left;">Fréquence / Note</th>
             <th style="padding:7px 10px;text-align:center;border-radius:0 8px 0 0;">Indication</th>
           </tr></thead><tbody>""")
         for i,(nom,dose,freq,ind) in enumerate(rows):
@@ -4148,36 +4026,36 @@ with t_pha:
               f'</td></tr>')
         H(f"""</tbody><tfoot><tr style="background:#F1F5F9;">
           <td colspan="4" style="padding:6px 10px;font-size:.7rem;color:#64748B;">
-            Toutes les doses calculÃ©es pour <strong>{poids} kg â€” {age} ans</strong>.
-            Demi-doses appliquÃ©es si Ã¢ge â‰¥ 70 ans, IRC ou insuffisance hÃ©patique.
-            Ces doses sont indicatives â€” validation mÃ©dicale obligatoire avant administration.
+            Toutes les doses calculées pour <strong>{poids} kg — {age} ans</strong>.
+            Demi-doses appliquées si âge ≥ 70 ans, IRC ou insuffisance hépatique.
+            Ces doses sont indicatives — validation médicale obligatoire avant administration.
           </td></tr></tfoot></table>""")
 
     # Safety gate: display master warning if glycemia missing
     if gl_ph is None:
         H('''<div class="al warning" style="margin-bottom:14px;font-size:.88rem;font-weight:600;">
-          <span class="al-ico">âš ï¸</span>
-          <span><strong>DonnÃ©e manquante : GlycÃ©mie capillaire non saisie</strong><br>
-          Certains protocoles sont dÃ©sactivÃ©s. Saisir la glycÃ©mie dans l'onglet Tri Rapide ou AnamnÃ¨se.</span>
+          <span class="al-ico">⚠️</span>
+          <span><strong>Donnée manquante : Glycémie capillaire non saisie</strong><br>
+          Certains protocoles sont désactivés. Saisir la glycémie dans l'onglet Tri Rapide ou Anamnèse.</span>
           </div>''')
 
-    CARD("Antalgie basÃ©e sur l'Ã‰VA â€” Ã‰chelle OMS adaptÃ©e","")
-    ev_ph=st.slider("Ã‰VA actuelle",0,10,details.get("eva",0),key="ph_eva")
+    CARD("Antalgie basée sur l'ÉVA — Échelle OMS adaptée","")
+    ev_ph=st.slider("ÉVA actuelle",0,10,details.get("eva",0),key="ph_eva")
     prt=protocole_eva(ev_ph,poids,age,atcd,gl_ph)
     for a in prt["als"]: AL(a,"danger")
     for rec in prt["recs"]:
         RX(rec["nom"],rec["dose"],[rec["d"],rec.get("note","")],rec["ref"],rec["p"],rec.get("al",[]))
     CARD_END()
 
-    CARD("AdrÃ©naline IM â€” Anaphylaxie","")
+    CARD("Adrénaline IM — Anaphylaxie","")
     ar,ae=adrenaline(poids)
     if ae: AL(ae,"warning")
     else: RX("Adrenaline IM (Sterop 1mg/ml)",f"{ar['dose_mg']}mg IM",
               [ar["voie"],ar["note"],ar["rep"]],ar["ref"],"U")
     CARD_END()
 
-    CARD("Naloxone IV â€” Antidote opioÃ¯des","")
-    dep=st.checkbox("Patient dÃ©pendant aux opioÃ¯des (titration douce)",key="ph_dep")
+    CARD("Naloxone IV — Antidote opioïdes","")
+    dep=st.checkbox("Patient dépendant aux opioïdes (titration douce)",key="ph_dep")
     nr,ne=naloxone(poids,age,dep)
     if ne: AL(ne,"warning")
     else:
@@ -4186,97 +4064,97 @@ with t_pha:
            [nr["admin"],nr["note"],nr["surv"]],nr["ref"],"A")
     CARD_END()
 
-    CARD("Glucose 30 % â€” HypoglycÃ©mie","")
+    CARD("Glucose 30 % — Hypoglycémie","")
     if gl_ph is None:
-        RX_LOCK("âš ï¸ DonnÃ©e manquante : GlycÃ©mie capillaire non mesurÃ©e â€” Protocoles dÃ©sactivÃ©s")
+        RX_LOCK("⚠️ Donnée manquante : Glycémie capillaire non mesurée — Protocoles désactivés")
     else:
         gr,ge=glucose(poids,gl_ph)
         if ge: AL(ge,"warning")
         else: RX("Glucose 30% IV (Glucosie)",f"{gr['dose_g']}g",[gr["vol"],gr["ctrl"]],gr["ref"],"U")
     CARD_END()
 
-    CARD("Ceftriaxone IV â€” Urgence infectieuse","")
+    CARD("Ceftriaxone IV — Urgence infectieuse","")
     cr,ce=ceftriaxone(poids,age)
     if ce: AL(ce,"warning")
     else: RX("Ceftriaxone IV (Purpura / Meningite)",f"{cr['dose_g']}g IV",
               [cr["admin"],cr["note"]],cr["ref"],"U")
     CARD_END()
 
-    CARD("Crise Ã©pileptique pÃ©diatrique â€” Protocole SFNP / ISPE 2023","")
+    CARD("Crise épileptique pédiatrique — Protocole SFNP / ISPE 2023","")
     if age >= 16:
-        AL("Ce protocole est calibrÃ© pour l'enfant (< 16 ans) â€” vÃ©rifier l'Ã¢ge", "warning")
+        AL("Ce protocole est calibré pour l'enfant (< 16 ans) — vérifier l'âge", "warning")
 
-    # Saisie durÃ©e et statut si non renseignÃ©s en AnamnÃ¨se
+    # Saisie durée et statut si non renseignés en Anamnèse
     col_ep1, col_ep2 = st.columns(2)
     dur_ph = details.get("duree_min", 0) or col_ep1.number_input(
-        "DurÃ©e de la crise (min)", 0, 120, 0, key="ep_dur_ph",
-        help=f"â‰¥ {EME_SEUIL_MIN} min = traitement | â‰¥ {EME_OPERATIONNEL_MIN} min = EME opÃ©rationnel | â‰¥ {EME_ETABLI_MIN} min = EME Ã©tabli"
+        "Durée de la crise (min)", 0, 120, 0, key="ep_dur_ph",
+        help=f"≥ {EME_SEUIL_MIN} min = traitement | ≥ {EME_OPERATIONNEL_MIN} min = EME opérationnel | ≥ {EME_ETABLI_MIN} min = EME établi"
     )
     enc_ph = details.get("en_cours", False) or col_ep2.checkbox(
-        "Crise EN COURS Ã  l'arrivÃ©e", key="ep_enc_ph"
+        "Crise EN COURS à l'arrivée", key="ep_enc_ph"
     )
     gl_ep  = details.get("glycemie_mgdl") or gl_ph
 
     # Calcul du protocole
     prot_ep = protocole_epilepsie_ped(poids, age, dur_ph, enc_ph, atcd, gl_ep)
 
-    # Alerte glycÃ©mie â€” prioritaire
+    # Alerte glycémie — prioritaire
     if prot_ep["glycemie_alerte"]:
         AL(prot_ep["glycemie_alerte"], "danger")
 
-    # Indicateur temporel â€” code couleur selon durÃ©e
+    # Indicateur temporel — code couleur selon durée
     if dur_ph > EME_ETABLI_MIN or details.get("eme_etabli"):
-        AL(f"EME Ã‰TABLI > {EME_ETABLI_MIN} min â€” RÃ‰ANIMATION PÃ‰DIATRIQUE â€” APPEL IMMÃ‰DIAT", "danger")
+        AL(f"EME ÉTABLI > {EME_ETABLI_MIN} min — RÉANIMATION PÉDIATRIQUE — APPEL IMMÉDIAT", "danger")
     elif dur_ph > EME_OPERATIONNEL_MIN:
-        AL(f"EME OPÃ‰RATIONNEL {dur_ph} min â€” Risque lÃ©sionnel â€” LIGNE 3 requise", "danger")
+        AL(f"EME OPÉRATIONNEL {dur_ph} min — Risque lésionnel — LIGNE 3 requise", "danger")
     elif dur_ph > EME_SEUIL_MIN or enc_ph:
-        AL(f"Crise prolongÃ©e / en cours â€” LIGNE 1 IMMÃ‰DIATE â€” Midazolam buccal", "warning")
+        AL(f"Crise prolongée / en cours — LIGNE 1 IMMÉDIATE — Midazolam buccal", "warning")
 
-    # ChronomÃ¨tre AVPU
-    SEC("Ã‰valuation rapide de la conscience â€” Score AVPU")
-    avpu_sel = st.selectbox("Score AVPU", ["A â€” Alert","V â€” Voice","P â€” Pain","U â€” Unresponsive"],
+    # Chronomètre AVPU
+    SEC("Évaluation rapide de la conscience — Score AVPU")
+    avpu_sel = st.selectbox("Score AVPU", ["A — Alert","V — Voice","P — Pain","U — Unresponsive"],
                              key="ep_avpu_ph",
-                             help="A=Normal | V=AltÃ©ration lÃ©gÃ¨re | P=SÃ©vÃ¨re | U=Coma")
+                             help="A=Normal | V=Altération légère | P=Sévère | U=Coma")
     if "P" in avpu_sel or "U" in avpu_sel:
-        AL("AVPU P/U â€” Position LAS + libÃ©ration VAS + O2 haute concentration", "danger")
+        AL("AVPU P/U — Position LAS + libération VAS + O2 haute concentration", "danger")
     elif "V" in avpu_sel:
-        AL("AVPU V â€” Surveiller l'Ã©volution â€” PrÃ©parer ligne 1", "warning")
+        AL("AVPU V — Surveiller l'évolution — Préparer ligne 1", "warning")
     details["avpu"] = avpu_sel[0]
 
     # Timeline visuelle des 3 lignes
     col_t = "#EF4444" if (dur_ph>EME_OPERATIONNEL_MIN) else ("#F59E0B" if dur_ph>EME_SEUIL_MIN else "#3B82F6")
     H(f"""<div style="background:#F8FAFC;border:1px solid {col_t};border-left:5px solid {col_t};
                 border-radius:10px;padding:14px 18px;margin:12px 0;font-size:.8rem;line-height:2.1;">
-      <strong style="color:{col_t};">SÃ‰QUENCE THÃ‰RAPEUTIQUE â€” DurÃ©e crise : {dur_ph} min</strong><br>
+      <strong style="color:{col_t};">SÉQUENCE THÉRAPEUTIQUE — Durée crise : {dur_ph} min</strong><br>
       <span style="color:#7C3AED;font-family:monospace;">T0</span>
-        â†’ <strong>LIGNE 1</strong> Midazolam buccal / IM-IN â€” <em>IAO, sans VVP</em><br>
+        → <strong>LIGNE 1</strong> Midazolam buccal / IM-IN — <em>IAO, sans VVP</em><br>
       <span style="color:#7C3AED;font-family:monospace;">T+{EME_SEUIL_MIN} min</span>
-        â†’ <strong>LIGNE 2</strong> LorazÃ©pam / ClonazÃ©pam IV â€” <em>mÃ©decin + VVP</em><br>
+        → <strong>LIGNE 2</strong> Lorazépam / Clonazépam IV — <em>médecin + VVP</em><br>
       <span style="color:#EF4444;font-family:monospace;">T+{EME_OPERATIONNEL_MIN} min</span>
-        â†’ <strong>LIGNE 3</strong> LÃ©vÃ©tiracÃ©tam / Valproate IV â€” <em>rÃ©animation</em><br>
+        → <strong>LIGNE 3</strong> Lévétiracétam / Valproate IV — <em>réanimation</em><br>
       <span style="color:#7F1D1D;font-family:monospace;">T+{EME_ETABLI_MIN} min</span>
-        â†’ <strong>EME Ã‰TABLI</strong> â€” intubation Ã  discuter
+        → <strong>EME ÉTABLI</strong> — intubation à discuter
     </div>""")
 
     # Onglets lignes de traitement
     lig1, lig2, lig3, ant_, surv_ = st.tabs([
-        "Ligne 1 â€” IAO",
-        "Ligne 2 â€” IV",
-        "Ligne 3 â€” EME",
+        "Ligne 1 — IAO",
+        "Ligne 2 — IV",
+        "Ligne 3 — EME",
         "Antidote",
         "Surveillance",
     ])
 
     with lig1:
-        AL("LIGNE 1 â€” IAO autonome â€” Sans VVP â€” Ã€ administrer IMMÃ‰DIATEMENT si crise en cours / > 5 min", "info")
+        AL("LIGNE 1 — IAO autonome — Sans VVP — À administrer IMMÉDIATEMENT si crise en cours / > 5 min", "info")
         l1a=prot_ep["ligne1a"]; l1b=prot_ep["ligne1b"]; l1c=prot_ep["ligne1c"]
 
-        # Midazolam buccal â€” rÃ©fÃ©rence
+        # Midazolam buccal — référence
         H(f'<div class="rx p2">'
-          f'<div class="rx-name">{l1a["med"]} â€” Voie de rÃ©fÃ©rence</div>'
+          f'<div class="rx-name">{l1a["med"]} — Voie de référence</div>'
           f'<div class="rx-dose">{l1a["dose_mg"]} mg buccal</div>'
           f'<div class="rx-detail">'
-          f'Flacon BuccolamÂ® : <strong>{l1a["volume"]}</strong><br>'
+          f'Flacon Buccolam® : <strong>{l1a["volume"]}</strong><br>'
           f'{l1a["admin"]}<br>'
           f'{l1a["delai"]}<br>'
           f'<strong>{l1a["peut_repeter"]}</strong>'
@@ -4286,7 +4164,7 @@ with t_pha:
         cep1, cep2 = st.columns(2)
         with cep1:
             H(f'<div class="rx p2">'
-              f'<div class="rx-name">{l1b["med"]} â€” Alt. si buccal impossible</div>'
+              f'<div class="rx-name">{l1b["med"]} — Alt. si buccal impossible</div>'
               f'<div class="rx-dose">{l1b["dose_mg"]} mg</div>'
               f'<div class="rx-detail">'
               f'<strong>IM :</strong> {l1b["voie_im"]}<br>'
@@ -4304,7 +4182,7 @@ with t_pha:
               f'<div class="rx-ref">{l1c["ref"]}</div></div>')
 
     with lig2:
-        AL(f"LIGNE 2 â€” VVP requise â€” MÃ©decin â€” Si crise persiste {EME_SEUIL_MIN} min aprÃ¨s Ligne 1", "warning")
+        AL(f"LIGNE 2 — VVP requise — Médecin — Si crise persiste {EME_SEUIL_MIN} min après Ligne 1", "warning")
         l2l=prot_ep["ligne2_lora"]; l2c=prot_ep["ligne2_clona"]; l2d=prot_ep["ligne2_diaz"]
 
         cep3, cep4 = st.columns(2)
@@ -4324,16 +4202,16 @@ with t_pha:
               f'<div class="rx-detail">{l2c["admin"]}<br>{l2c["delai"]}</div>'
               f'<div class="rx-ref">{l2c["ref"]}</div></div>')
         H(f'<div class="rx p2">'
-          f'<div class="rx-name">{l2d["med"]} â€” 3e choix</div>'
+          f'<div class="rx-name">{l2d["med"]} — 3e choix</div>'
           f'<div class="rx-dose">{l2d["dose_mg"]} mg IV</div>'
           f'<div class="rx-detail">{l2d["admin"]}</div>'
           f'<div class="rx-ref">{l2d["ref"]}</div></div>')
 
     with lig3:
-        AL(f"LIGNE 3 â€” EME OPÃ‰RATIONNEL (> {EME_OPERATIONNEL_MIN} min) â€” RÃ‰ANIMATION PÃ‰DIATRIQUE", "danger")
+        AL(f"LIGNE 3 — EME OPÉRATIONNEL (> {EME_OPERATIONNEL_MIN} min) — RÉANIMATION PÉDIATRIQUE", "danger")
         l3a=prot_ep["ligne3_leveti"]; l3b=prot_ep["ligne3_valp"]; l3c=prot_ep["ligne3_phenob"]
 
-        # LÃ©vÃ©tiracÃ©tam â€” prioritaire
+        # Lévétiracétam — prioritaire
         H(f'<div class="rx p3">'
           f'<div class="rx-name">{l3a["med"]}</div>'
           f'<div class="rx-dose">{l3a["dose_mg"]:.0f} mg IV</div>'
@@ -4363,7 +4241,7 @@ with t_pha:
               f'<div class="rx-ref">{l3c["ref"]}</div></div>')
 
     with ant_:
-        AL("Antidote benzodiazÃ©pines â€” Si dÃ©pression respiratoire sÃ©vÃ¨re post-injection", "warning")
+        AL("Antidote benzodiazépines — Si dépression respiratoire sévère post-injection", "warning")
         ant=prot_ep["antidote"]
         H(f'<div class="rx ant">'
           f'<div class="rx-name">{ant["med"]}</div>'
@@ -4377,11 +4255,11 @@ with t_pha:
           f'<div class="rx-ref">{ant["ref"]}</div></div>')
 
     with surv_:
-        AL("Points de surveillance obligatoires â€” IAO", "info")
+        AL("Points de surveillance obligatoires — IAO", "info")
         for sv in prot_ep["surveillance"]:
             H(f'<div class="al info" style="padding:7px 14px;margin:3px 0;font-size:.81rem;">'
               f'<span>{sv}</span></div>')
-        SEC("ChronomÃ¨tre clinique")
+        SEC("Chronomètre clinique")
         for t,msg in prot_ep["chrono"].items():
             col_ch = "#EF4444" if t in("T30","T10") else ("#F59E0B" if t=="T5" else "#3B82F6")
             H(f'<div style="display:flex;gap:10px;align-items:flex-start;margin:5px 0;">'
@@ -4391,37 +4269,37 @@ with t_pha:
         st.caption(prot_ep["ref"])
     CARD_END()
 
-    CARD("Litican IM â€” Antispasmodique / AntiÃ©mÃ©tique","")
-    SEC("Protocole local â€” Urgences Hainaut")
+    CARD("Litican IM — Antispasmodique / Antiémétique","")
+    SEC("Protocole local — Urgences Hainaut")
     H("""<div style="font-size:.78rem;color:var(--TM);line-height:1.7;margin-bottom:10px;">
-      TiÃ©monium mÃ©thylsulfate (Litican) â€” Antispasmodique anticholinergique.
-      IndiquÃ© pour les vomissements, nausÃ©es et spasmes digestifs / urologiques.
-      <strong style="color:var(--ERR-t);">Ne pas injecter en IV â€” voie IM uniquement.</strong>
+      Tiémonium méthylsulfate (Litican) — Antispasmodique anticholinergique.
+      Indiqué pour les vomissements, nausées et spasmes digestifs / urologiques.
+      <strong style="color:var(--ERR-t);">Ne pas injecter en IV — voie IM uniquement.</strong>
     </div>""")
     # Indications rapides
     lit_ind = st.multiselect(
         "Indication principale",
-        ["Vomissements / NausÃ©es rÃ©fractaires",
-         "Colique nÃ©phrÃ©tique",
-         "Colique hÃ©patique / biliaire",
+        ["Vomissements / Nausées réfractaires",
+         "Colique néphrétique",
+         "Colique hépatique / biliaire",
          "Spasme digestif / douleur abdominale spastique",
-         "Gastro-entÃ©rite avec vomissements"],
+         "Gastro-entérite avec vomissements"],
         key="lit_ind",
     )
     lr, le = litican(poids, age, atcd)
     if le:
-        AL(f"Litican â€” {le}", "danger")
+        AL(f"Litican — {le}", "danger")
     else:
-        # Avertissement IV systÃ©matique
-        AL("NE PAS INJECTER EN IV â€” risque de bradycardie sÃ©vÃ¨re", "danger")
+        # Avertissement IV systématique
+        AL("NE PAS INJECTER EN IV — risque de bradycardie sévère", "danger")
         lc1, lc2 = st.columns(2)
         with lc1:
             H(
                 f'<div class="rx p2" style="margin-top:0;">'
-                f'<div class="rx-name">Litican IM â€” {lr["regime"]}</div>'
+                f'<div class="rx-name">Litican IM — {lr["regime"]}</div>'
                 f'<div class="rx-dose">{lr["dose_mg"]:.0f} mg IM</div>'
                 f'<div class="rx-detail">'
-                f'PrÃ©paration : {lr["dose_note"]}<br>'
+                f'Préparation : {lr["dose_note"]}<br>'
                 f'Volume : {lr["volume"]}<br>'
                 f'Voie : {lr["voie"]}<br>'
                 f'Renouvellement : {lr["freq"]}'
@@ -4432,58 +4310,58 @@ with t_pha:
         with lc2:
             H(
                 '<div class="card" style="background:#FFFBEB;border-color:#F59E0B;">'
-                '<div class="card-title" style="color:#92400E;">Contre-indications Ã  vÃ©rifier</div>'
+                '<div class="card-title" style="color:#92400E;">Contre-indications à vérifier</div>'
                 '<div style="font-size:.78rem;line-height:1.8;color:#78350F;">'
                 'Glaucome par fermeture de l\'angle<br>'
-                'RÃ©tention urinaire / adÃ©nome prostatique<br>'
-                'IlÃ©us paralytique / occlusion intestinale<br>'
+                'Rétention urinaire / adénome prostatique<br>'
+                'Iléus paralytique / occlusion intestinale<br>'
                 'Tachycardie supra-ventriculaire<br>'
-                'Grossesse (donnÃ©es limitÃ©es)<br>'
-                'MyasthÃ©nie grave'
+                'Grossesse (données limitées)<br>'
+                'Myasthénie grave'
                 '</div></div>'
             )
         if lit_ind:
-            AL(f"Indication documentÃ©e : {' | '.join(lit_ind)}", "info")
+            AL(f"Indication documentée : {' | '.join(lit_ind)}", "info")
     CARD_END()
 
-    CARD("MÃ‰OPA â€” AnalgÃ©sie non invasive","")
+    CARD("MÉOPA — Analgésie non invasive","")
     ci_m=[c for c in ["Deficit vitamine B12","Drepanocytose"] if c in atcd]
     if ci_m: AL(f"MEOPA contre-indique : {', '.join(ci_m)}","danger")
     else:
         RX("MEOPA / Kalinox (O2/N2O 50/50)","Inhalation spontanee",
            ["Masque facial avec valve anti-retour","Duree max : 15min / session",
             "AMM : adulte et enfant >=1 an","CI : pneumothorax, occlusion, embolie gazeuse"],
-           "BCFI â€” MEOPA (Kalinox) â€” RCP Belgique","2")
+           "BCFI — MEOPA (Kalinox) — RCP Belgique","2")
     CARD_END()
     DISC()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 7 â€” REEVALUATION
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 7 — REEVALUATION
+# ──────────────────────────────────────────────────────────────────────────────
 with t_rev:
     if st.session_state.t_arr and st.session_state.t_cont:
         ds=(st.session_state.t_cont-st.session_state.t_arr).total_seconds()
         cm=10 if niv in("M","1","2") else 30
-        AL(f"Delai IAO : {int(ds/60)} min â€” cible {cm} min","danger" if ds/60>=cm else "success")
+        AL(f"Delai IAO : {int(ds/60)} min — cible {cm} min","danger" if ds/60>=cm else "success")
 
-    CARD("Nouvelle rÃ©Ã©valuation","")
+    CARD("Nouvelle réévaluation","")
     r1,r2,r3=st.columns(3)
-    rt=r1.number_input("TempÃ©rature (Â°C)",30.0,45.0,37.0,.1,key="re_t")
+    rt=r1.number_input("Température (°C)",30.0,45.0,37.0,.1,key="re_t")
     rfc=r1.number_input("FC",20,220,80,key="re_fc")
     rp=r2.number_input("PAS",40,260,120,key="re_pas")
     rs=r2.number_input("SpO2",50,100,98,key="re_sp")
     rfr=r3.number_input("FR",5,60,16,key="re_fr")
-    rg=r3.number_input("GCS (3â€“15)",3,15,15,key="re_gcs")
+    rg=r3.number_input("GCS (3–15)",3,15,15,key="re_gcs")
     rn2,_=calculer_news2(rfr,rs,o2,rt,rp,rfc,rg,"BPCO" in atcd)
     rniv,rjust,_=french_triage(motif or "Fievre",details,rfc,rp,rs,rfr,rg,rt,age,rn2)
     GAUGE(rn2,"BPCO" in atcd)
     N2_BANNER(rn2)
-    st.info(f"Triage recalculÃ© : **{LABELS.get(rniv,rniv)}** â€” {rjust}")
-    if st.button("Enregistrer la rÃ©Ã©valuation",use_container_width=True):
+    st.info(f"Triage recalculé : **{LABELS.get(rniv,rniv)}** — {rjust}")
+    if st.button("Enregistrer la réévaluation",use_container_width=True):
         st.session_state.reevs.append({"h":datetime.now().strftime("%H:%M"),
             "fc":rfc,"pas":rp,"spo2":rs,"fr":rfr,"gcs":rg,"temp":rt,"niv":rniv,"n2":rn2})
         st.session_state.t_reev=datetime.now()
-        st.success(f"Reevaluation {datetime.now().strftime('%H:%M')} â€” Tri {rniv}")
+        st.success(f"Reevaluation {datetime.now().strftime('%H:%M')} — Tri {rniv}")
     CARD_END()
 
     if st.session_state.reevs:
@@ -4512,12 +4390,12 @@ with t_rev:
               f' | SpO2 {snap.get("spo2","?")}% | <strong>{tend}</strong></div>')
         if len(st.session_state.reevs)>=2:
             fi=st.session_state.reevs[0]; la=st.session_state.reevs[-1]
-            st.caption(f"Bilan : NEWS2 {fi.get('n2','?')} â†’ {la.get('n2','?')} | Tri {fi['niv']} â†’ {la['niv']}")
+            st.caption(f"Bilan : NEWS2 {fi.get('n2','?')} → {la.get('n2','?')} | Tri {fi['niv']} → {la['niv']}")
         CARD_END()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 8 â€” HISTORIQUE
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 8 — HISTORIQUE
+# ──────────────────────────────────────────────────────────────────────────────
 with t_his:
     if not st.session_state.histo:
         st.info("Aucun patient enregistre dans cette session.")
@@ -4527,9 +4405,9 @@ with t_his:
         c1.metric("Patients",len(st.session_state.histo))
         c2.metric("Tri 1/2 critiques",sum(1 for n in nv_ses if n in("M","1","2")))
         c3.metric("NEWS2 moyen",round(sum(p.get("n2",0) for p in st.session_state.histo)/max(len(st.session_state.histo),1),1))
-        c4.metric("Tri 5 rÃ©orientÃ©s",sum(1 for n in nv_ses if n=="5"))
+        c4.metric("Tri 5 réorientés",sum(1 for n in nv_ses if n=="5"))
 
-        CARD("RÃ©partition par niveau","")
+        CARD("Répartition par niveau","")
         dist={n:nv_ses.count(n) for n in["M","1","2","3A","3B","4","5"]}
         tot=len(nv_ses) or 1
         cols=st.columns(7)
@@ -4549,48 +4427,48 @@ with t_his:
 
         reg=_load(RF)
         if reg:
-            CARD("Export RGPD â€” Registre anonyme","")
+            CARD("Export RGPD — Registre anonyme","")
             out=io.StringIO(); w=csv_mod.writer(out)
             w.writerow(["uid","heure","motif","categorie","niveau","news2","fc","pas","spo2","fr","temp","gcs","operateur"])
             for r in reg:
                 w.writerow([r.get(k,"") for k in["uid","heure","motif","cat","niv","n2","fc","pas","spo2","fr","temp","gcs","op"]])
             col_dl1, col_dl2 = st.columns(2)
-            col_dl1.download_button("TÃ©lÃ©charger le registre CSV",data=out.getvalue(),
+            col_dl1.download_button("Télécharger le registre CSV",data=out.getvalue(),
                 file_name=f"akir_reg_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",use_container_width=True)
             # Export du journal d'audit brut
             if os.path.exists(ALF):
                 with open(ALF,"r",encoding="utf-8") as fa: audit_raw=fa.read()
-                col_dl2.download_button("TÃ©lÃ©charger journal d'audit (.log)",
+                col_dl2.download_button("Télécharger journal d'audit (.log)",
                     data=audit_raw,
                     file_name=f"akir_audit_{datetime.now().strftime('%Y%m%d_%H%M')}.log",
                     mime="text/plain",use_container_width=True)
-            AL(f"RGPD : CSV anonyme â€” UUID uniquement â€” {len(reg)} enregistrements","info")
+            AL(f"RGPD : CSV anonyme — UUID uniquement — {len(reg)} enregistrements","info")
             CARD_END()
 
-            # VÃ©rification de l'intÃ©gritÃ© du journal d'audit
-            CARD("IntÃ©gritÃ© du journal d'audit","")
-            SEC("VÃ©rification cryptographique SHA-256")
+            # Vérification de l'intégrité du journal d'audit
+            CARD("Intégrité du journal d'audit","")
+            SEC("Vérification cryptographique SHA-256")
             H("""<div style="font-size:.78rem;color:var(--TM);line-height:1.7;margin-bottom:10px;">
-              Chaque entrÃ©e du journal est liÃ©e Ã  la prÃ©cÃ©dente par une chaÃ®ne de hashes SHA-256.
-              Toute modification a posteriori invalide la chaÃ®ne et est dÃ©tectable ici.
-              Ce mÃ©canisme rÃ©pond aux exigences de traÃ§abilitÃ© mÃ©dico-lÃ©gale (AR 18/06/1990 â€” Belgique).
+              Chaque entrée du journal est liée à la précédente par une chaîne de hashes SHA-256.
+              Toute modification a posteriori invalide la chaîne et est détectable ici.
+              Ce mécanisme répond aux exigences de traçabilité médico-légale (AR 18/06/1990 — Belgique).
             </div>""")
-            if st.button("VÃ©rifier l'intÃ©gritÃ© du journal d'audit", use_container_width=True):
+            if st.button("Vérifier l'intégrité du journal d'audit", use_container_width=True):
                 ok, rapport = audit_verifier_integrite()
                 if ok:
-                    AL(f"Journal d'audit intÃ¨gre â€” {rapport}", "success")
+                    AL(f"Journal d'audit intègre — {rapport}", "success")
                 else:
-                    AL(f"INTÃ‰GRITÃ‰ COMPROMISE â€” {rapport}", "danger")
+                    AL(f"INTÉGRITÉ COMPROMISE — {rapport}", "danger")
             CARD_END()
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# ONGLET 9 â€” TRANSMISSION SBAR
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ──────────────────────────────────────────────────────────────────────────────
+# ONGLET 9 — TRANSMISSION SBAR
+# ──────────────────────────────────────────────────────────────────────────────
 with t_sbar:
-    CARD("Rapport de transmission â€” Format DPI-Ready","")
-    sbar_op=st.text_input("Code opÃ©rateur",value=st.session_state.op or "IAO",key="sb_op")
-    if st.button("GÃ©nÃ©rer le rapport SBAR",type="primary",use_container_width=True):
+    CARD("Rapport de transmission — Format DPI-Ready","")
+    sbar_op=st.text_input("Code opérateur",value=st.session_state.op or "IAO",key="sb_op")
+    if st.button("Générer le rapport SBAR",type="primary",use_container_width=True):
         if not motif:
             AL("Selectionner un motif en Anamnese avant de generer le rapport","warning")
         else:
@@ -4599,8 +4477,8 @@ with t_sbar:
                          niv or "3B",just or "Non calcule",crit or "",sbar_op,
                          gl_global or details.get("glycemie_mgdl"))
             SBAR_RENDER(s)
-            txt=(f"RAPPORT SBAR â€” AKIR-IAO v18.0 Pro Edition\n"
-                 f"OpÃ©rateur : {s['op']} | {s['heure']}\n\n"
+            txt=(f"RAPPORT SBAR — AKIR-IAO v18.0 Pro Edition\n"
+                 f"Opérateur : {s['op']} | {s['heure']}\n\n"
                  f"[S] SITUATION\nPatient {s['age']} ans | {s['motif']}\n"
                  f"Niveau : {s['niv']} | Secteur : {s['sec']} | Delai : {s['delai']} min\n"
                  f"Critere : {s['crit']}\n\n"
@@ -4610,9 +4488,9 @@ with t_sbar:
                  f"FR {s['fr']}/min | T {s['temp']}C | GCS {s['gcs']}/15 | EVA {s['eva']}/10 | NEWS2 {s['n2']}\n"
                  f"Justification : {s['just']}\n\n"
                  f"[R] RECOMMENDATION\nOrientation : {s['sec']} | Delai max : {s['delai']} min\n"
-                 f"Remarques IAO : [Ã€ complÃ©ter par l'opÃ©rateur]\n\n"
-                 f"AKIR-IAO v18.0 Pro â€” Ismail Ibn-Daifa â€” FRENCH SFMU V1.1 â€” Hainaut, Belgique")
-            st.download_button("TÃ©lÃ©charger le rapport SBAR (.txt)",data=txt,
+                 f"Remarques IAO : [À compléter par l'opérateur]\n\n"
+                 f"AKIR-IAO v18.0 Pro — Ismail Ibn-Daifa — FRENCH SFMU V1.1 — Hainaut, Belgique")
+            st.download_button("Télécharger le rapport SBAR (.txt)",data=txt,
                 file_name=f"sbar_{sbar_op}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                 mime="text/plain",use_container_width=True)
     CARD_END()
